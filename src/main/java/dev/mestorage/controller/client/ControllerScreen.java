@@ -70,14 +70,14 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         boolean contentFocused=contentSearch!=null&&contentSearch.isFocused(),treeFocused=treeSearch!=null&&treeSearch.isFocused();
         int contentCursor=contentSearch==null?0:contentSearch.getCursorPosition(),treeCursor=treeSearch==null?0:treeSearch.getCursorPosition();
         String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();
-        guide=sidebar(8,176,0,tr("guide"),b->ControllerGuide.open());
-        sort=sidebar(48,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
+        guide=sidebar(9,176,0,tr("guide"),b->ControllerGuide.open());
+        sort=sidebar(49,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         ((IconButton)sort).sx=sortByAmount?16:0;
-        root=sidebar(68,160,16,tr("network_root"),b->select("",-1));
-        back=sidebar(88,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
-        collapse=sidebar(128,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
-        theme=sidebar(108,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
-        sidebar(28,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
+        root=sidebar(69,160,16,tr("network_root"),b->select("",-1));
+        back=sidebar(89,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
+        collapse=sidebar(129,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
+        theme=sidebar(109,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
+        sidebar(29,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
         locate=icon(117,imageHeight-85,16,16,64,240,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});
         cellsPrevious=icon(108,imageHeight-69,12,12,48,48,tr("cells_previous"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),Math.max(0,offset(s)-10));});
         cellsNext=icon(123,imageHeight-69,12,12,32,48,tr("cells_next"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),offset(s)+10);});
@@ -119,6 +119,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=targetPage>0;contentNext.active=targetPage<maxPage();}
     private void nativeTint(GuiGraphics g){nativeTint(g,1);}
     private void nativeTint(GuiGraphics g,float alpha){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,alpha);}
+    private int nativeColor(int rgb){return 0xff000000|Math.round((rgb>>16&255)*(1-themeMix*.6256F))<<16|Math.round((rgb>>8&255)*(1-themeMix*.6127F))<<8|Math.round((rgb&255)*(1-themeMix*.5613F));}
     private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xfff2f2f2,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
     private void treeFrame(GuiGraphics g){
         int x=leftPos+18,y=topPos+6,w=124,h=imageHeight-16;
@@ -137,7 +138,6 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         g.setColor(1,1,1,1);
     }
     @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
-        g.fill(leftPos+1,topPos+6,leftPos+18,topPos+146,0x38000000);
         if(treeVisible){treeFrame(g);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
         if(mainVisible){int x=leftPos+mainX,y=topPos;nativeTint(g);g.blit(terminalTexture,x,y+6,0,0,195,17);for(int r=0;r<visibleRows;r++)g.blit(terminalTexture,x,y+23+r*18,0,r==0?17:r==visibleRows-1?53:35,195,18);g.setColor(1,1,1,1);
             int capY=23+visibleRows*18;frame(g,x,y+capY,195,18);nativeTint(g);g.blit(terminalTexture,x,y+capY+18,0,71,195,99);g.setColor(1,1,1,1);
@@ -292,10 +292,13 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
             int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));int iconY=getHeight()==20&&getWidth()==18?1:(getHeight()-size)/2;
             g.setColor(1,1,1,active?1:.4F);g.blit(iconTexture,getX()+(getWidth()-size)/2,getY()+iconY,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);
         }
-        private void renderSidebar(GuiGraphics g){int x=getX(),y=getY();g.fill(x-1,y+1,x+16,y+18,0x60000000);
+        private void renderSidebar(GuiGraphics g){int x=getX(),y=getY();
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            // The reference terminal has independent 16px buttons over the world, without
+            // a toolbar backdrop, drop shadow or hover recoloring. Focus adds its native outline.
+            if(isFocused()){g.fill(x-1,y-1,x+17,y,0xffffffff);g.fill(x-1,y+16,x+17,y+17,0xffffffff);g.fill(x-1,y,x,y+16,0xffffffff);g.fill(x+16,y,x+17,y+16,0xffffffff);}
             if(!iconTexture.equals(STATES)){nativeTint(g);g.blit(iconTexture,x,y,240,240,16,16);g.setColor(1,1,1,1);}
-            else {g.fill(x,y,x+16,y+16,p.border());g.fill(x+1,y+1,x+15,y+15,DashboardPalette.mix(0xffadb0c4,0xff626778,themeMix));g.fill(x+2,y+2,x+14,y+14,p.inset());}
-            if(over>.01F){int color=DashboardPalette.mix(p.inset(),DashboardPalette.mix(0xff9cd3ff,0xff596f8a,themeMix),over);g.fill(x+2,y+2,x+14,y+14,color);}
+            else {g.fill(x,y,x+16,y+16,nativeColor(0x413f54));g.fill(x+1,y+1,x+15,y+15,nativeColor(0xadb0c4));g.fill(x+2,y+2,x+14,y+14,nativeColor(0x9a9fb4));}
             g.setColor(1,1,1,active?1:.4F);g.blit(iconTexture,x,y,sx,sy,16,16);g.setColor(1,1,1,1);
         }}
 }

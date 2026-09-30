@@ -1090,7 +1090,8 @@ public final class ClientSmokeTest {
                 verifySidebarBounds(guideReturnScreen);
                 guideDiamondSlot=findPlayerItemSlot(menu,Items.DIAMOND);
                 if(menu.getSlot(guideDiamondSlot).getItem().getCount()!=32||!menu.getCarried().isEmpty())throw new IllegalStateException("Guide round trip requires original 32-diamond fixture");
-                clickUi(guideReturnScreen,guideReturnScreen.smokeSlotRect(guideDiamondSlot));
+                hoverCaptureRect=guideReturnScreen.smokeGuideRect();
+                captureExtra(mc,"smoke-sidebar-hover.png",()->clickUi(guideReturnScreen,guideReturnScreen.smokeSlotRect(guideDiamondSlot)));
             }
             case 1 -> {
                 if(!menu.getCarried().is(Items.DIAMOND)||menu.getCarried().getCount()!=32||menu.getSlot(guideDiamondSlot).hasItem())
@@ -1144,7 +1145,7 @@ public final class ClientSmokeTest {
         if(controls.size()!=7)throw new IllegalStateException("Controller sidebar must contain seven controls");
         for(int i=0;i<controls.size();i++) {
             var rect=controls.get(i);
-            if(rect.width()!=16||rect.height()!=16||rect.x()!=panel.x()+3||rect.y()!=panel.y()+8+20*i
+            if(rect.width()!=16||rect.height()!=16||rect.x()!=panel.x()+3||rect.y()!=panel.y()+9+20*i
                     ||rect.x()<panel.x()||rect.y()<panel.y()||rect.x()+16>panel.x()+panel.width()||rect.y()+16>panel.y()+panel.height())
                 throw new IllegalStateException("Sidebar control spacing or panel bounds incorrect at "+i+": "+rect);
         }
@@ -1460,10 +1461,11 @@ public final class ClientSmokeTest {
         if (ticks < pending.readyTick()) return true;
         if(hoverCaptureRect!=null) {
             var screen=(ControllerScreen)mc.screen;
-            if(screen.smokeTooltipRenderCount()!=1 || !screen.smokeTooltipKind().equals("cell"))
-                throw new IllegalStateException("Cell hover must render one combined tooltip: count="
+            String expectedKind=hoverCaptureRect.equals(screen.smokeGuideRect())?"widget":"cell";
+            if(screen.smokeTooltipRenderCount()!=1 || !screen.smokeTooltipKind().equals(expectedKind))
+                throw new IllegalStateException("Hover must render one "+expectedKind+" tooltip: count="
                         +screen.smokeTooltipRenderCount()+" kind="+screen.smokeTooltipKind());
-            System.out.println("ME_STORAGE_SMOKE_CELL_TOOLTIP PASS one combined tooltip: "+screen.smokeTooltipText());
+            System.out.println("ME_STORAGE_SMOKE_HOVER PASS one "+expectedKind+" tooltip: "+screen.smokeTooltipText());
         }
         File directory = output(mc);
         directory.mkdirs();

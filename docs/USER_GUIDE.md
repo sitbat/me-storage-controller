@@ -1,4 +1,4 @@
-# 0.4.9 使用说明 / User guide
+# 0.4.10 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版修正存储树的原生面板边框，保留侧栏排版、游戏内指南、滚轮响应和游戏原生界面比例，继续支持已注册流体／化学品容器存取与简洁提示框。网络协议仍为 6，可与 0.4.2 至 0.4.8 协议连接；建议客户端和服务器统一升级至 0.4.9，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+0.4.10 仅修正左侧七个按钮栏：使用原生 16×16 背景、20 像素步距和白色焦点外框，去掉连续黑色底板、按钮矩形投影及蓝色悬停填充。已确认的 0.4.9 存储树外框与其他主面板保持原样；指南、滚动、存取和原生 GUI 比例行为不变。网络协议仍为 **6**，可与 0.4.2 至 0.4.9 协议连接，建议使用一致版本；不能与 0.4.1 或更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release corrects the native storage-tree panel border while retaining the sidebar layout, in-game guide, responsive scrolling, native GUI scale, registered fluid/chemical container interactions and concise tooltips. Protocol 6 allows connections with 0.4.2 through 0.4.8; using matching 0.4.9 versions is recommended. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+Version 0.4.10 changes only the seven sidebar buttons: native 16×16 backgrounds, a 20-pixel pitch and a white focus outline replace the continuous black backing, rectangular shadows and blue hover fill. The approved 0.4.9 storage-tree border and other panels remain intact, as do guide, scrolling, transfer and native GUI-scale behavior. Protocol remains **6**, compatible at the protocol level with 0.4.2 through 0.4.9; matching versions are recommended. Version 0.4.1 and earlier is incompatible. The runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 游戏内指南 / In-game guide
 

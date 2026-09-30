@@ -1,22 +1,22 @@
 # ME Storage Controller / ME存储控制器
 
-**0.4.9 · Matching native panel borders / 统一原生面板边框**
+**0.4.10 · Native sidebar buttons / 原生侧栏按钮修正**
 
 Minecraft **1.20.1 Forge** 的 AE2 附属模组。通过一个联网方块，逐级查看全网、存储设备和存储元件的占用及实际内容，直接存取右侧物品，并在设备详情中管理整个存储元件。
 
 An AE2 addon for **Minecraft 1.20.1 Forge**. Browse network, device and cell storage details, inspect exact contents, transfer items and move complete storage cells through a connected controller.
 
-本版修正左侧存储树与右侧终端边框不一致的问题：直接复用 AE 原生面板纹理，统一底色、亮边及底部两像素灰色阴影，移除额外黑色投影和目录内凹框。保留七个侧栏按钮、游戏内指南、整体布局及游戏原生 GUI 比例。
+本版仅调整左侧七个按钮的外观与贴边位置：使用 AE2 原生 16×16 按钮背景，去掉连续黑色底板、矩形投影和蓝色悬停填充。已确认的 0.4.9 存储树外框、其他面板、按钮功能、游戏内指南和原生 GUI 比例均保留。
 
-This release fixes the mismatch between the storage tree and terminal borders by reusing AE's native panel texture, including its background, highlights and two-pixel grey bottom shadow. The extra black drop shadow and inset tree frame are removed. Sidebar controls, the in-game guide, layout and native GUI scale are retained.
+This release changes only the seven left sidebar buttons: native AE2 16×16 backgrounds replace the continuous black backing, rectangular shadows and blue hover fill. The approved 0.4.9 storage-tree border, other panels, button functions, in-game guide and native GUI scale are retained.
 
 容量自动切换 B／KB／MB／GB／TB／PB／EB（1024 进位），并在栏宽不足时缩放文字，避免省略容量；悬停仍显示精确字节。容器存取保持 0.4.4 行为。
 
 Capacity summaries now use adaptive B/KB/MB/GB/TB/PB/EB labels (powers of 1024) and fit the available width. Hover for exact bytes. Container transfers retain 0.4.4 behavior.
 
-本版通过 AE2 `ContainerItemStrategies` 支持流体及附属模组注册的化学品容器存取，保留简洁提示框，不新增操作教学文字。界面继续使用官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列、最多 5 行的内容网格、侧边图标栏、文件树，以及元件槽与玩家背包。完整双栏布局为 340×240 逻辑像素，按当前界面比例适配可用空间，运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.9 记录](docs/RELEASE_0.4.9.md)；[0.4.3](docs/RELEASE_0.4.3.md) 及更早记录单独保留。
+本版通过 AE2 `ContainerItemStrategies` 支持流体及附属模组注册的化学品容器存取，保留简洁提示框，不新增操作教学文字。界面继续使用官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列、最多 5 行的内容网格、侧边图标栏、文件树，以及元件槽与玩家背包。完整双栏布局为 340×240 逻辑像素，按当前界面比例适配可用空间，运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.10 记录](docs/RELEASE_0.4.10.md)；[0.4.9](docs/RELEASE_0.4.9.md) 及更早记录单独保留。
 
-This update supports fluid and addon-registered chemical containers through AE2's `ContainerItemStrategies`, retaining concise tooltips without new instructions. The approved terminal layout retains thirteen original AE2 1.21.1 PNGs, a nine-column content grid with up to five rows, icon toolbar, storage tree, cell slots and player inventory. The full two-column layout uses 340×240 logical pixels and adapts to the space available at the current GUI scale. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.9 record](docs/RELEASE_0.4.9.md); [0.4.3](docs/RELEASE_0.4.3.md) and earlier records remain separate.
+This update supports fluid and addon-registered chemical containers through AE2's `ContainerItemStrategies`, retaining concise tooltips without new instructions. The approved terminal layout retains thirteen original AE2 1.21.1 PNGs, a nine-column content grid with up to five rows, icon toolbar, storage tree, cell slots and player inventory. The full two-column layout uses 340×240 logical pixels and adapts to the space available at the current GUI scale. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.10 record](docs/RELEASE_0.4.10.md); [0.4.9](docs/RELEASE_0.4.9.md) and earlier records remain separate.
 
 ## 安装 / Installation
 
@@ -30,9 +30,9 @@ The development baseline is **Java 17, Forge 47.4.0, AE2 15.4.10 and GuideME 20.
 
 Install matching versions of this mod and its dependencies on **both client and server**. Place the controller and connect it using ME cable; it needs power and **one channel**. It does not provide channels or replace AE2's ME Controller. Right-click it to browse devices and cells.
 
-0.4.9 保持网络协议 **6**，与 0.4.4 存取行为一致；0.4.2／0.4.3 也可协议连接，但应两端一起升级至 0.4.9 以获得完整容器交互和分页响应。不能与 0.4.1 或更早版本混用。
+0.4.10 保持网络协议 **6** 及既有存取行为，可与 0.4.2 至 0.4.9 协议连接；本次侧栏视觉修正由客户端更新提供，建议客户端和服务器使用一致版本。不能与 0.4.1 或更早版本混用。
 
-Version 0.4.9 retains protocol **6** and 0.4.4 transfer behavior. Versions 0.4.2/0.4.3 can also connect at the protocol level, but upgrade both sides to 0.4.9 for all container interactions and responsive paging. Versions 0.4.1 and earlier are incompatible.
+Version 0.4.10 retains protocol **6** and existing transfer behavior, allowing protocol-level connections with 0.4.2 through 0.4.9. The sidebar appearance fix is provided by the client update; matching client/server versions are recommended. Versions 0.4.1 and earlier are incompatible.
 
 ## 功能与边界 / Features and scope
 
@@ -46,9 +46,9 @@ Version 0.4.9 retains protocol **6** and 0.4.4 transfer behavior. Versions 0.4.2
 - 外部存储受存储总线的可见性与过滤规则影响；不会把字节、槽位和流体体积合成同一个占用百分比。 / External storage follows what the storage bus exposes; byte, slot and fluid capacities are not mixed into one occupancy percentage.
 - 服务端验证远程元件操作。AE2 15.x 本身未提供旧版安全终端接口；不能声称本模组接入旧版安全终端或所有领地保护系统。使用领地保护模组时，请执行手动权限测试。 / Remote cell operations are server-validated. AE2 15.x does not provide the older security-terminal API; integration with older AE2 security terminals or every claim-protection mod is not claimed. Test your protection mod explicitly.
 
-这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.9 的验收状态见 [当前测试记录](docs/RELEASE_0.4.9.md)。大型整合包、双客户端并发和保护模组仍需实测。
+这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.10 的验收状态见 [当前测试记录](docs/RELEASE_0.4.10.md)。大型整合包、双客户端并发和保护模组仍需实测。
 
-See the [current report](docs/RELEASE_0.4.9.md) for validation status. Broader modpacks, concurrent clients and protection mods remain unverified.
+See the [current report](docs/RELEASE_0.4.10.md) for validation status. Broader modpacks, concurrent clients and protection mods remain unverified.
 
 远程元件操作仅限同维度；跨维度设备仍可浏览。第三方设备只有在能可靠识别物理元件槽时才允许取放，否则只读。注册为全局存储提供者且没有节点／位置的来源，包含在全网内容中，但可能无法逐设备定位。总览的字节容量仅汇总能识别的存储元件，不代表外部容器的总容量。
 
@@ -106,7 +106,7 @@ Optional chemical compatibility tests use **Mekanism 10.4.16.80 + Applied Mekani
 - [使用说明 / User guide](docs/USER_GUIDE.md)
 - [模型与纹理来源 / Visual asset provenance](docs/ASSETS.md)
 - [手动测试计划 / Manual test plan](docs/MANUAL_TEST_PLAN.md)
-- [0.4.9 测试记录 / Current test report](docs/RELEASE_0.4.9.md)
+- [0.4.10 测试记录 / Current test report](docs/RELEASE_0.4.10.md)
 - [0.4.8 历史测试记录 / Historical test report](docs/RELEASE_0.4.8.md)
 - [0.4.7 历史测试记录 / Historical test report](docs/RELEASE_0.4.7.md)
 - [0.4.6 历史测试记录 / Historical test report](docs/RELEASE_0.4.6.md)
