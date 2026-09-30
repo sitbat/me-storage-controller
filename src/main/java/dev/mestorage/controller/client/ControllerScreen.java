@@ -71,11 +71,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         int contentCursor=contentSearch==null?0:contentSearch.getCursorPosition(),treeCursor=treeSearch==null?0:treeSearch.getCursorPosition();
         String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();
         guide=sidebar(9,176,0,tr("guide"),b->ControllerGuide.open());
-        sort=sidebar(49,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
-        ((IconButton)sort).sx=sortByAmount?16:0;
+        sort=sidebar(49,32,16,tr(sortByAmount?"sort_amount":"sort_name"),b->{sortByAmount=!sortByAmount;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         root=sidebar(69,160,16,tr("network_root"),b->select("",-1));
-        back=sidebar(89,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
-        collapse=sidebar(129,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
+        back=sidebar(89,0,48,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
+        collapse=sidebar(129,48,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
         theme=sidebar(109,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
         sidebar(29,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
         locate=icon(117,imageHeight-85,16,16,64,240,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});

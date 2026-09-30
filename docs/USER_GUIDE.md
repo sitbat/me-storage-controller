@@ -1,4 +1,4 @@
-# 0.4.10 使用说明 / User guide
+# 0.4.11 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-0.4.10 仅修正左侧七个按钮栏：使用原生 16×16 背景、20 像素步距和白色焦点外框，去掉连续黑色底板、按钮矩形投影及蓝色悬停填充。已确认的 0.4.9 存储树外框与其他主面板保持原样；指南、滚动、存取和原生 GUI 比例行为不变。网络协议仍为 **6**，可与 0.4.2 至 0.4.9 协议连接，建议使用一致版本；不能与 0.4.1 或更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
+0.4.11 仅将侧栏第3、5、7个图标改为用户参考图中的原生符号，其余4个保持不变。各按钮功能仍在原位置；排序图标固定，但名称／数量排序仍可切换，悬停提示显示当前排序状态。存储树、背景、边框、间距、指南与原生 GUI 比例均不变。网络协议仍为 **6**，可与 0.4.2 至 0.4.10 协议连接，建议使用一致版本；不能与 0.4.1 或更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-Version 0.4.10 changes only the seven sidebar buttons: native 16×16 backgrounds, a 20-pixel pitch and a white focus outline replace the continuous black backing, rectangular shadows and blue hover fill. The approved 0.4.9 storage-tree border and other panels remain intact, as do guide, scrolling, transfer and native GUI-scale behavior. Protocol remains **6**, compatible at the protocol level with 0.4.2 through 0.4.9; matching versions are recommended. Version 0.4.1 and earlier is incompatible. The runtime remains **Minecraft 1.20.1 Forge**.
+Version 0.4.11 replaces only sidebar icons 3, 5 and 7 with native symbols from the supplied reference; the other four remain unchanged. Each button retains its existing function and position. The sort icon stays fixed, while name/quantity modes still toggle and the tooltip shows the current state. The storage tree, backgrounds, borders, spacing, guide and native GUI scale are unchanged. Protocol remains **6**, compatible at the protocol level with 0.4.2 through 0.4.10; matching versions are recommended. Version 0.4.1 and earlier is incompatible. The runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 游戏内指南 / In-game guide
 

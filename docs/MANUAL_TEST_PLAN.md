@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-0.4.10 验收状态另见 [当前测试记录](RELEASE_0.4.10.md)；这里保留完整的后续人工验收清单。
+0.4.11 验收状态另见 [当前测试记录](RELEASE_0.4.11.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -85,7 +85,8 @@ Compare standard item/fluid-cell capacity with AE2 tooltips. Test storage-bus fi
 
 ## 客户端与定位 / Client and highlighting
 
-- 0.4.10 仅核对左侧七按钮栏：按钮为16×16、20像素步距，相对整体面板的位置为x=3、y=9+20n（n=0…6）。使用原生背景，不能出现连续黑色底板、额外矩形投影或蓝色悬停填充；焦点显示1像素白色外框。检查浅深主题、原生自动比例与窄屏下边界和点击位置。
+- 0.4.11 对照用户参考图，逐个比较全部7个图标；第3、5、7个使用对应原生符号，其余4个应与0.4.10一致。按钮背景、边框、间距、树面板与原生 GUI 比例保持原样。点击排序按钮两次，确认名称／数量排序实际切换、悬停提示反映当前状态，图标本身保持固定。 / Compare all seven icons with the supplied reference: only icons 3, 5 and 7 change. Preserve backgrounds, borders, spacing, tree panel and native GUI scale. Toggle sorting twice and verify actual name/quantity order and current-state tooltips while the icon stays fixed.
+- 既有0.4.10按钮底板要求继续适用：按钮为16×16、20像素步距，相对整体面板的位置为x=3、y=9+20n（n=0…6）。使用原生背景，不能出现连续黑色底板、额外矩形投影或蓝色悬停填充；焦点显示1像素白色外框。检查浅深主题、原生自动比例与窄屏下边界和点击位置。
 - 与已确认的0.4.9截图对照，存储树外框、右侧终端和其余主面板应保持一致；逐一验证七个按钮的原功能，尤其携带物品打开指南并返回时的物品守恒。
 
 For 0.4.10, check only the seven-button sidebar: 16×16 buttons at 20-pixel pitch, x=3 and y=9+20n relative to the whole panel. Confirm native backgrounds, a one-pixel white focus outline, and removal of the continuous black backing, added rectangular shadows and blue hover fill. Check both themes, Auto scale, narrow windows and click bounds. Compare the tree border and other panels with the approved 0.4.9 captures; they should remain unchanged. Retest every button, including opening and closing the guide while carrying items.
