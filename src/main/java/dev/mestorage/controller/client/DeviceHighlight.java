@@ -10,6 +10,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -21,10 +22,14 @@ public final class DeviceHighlight {
     private static ResourceLocation dimension;
     private static BlockPos position;
     private static long expiresAt;
+    // The development smoke harness observes completed draws without changing rendering.
+    private static long renderedFrames;
 
     private DeviceHighlight() {}
 
     public static void show(ResourceLocation targetDimension, BlockPos target) {
+        // A failed new request must not leave a different device marked in the world.
+        position = null;
         var minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.player == null) return;
         String reason = "highlight.started";
@@ -44,7 +49,9 @@ public final class DeviceHighlight {
 
     @SubscribeEvent
     public static void render(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_LEVEL || position == null) return;
+        // Forge 47's AFTER_LEVEL dispatch supplies GameRenderer's projection stack.
+        // AFTER_PARTICLES supplies LevelRenderer's camera view stack instead.
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || position == null) return;
         var minecraft = Minecraft.getInstance();
         if (System.currentTimeMillis() > expiresAt || minecraft.level == null || minecraft.player == null) {
             position = null;
@@ -56,12 +63,18 @@ public final class DeviceHighlight {
         var pose = event.getPoseStack();
         var camera = event.getCamera().getPosition();
         var buffers = minecraft.renderBuffers().bufferSource();
-        pose.pushPose();
-        pose.translate(-camera.x, -camera.y, -camera.z);
         LevelRenderer.renderLineBox(pose, buffers.getBuffer(HighlightRenderType.LINES),
-                new AABB(position).inflate(0.005), 0.3F, 1F, 0.78F, 1F);
+                cameraRelativeBounds(position, camera), 0.3F, 1F, 0.78F, 1F);
         buffers.endBatch(HighlightRenderType.LINES);
-        pose.popPose();
+        renderedFrames++;
+    }
+
+    static AABB cameraRelativeBounds(BlockPos target, Vec3 camera) {
+        // Subtract in double precision before the vertex consumer converts to float.
+        // A world-coordinate float translation loses block precision near the border.
+        return new AABB(target.getX() - camera.x, target.getY() - camera.y, target.getZ() - camera.z,
+                target.getX() + 1.0 - camera.x, target.getY() + 1.0 - camera.y,
+                target.getZ() + 1.0 - camera.z).inflate(0.005);
     }
 
     private static final class HighlightRenderType extends RenderType {
@@ -69,7 +82,7 @@ public final class DeviceHighlight {
                 DefaultVertexFormat.POSITION_COLOR_NORMAL, VertexFormat.Mode.LINES, 256, false, false,
                 CompositeState.builder().setShaderState(RENDERTYPE_LINES_SHADER)
                         .setLineState(new LineStateShard(OptionalDouble.of(3.0)))
-                        .setLayeringState(VIEW_OFFSET_Z_LAYERING).setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                        .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                         .setDepthTestState(NO_DEPTH_TEST).setWriteMaskState(COLOR_WRITE)
                         .setCullState(NO_CULL).createCompositeState(false));
 

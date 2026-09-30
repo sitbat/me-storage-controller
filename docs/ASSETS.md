@@ -40,6 +40,12 @@ This is an adaptation by **ME Storage Controller contributors**, not an official
 
 这是 **ME Storage Controller contributors** 制作的自定义改编，不是 AE2 官方方块或官方界面。模型和发光效果针对 Forge 1.20.1 适配，不能直接假设 NeoForge 1.21.1 的模型扩展字段可原样生效；本项目不宣称获得官方背书。旧版青色灯条及生成的高分辨率机箱不再使用。
 
+## 0.4.7 reference refinement / 0.4.7 参考细化
+
+The user-supplied **AETexturesBackport1.20-1.1** resource pack credits **Gelicvecz** in `pack.mcmeta` and uses pack format 15. Its terminal, text-field and background PNGs are byte-identical to the three corresponding files already included here. Its states atlas differs outside the icon regions used by this controller. Version 0.4.7 refines code-drawn borders and control states to match its sampled colors: panel `#CBCCD4`, outline `#413F54`, light edge `#F2F2F2`, button `#9A9FB4` and highlight `#9CD3FF`. No additional PNG is copied or distributed from the supplied ZIP; the existing thirteen assets and their license notices remain intact.
+
+用户提供的 **AETexturesBackport1.20-1.1** 在 `pack.mcmeta` 中署名 **Gelicvecz**，资源格式为 15。其终端、文本框和背景贴图与本项目既有对应文件逐字节相同；图标合集的差异位于本控制器使用的图标区域之外。0.4.7 对自绘边框及控件状态按上述取样颜色进行统一，没有从用户 ZIP 新增复制、分发 PNG，既有十三张资源及署名许可均保留。
+
 ## Historical assets / 历史资源
 
 Version 0.4.0 used a project-generated 512×512 controller atlas. That atlas has been removed from the 0.4.1 resources. Historical 0.4.0 screenshots and release notes remain as records of that version and do not describe the current resource provenance.

@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-0.4.6 验收状态另见 [当前测试记录](RELEASE_0.4.6.md)；这里保留完整的后续人工验收清单。
+0.4.7 验收状态另见 [当前测试记录](RELEASE_0.4.7.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -87,6 +87,8 @@ Compare standard item/fluid-cell capacity with AE2 tooltips. Test storage-bus fi
 
 - 分别使用简体中文和英文、GUI 缩放 1–4、常见窗口尺寸。检查长设备名、物品名、维度名和大数量不遮挡关键控件。
 - 点击同维度 256 格内已加载设备的定位，关闭界面查看高亮；确认约 15 秒后消失。
+- 在正面、斜侧面和第三人称下移动／旋转镜头，确认线框始终贴合同一目标方块；分别检查驱动器与存储总线对应容器。定位无效新目标时，旧高亮应清除。
+- 启用 AETexturesBackport1.20-1.1 后查看浅／深色主题、搜索框聚焦、侧边栏按钮和滚动条；关闭材质包并重新打开界面后，应保留内置现代美术。确认中文方块名和标题使用“ME存储控制器”“ME存储”。
 - 测试超过 256 格、未加载、其他维度、目标已经破坏和已断开连接的设备；显示位置提示且不强制加载。
 - 内容多于一页、很多设备、包含大 NBT 物品的网络中打开界面并持续更改库存；观察服务端 tick、客户端帧率、内存和网络日志。
 - 关闭界面后确认扫描或数据同步不会无止境继续；退出并重进世界后无失效高亮或旧网络数据。

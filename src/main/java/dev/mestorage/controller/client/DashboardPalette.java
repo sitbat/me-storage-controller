@@ -5,8 +5,8 @@ record DashboardPalette(int background, int panel, int inset, int border, int te
     static final DashboardPalette DARK = new DashboardPalette(0xff4c4f5d, 0xff4c4f5d, 0xff434658,
             0xff323544, 0xffdedeea, 0xffc5c7d7, 0xffafa0dc, 0xff656385, 0xff5d6072,
             0xff434658, 0xffff9c9c, 0xffebc278);
-    static final DashboardPalette LIGHT = new DashboardPalette(0xffcbccd4, 0xffcbccd4, 0xffb3b5c4,
-            0xff797b8e, 0xff413f54, 0xff67667a, 0xff80729f, 0xffa4bbcf, 0xffd5e5ee,
+    static final DashboardPalette LIGHT = new DashboardPalette(0xffcbccd4, 0xffcbccd4, 0xff9a9fb4,
+            0xff413f54, 0xff413f54, 0xff67667a, 0xff696d88, 0xfface9ff, 0xffd5e5ee,
             0xffadb0c4, 0xffce2401, 0xff916015);
 
     static DashboardPalette blend(float dark) {

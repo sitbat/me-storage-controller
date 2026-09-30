@@ -25,7 +25,8 @@ import net.minecraft.world.item.ItemStack;
 /** Native-size AE terminal; item and container actions are server-authoritative. */
 public final class ControllerScreen extends AbstractContainerScreen<ControllerMenu> {
     private static final String[] BYTE_UNITS={"B","KB","MB","GB","TB","PB","EB"};
-    private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states");
+    private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states"),TEXT_FIELD=texture("text_field");
+    private ResourceLocation terminalTexture=TERMINAL,iconTexture=STATES,fieldTexture=TEXT_FIELD;
     private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
     private final StorageTree tree=new StorageTree(this::select);
@@ -60,6 +61,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     @Override protected void init(){
         // Screen dimensions already reflect the user's GUI scale. Never change Window or Options.
+        terminalTexture=packTexture("terminal");iconTexture=packTexture("states");fieldTexture=packTexture("text_field");
         narrow=width<352;
         treeVisible=narrow?treeOnly:!collapsed;mainVisible=!narrow||!treeOnly;mainX=treeVisible&&!narrow?142:18;
         imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(1,Math.min(5,(height-162)/18));imageHeight=150+visibleRows*18;
@@ -89,6 +91,12 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         if(contentFocused&&contentSearch.visible){setFocused(contentSearch);contentSearch.setFocused(true);}else if(treeFocused&&treeSearch.visible){setFocused(treeSearch);treeSearch.setFocused(true);}
     }
     private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){return addRenderableWidget(new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action));}
+    private ResourceLocation packTexture(String name){
+        var resource=new ResourceLocation("ae2","textures/guis/"+name+".png");
+        // File packs can override the verified 1.20 atlas regions. AE2's older bundled art must
+        // not replace our modern fallback; toolbar backgrounds keep their separate 1.21 UVs.
+        return minecraft.getResourceManager().getResource(resource).filter(r->r.sourcePackId().startsWith("file/")).isPresent()?resource:texture(name);
+    }
     private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> response){var b=new EditBox(font,leftPos+x,topPos+y,w,10,tr(hint));b.setBordered(false);b.setMaxLength(64);b.setValue(value);b.setResponder(response);return addRenderableWidget(b);}
     private static int offset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
     private void select(String device,int cell){searchDue=0;focusedKey=null;targetPage=0;gridRowOffset=0;contentWheelRemainder=0;requestedDevice=device;requestedCell=cell;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
@@ -106,19 +114,20 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void syncContentTarget(){var s=menu.getSnapshot();if(s.revision()==menu.getRequestedRevision()){targetPage=s.contentPage();requestedDevice=s.selectedDevice();requestedCell=s.selectedCell();gridRowOffset=Math.max(0,Math.min(gridRowOffset,maxScrollPosition()-targetPage*rowPositions()));}}
     @Override protected void containerTick(){super.containerTick();contentSearch.tick();treeSearch.tick();syncContentTarget();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}updateWidgets();}
     private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=targetPage>0;contentNext.active=targetPage<maxPage();}
-    private void nativeTint(GuiGraphics g){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,1);}
-    private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xffffffff,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
+    private void nativeTint(GuiGraphics g){nativeTint(g,1);}
+    private void nativeTint(GuiGraphics g,float alpha){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,alpha);}
+    private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xfff2f2f2,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
     @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
         if(treeVisible){frame(g,leftPos+18,topPos+6,124,imageHeight-16);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
-        if(mainVisible){int x=leftPos+mainX,y=topPos;nativeTint(g);g.blit(TERMINAL,x,y+6,0,0,195,17);for(int r=0;r<visibleRows;r++)g.blit(TERMINAL,x,y+23+r*18,0,r==0?17:r==visibleRows-1?53:35,195,18);g.setColor(1,1,1,1);
-            int capY=23+visibleRows*18;frame(g,x,y+capY,195,18);nativeTint(g);g.blit(TERMINAL,x,y+capY+18,0,71,195,99);g.setColor(1,1,1,1);
+        if(mainVisible){int x=leftPos+mainX,y=topPos;nativeTint(g);g.blit(terminalTexture,x,y+6,0,0,195,17);for(int r=0;r<visibleRows;r++)g.blit(terminalTexture,x,y+23+r*18,0,r==0?17:r==visibleRows-1?53:35,195,18);g.setColor(1,1,1,1);
+            int capY=23+visibleRows*18;frame(g,x,y+capY,195,18);nativeTint(g);g.blit(terminalTexture,x,y+capY+18,0,71,195,99);g.setColor(1,1,1,1);
             clipped(g,tr("terminal_title"),x+8,y+12,69,p.text());field(g,contentSearch,x+80,y+10,89,"search_short");renderGrid(g,s,mx,my);renderCapacity(g,s,x+8,y+capY+3);clipped(g,tr("inventory_short"),x+8,y+inventoryY-9,162,p.text());
         }
     }
-    private void field(GuiGraphics g,EditBox box,int x,int y,int w,String hint){g.fill(x,y,x+w,y+12,p.slot());g.fill(x,y,x+w,y+1,p.border());g.fill(x,y+11,x+w,y+12,DashboardPalette.mix(0xffffffff,0xff85859a,themeMix));box.setTextColor(p.text());if(box.getValue().isEmpty()&&!box.isFocused())clipped(g,tr(hint),box.getX(),box.getY(),box.getWidth(),p.muted());}
+    private void field(GuiGraphics g,EditBox box,int x,int y,int w,String hint){int sourceY=box.isFocused()?24:0;nativeTint(g);g.blit(fieldTexture,x,y,0,sourceY,1,12,128,128);g.blit(fieldTexture,x+1,y,1,sourceY,w-2,12,128,128);g.blit(fieldTexture,x+w-1,y,127,sourceY,1,12,128,128);g.setColor(1,1,1,1);box.setTextColor(p.text());if(box.getValue().isEmpty()&&!box.isFocused())clipped(g,tr(hint),box.getX(),box.getY(),box.getWidth(),p.text());}
     private void renderGrid(GuiGraphics g,Snapshot s,int mx,int my){for(int r=0;r<visibleRows;r++)for(int col=0;col<9;col++){int i=(gridRowOffset+r)*9+col;if(i>=s.contents().size())continue;var c=s.contents().get(i);int x=leftPos+mainX+8+col*18,y=topPos+24+r*18;boolean over=hit(mx,my,x,y,16,16);hover[i]=animate(hover[i],over?1:0,18);if(hover[i]>.01F)g.fill(x,y,x+16,y+16,((int)(hover[i]*90)<<24)|0xffffff);drawKey(g,c.key(),x,y);drawAmount(g,c,x,y);if(focused(s)!=null&&focused(s).key().equals(c.key())){g.fill(x,y,x+16,y+1,0xbbffffff);g.fill(x,y+15,x+16,y+16,0xbbffffff);}}
         if(!s.error().isEmpty()||s.contents().isEmpty()){Component msg=s.error().isEmpty()?tr("no_contents"):Component.translatable(s.error());clipped(g,msg,leftPos+mainX+8,topPos+28,162,s.error().isEmpty()?p.text():p.danger());}
-        var track=scrollbarRect();if(track!=null){int thumb=scrollbarThumbHeight(track),thumbY=scrollbarThumbY(track);g.fill(track.x(),track.y(),track.x()+track.width(),track.y()+track.height(),p.border());g.fill(track.x(),thumbY,track.x()+track.width(),thumbY+thumb,p.panel());g.fill(track.x(),thumbY,track.x()+track.width(),thumbY+1,0xffeeeeee);}
+        var track=scrollbarRect();if(track!=null){int thumb=scrollbarThumbHeight(track),thumbY=scrollbarThumbY(track);g.fill(track.x(),track.y(),track.x()+track.width(),track.y()+track.height(),p.border());g.fill(track.x(),thumbY,track.x()+track.width(),thumbY+thumb,p.inset());int shine=DashboardPalette.mix(0xfff2f2f2,0xff858b9e,themeMix);g.fill(track.x(),thumbY,track.x()+track.width()-1,thumbY+1,shine);g.fill(track.x(),thumbY,track.x()+1,thumbY+thumb-1,shine);g.fill(track.x()+track.width()-1,thumbY,track.x()+track.width(),thumbY+thumb,p.border());g.fill(track.x(),thumbY+thumb-1,track.x()+track.width(),thumbY+thumb,p.border());}
     }
     private void drawAmount(GuiGraphics g,Snapshot.Content c,int x,int y){String v=abbreviate(c.amount());float scale=.65F;g.pose().pushPose();g.pose().translate(x+16-font.width(v)*scale,y+10,200);g.pose().scale(scale,scale,1);g.drawString(font,v,0,0,0xffffffff,true);g.pose().popPose();}
     private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
@@ -127,7 +136,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         var d=s.selectedInfo();clipped(g,d==null?tr("network_root"):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
         clipped(g,tr(s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
         if(s.cellSlots()==0){clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
-        for(int i=0;i<10;i++){int absolute=offset(s)+i,sx=leftPos+26+(i%5)*18,sy=y+cellY+(i/5)*18;nativeTint(g);g.blit(STATES,sx-1,sy-1,192,192,18,18);g.setColor(1,1,1,1);var preview=s.cells().stream().filter(v->v.slot()==absolute).findFirst().orElse(null);if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,sy);}
+        for(int i=0;i<10;i++){int absolute=offset(s)+i,sx=leftPos+26+(i%5)*18,sy=y+cellY+(i/5)*18;nativeTint(g);g.blit(iconTexture,sx-1,sy-1,192,192,18,18);g.setColor(1,1,1,1);var preview=s.cells().stream().filter(v->v.slot()==absolute).findFirst().orElse(null);if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,sy);}
     }
     private void renderCapacity(GuiGraphics g,Snapshot s,int x,int y){var c=s.capacity();long used=c.usedBytes(),total=c.totalBytes();Component label;
         if(total>=0)label=Component.literal(bytesSummary(used)+" / "+bytesSummary(total));else if(c.totalSlots()>=0){used=c.occupiedSlots();total=c.totalSlots();label=tr("slots",number(used),number(total));}else if(c.fluidCapacity()>=0){used=c.fluidAmount();total=c.fluidCapacity();label=Component.literal(number(used)+" / "+number(total)+" mB");}else label=tr("capacity_unknown");
@@ -239,6 +248,8 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     int smokeContentTargetPage(){return targetPage;}int smokeContentAcknowledgedPage(){return menu.getSnapshot().contentPage();}
     int smokeContentRowOffset(){return gridRowOffset;}int smokeContentVisibleRows(){return visibleRows;}
     boolean smokeContentPending(){return menu.getSnapshot().revision()!=menu.getRequestedRevision();}
+    Map<String,String> smokeGuiTextureSources(){return Map.of("terminal",textureSource(terminalTexture),"icons",textureSource(iconTexture),"text_field",textureSource(fieldTexture),"button_background",textureSource(STATES));}
+    private String textureSource(ResourceLocation texture){return texture+" | "+minecraft.getResourceManager().getResource(texture).map(r->r.sourcePackId()).orElse("missing");}
     AEKey smokeFocusedKey(){var c=focused(menu.getSnapshot());return c==null?null:c.key();}
     int smokeTooltipRenderCount(){return tooltipRenderCount;}String smokeTooltipKind(){return tooltipKind;}List<String> smokeTooltipText(){return tooltipLines.stream().map(Component::getString).toList();}
     String smokeRootLabel(){return root.getMessage().getString();}
@@ -251,5 +262,11 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
     UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}
     private final class IconButton extends Button {int sx,sy;float over;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
-        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);g.setColor(1,1,1,1);if(over>.01F)g.fill(getX()+1,getY()+1,getX()+getWidth()-1,getY()+getHeight()-1,((int)(over*45)<<24)|0xffffff);int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));int iconY=getHeight()==20&&getWidth()==18?1:(getHeight()-size)/2;g.setColor(1,1,1,active?1:.4F);g.blit(STATES,getX()+(getWidth()-size)/2,getY()+iconY,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);}}
+        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){
+            over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);
+            g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);
+            if(over>.01F){com.mojang.blaze3d.systems.RenderSystem.enableBlend();nativeTint(g,over);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),isHovered()?212:194,128,18,20,256,256);}
+            int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));int iconY=getHeight()==20&&getWidth()==18?1:(getHeight()-size)/2;
+            g.setColor(1,1,1,active?1:.4F);g.blit(iconTexture,getX()+(getWidth()-size)/2,getY()+iconY,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);
+        }}
 }

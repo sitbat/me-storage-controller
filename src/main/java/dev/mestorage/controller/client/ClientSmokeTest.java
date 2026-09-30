@@ -77,6 +77,7 @@ public final class ClientSmokeTest {
     private static int heldToolbarPhase;
     private static int blockCaptureTicks;
     private static int blockCaptureStage;
+    private static long highlightFrameBaseline;
     private static int treePhase;
     private static int treeWait;
     private static boolean treeVerified;
@@ -86,6 +87,7 @@ public final class ClientSmokeTest {
     private static double previousTreeScroll;
     private static boolean inventoryPrepared;
     private static boolean captureViewPrepared;
+    private static boolean textureSourcesChecked;
     private static int captureWait;
     private static volatile boolean failureCaptureDone;
     private static int failureCaptureTicks;
@@ -342,6 +344,20 @@ public final class ClientSmokeTest {
     }
 
     private static void driveCapture(Minecraft mc, ControllerMenu menu) {
+        if(!textureSourcesChecked&&mc.screen instanceof ControllerScreen screen) {
+            var actual=screen.smokeGuiTextureSources();
+            for(String name:new String[]{"terminal","states","text_field"}) {
+                var location=new ResourceLocation("ae2","textures/guis/"+name+".png");
+                var source=mc.getResourceManager().getResource(location).map(r->r.sourcePackId()).orElse("");
+                String chosen=actual.get(name.equals("states")?"icons":name);
+                if(source.startsWith("file/")?!chosen.equals(location+" | "+source):!chosen.startsWith("me_storage_controller:"))
+                    throw new IllegalStateException("Wrong GUI texture source for "+name+": "+chosen+"; available="+source);
+            }
+            if(!actual.get("button_background").startsWith("me_storage_controller:"))
+                throw new IllegalStateException("Toolbar background must retain its modern atlas UVs");
+            System.out.println("ME_STORAGE_SMOKE_TEXTURE_SOURCES PASS "+actual);
+            textureSourcesChecked=true;
+        }
         // Synchronize the development harness cursor without changing production tooltip rendering.
         clearCaptureHover(mc);
         if (drainExtraCapture(mc)) return;
@@ -445,6 +461,8 @@ public final class ClientSmokeTest {
             return;
         }
         if (!s.selectedDevice().equals(targetId) || s.selectedCell() != cell) return;
+        if((view==5||view==13)&&(s.selectedInfo()==null||!s.selectedInfo().pos().equals(controllerPos.north(2))))
+            throw new IllegalStateException("External storage location must identify the barrel, not the intervening storage bus");
         if (++stableTicks < 20) return;
         if(view==16&&!verifyContentWheel(mc,menu))return;
         if ((view == 1 || view == 2 || view == 3 || view == 18 || view == 21) && !inventoryPrepared) {
@@ -1562,6 +1580,9 @@ public final class ClientSmokeTest {
     private static void captureBlockAppearance(Minecraft mc) {
         blockCaptureTicks++;
         if (blockCaptureStage == 0 && blockCaptureTicks == 1) {
+            if(!net.minecraft.network.chat.Component.translatable("block.me_storage_controller.controller").getString().equals("ME存储控制器")
+                    ||!net.minecraft.network.chat.Component.translatable("gui.me_storage_controller.terminal_title").getString().equals("ME存储"))
+                throw new IllegalStateException("Simplified Chinese controller and terminal labels retain unwanted ME spacing");
             mc.player.closeContainer();
             mc.options.hideGui = true;
             captureDone = false;
@@ -1616,8 +1637,50 @@ public final class ClientSmokeTest {
                 return;
             }
             System.out.println("ME_STORAGE_SMOKE_BLOCK_STATUS PASS online/offline captures and restored online state");
+            mc.options.setCameraType(net.minecraft.client.CameraType.FIRST_PERSON);
+            DeviceHighlight.show(mc.level.dimension().location(),galleryPos);
+            highlightFrameBaseline=highlightDrawCount();
+            moveHighlightCamera(mc,false);
+            blockCaptureStage=3;blockCaptureTicks=0;capturing=false;captureDone=false;
+        } else if((blockCaptureStage==3||blockCaptureStage==4)&&blockCaptureTicks>=30) {
+            if(!capturing) {
+                long drawn=highlightDrawCount()-highlightFrameBaseline;
+                if(drawn<=0)throw new IllegalStateException("Highlight render stage did not submit any real line batches");
+                var camera=mc.gameRenderer.getMainCamera();
+                System.out.println("ME_STORAGE_SMOKE_HIGHLIGHT_CAPTURE target="+galleryPos+" dimension="+mc.level.dimension().location()
+                        +" camera="+camera.getPosition()+" yaw="+camera.getYRot()+" pitch="+camera.getXRot()+" firstPerson="+mc.options.getCameraType().isFirstPerson()+" submittedFrames="+drawn);
+                capturing=true;grabBlockScreenshot(mc,blockCaptureStage==3?"smoke-highlight-front.png":"smoke-highlight-oblique.png");return;
+            }
+            if(!captureDone)return;
+            if(blockCaptureStage==3) {
+                highlightFrameBaseline=highlightDrawCount();
+                moveHighlightCamera(mc,true);blockCaptureStage=4;blockCaptureTicks=0;capturing=false;captureDone=false;return;
+            }
+            System.out.println("ME_STORAGE_SMOKE_HIGHLIGHT_CAPTURED first-person front and moved oblique view of the same target; screenshots require alignment review");
             finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
         }
+    }
+
+    private static void moveHighlightCamera(Minecraft mc,boolean oblique) {
+        var id=mc.player.getUUID();
+        mc.getSingleplayerServer().execute(()->{
+            try {
+                var player=mc.getSingleplayerServer().getPlayerList().getPlayer(id);
+                if(player==null)throw new IllegalStateException("Highlight capture player missing");
+                double x=galleryPos.getX()+(oblique?2.2:.5),z=galleryPos.getZ()+(oblique?-1.5:-1.8);
+                double dx=galleryPos.getX()+.5-x,dz=galleryPos.getZ()+.5-z;
+                float yaw=(float)Math.toDegrees(Math.atan2(-dx,dz));
+                double eyeY=galleryPos.getY()-1+player.getEyeHeight();
+                float pitch=(float)Math.toDegrees(Math.atan2(eyeY-(galleryPos.getY()+.5),Math.sqrt(dx*dx+dz*dz)));
+                player.teleportTo(player.serverLevel(),x,galleryPos.getY()-1,z,yaw,pitch);
+            }catch(Throwable problem){failure=problem.toString();}
+        });
+    }
+
+    private static long highlightDrawCount() {
+        try {
+            var field=DeviceHighlight.class.getDeclaredField("renderedFrames");field.setAccessible(true);return field.getLong(null);
+        }catch(ReflectiveOperationException problem){throw new IllegalStateException("Development highlight draw counter unavailable",problem);}
     }
 
     private static void grabBlockScreenshot(Minecraft mc, String name) {
