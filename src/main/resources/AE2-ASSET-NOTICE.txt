@@ -1,0 +1,57 @@
+Applied Energistics 2 artwork attribution — ME Storage Controller 0.4.1
+
+This JAR includes textures from Applied Energistics 2 (Minecraft 1.21.1).
+Original work: Applied Energistics 2 — Textures and Models
+Authors / copyright, as identified by the upstream README:
+  (c) 2020, Ridanisaurus Rid — https://github.com/Ridanisaurus/
+  (c) 2013 - 2020, AlgorithmX2 et al
+
+Upstream repository: https://github.com/AppliedEnergistics/Applied-Energistics-2
+Pinned source commit: db17504a86128fdf3dae31f5fb7a112a646e0b93
+Original attribution and licensing statement:
+https://github.com/AppliedEnergistics/Applied-Energistics-2/blob/db17504a86128fdf3dae31f5fb7a112a646e0b93/README.md#license
+
+Asset license: Creative Commons Attribution-NonCommercial-ShareAlike 3.0
+Unported (CC BY-NC-SA 3.0).
+https://creativecommons.org/licenses/by-nc-sa/3.0/
+https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode.en
+The complete license text is included in this JAR as
+licenses/CC-BY-NC-SA-3.0.txt, downloaded without modification from
+https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode.txt
+
+Keep this attribution and the accompanying license when redistributing.
+The AE2 artwork and adaptations identified here are not licensed under MIT.
+They retain the attribution, noncommercial and share-alike conditions of
+CC BY-NC-SA 3.0. Original, independently implemented addon Java code is MIT.
+No AE2 LGPL Java implementation is included in this addon.
+
+Adaptation by ME Storage Controller contributors:
+The thirteen copied PNG files are byte-for-byte unmodified. Texture regions,
+UV coordinates, colors, layout and combinations are selected by this addon's
+independent drawing code and JSON models. The controller is a custom box/frame
+with AE2 monitor textures and three terminal masks. The GUI recombines portions
+of upstream terminal/background/widget textures with this addon's file tree.
+Derived JSON models and these visual adaptations are also provided under
+CC BY-NC-SA 3.0. Rendering and lighting are adapted to Forge 1.20.1; this is
+not an official AE2 block or screen, nor an endorsement by the original authors.
+
+Included original PNG files:
+JAR prefix: assets/me_storage_controller/textures/ae2_1_21/
+Upstream prefix: src/main/resources/assets/ae2/textures/
+To locate each original, append its relative path below to:
+https://github.com/AppliedEnergistics/Applied-Energistics-2/blob/db17504a86128fdf3dae31f5fb7a112a646e0b93/src/main/resources/assets/ae2/textures/
+
+SHA-256 (verified against the original)  Relative path
+8d035a9a9dec872ff8a5c6a46c46f422b365097d6422b440b23cb8c59883bd4e  block/generics/back.png
+ecb2cee5ead9c1303a6ecd65adce2110974ac488b3eedcd30f370af7ebc6ac42  block/generics/bottom.png
+929e284ea40c559c738b6cbfa407284f14d99c2854485d28a94b35baf57bbbbc  block/generics/front.png
+ff1ba98262fe5722cd8a1015e7c026f1e902e7a42879e1f4309e854c27022812  block/generics/side.png
+598aa145bdeebbbdd7cefdd63b6ea7a42325e63399f1f3fa45c2056885bfd7d5  block/generics/top.png
+b97ef8e9c0f3373d662e489ec4c50ac2cfbb32e6501c98ce4be004a4c923f2c8  guis/background.png
+0996b0084c7bf37f65a97a745982ab681ebd86f142fade526f14c823c4727e55  guis/states.png
+9ce91eccf149e1703960906b349093af726e6deb753985c7e85b5d0db359b3e4  guis/terminal.png
+73bba41174d3ec15d83947e439915873611735fe436ad0cbc7653eca15e23ad1  guis/text_field.png
+0c304dd14ab433eab35115eedaf411278ab9c79786252f461ac525ea337852a6  part/monitor_front.png
+276735bdd17c4f6a583078fcde0d299db1ee31c49fdc365f736ee12853c277e2  part/terminal_bright.png
+8adf9c82f8a9135c07df03fb0fa9a0e43772236524262e3c20b588435533a9ab  part/terminal_dark.png
+6e279bd8b08dcfe40d2c79d7e33d1ad90666d723bc4180adbf297865699af11c  part/terminal_medium.png

@@ -80,7 +80,7 @@ final class StorageTree {
         layoutDirty=moving; // Build the settled final geometry once after an animation ends.
     }
     void render(GuiGraphics g,int x,int y,int width,int height,boolean compact,Snapshot data,DashboardPalette p,int mouseX,int mouseY,float dt){
-        int nextRowHeight=compact?18:20;
+        int nextRowHeight=compact?13:18;
         if(snapshot.directory()!=data.directory()||this.width!=width||this.height!=height||rowHeight!=nextRowHeight)layoutDirty=true;
         this.x=x;this.y=y;this.width=width;this.height=height;this.snapshot=data;rowHeight=nextRowHeight;layout();
         var font=Minecraft.getInstance().font;
@@ -93,18 +93,18 @@ final class StorageTree {
             int bg=selected?p.selected():DashboardPalette.mix(p.panel(),p.hover(),hoverValue);
             ControllerScreen.rounded(g,x+1,top,width-7,Math.max(1,rh-1),3,bg);
             if(selected)g.fill(x+1,top+3,x+3,top+rh-4,p.accent());
-            for(int depth=1;depth<row.depth;depth++)g.fill(x+9+depth*11,top,x+10+depth*11,top+rh,p.border());
-            int arrowX=x+7+row.depth*11,iconX=arrowX+10;
+            for(int depth=1;depth<row.depth;depth++)g.fill(x+9+depth*6,top,x+10+depth*6,top+rh,p.border());
+            int arrowX=x+7+row.depth*6,iconX=arrowX+8;
             if(row.branch)chevron(g,arrowX,top+(rowHeight-5)/2,isOpen(row.key)||!query.isBlank(),p.muted());
             int ink=DashboardPalette.mix(p.panel(),p.text(),row.visibility);
-            if(!row.icon.isEmpty())g.renderItem(row.icon,iconX,top+(rowHeight-16)/2);
+            if(!row.icon.isEmpty()){g.pose().pushPose();g.pose().translate(iconX,top+(rowHeight-10)/2,0);g.pose().scale(.625F,.625F,1);g.renderItem(row.icon,0,0);g.pose().popPose();}
             else {int cy=top+rowHeight/2;if(row.slot>=0){g.fill(iconX+2,cy-5,iconX+13,cy+5,p.muted());g.fill(iconX+3,cy-4,iconX+12,cy+4,bg);}else{g.fill(iconX+2,cy-4,iconX+11,cy+4,p.muted());g.fill(iconX+2,cy-6,iconX+7,cy-4,p.muted());}}
-            int textX=iconX+19;String text=row.label.getString();int max=width-(textX-x)-9;
+            int textX=iconX+13;String text=row.label.getString();int max=width-(textX-x)-9;
             if(font.width(text)>max)text=font.plainSubstrByWidth(text,Math.max(0,max-6))+"…";
             g.drawString(font,text,textX,top+(rowHeight-9)/2,ink,false);
             var cell=cellPreviews.get(row.key);
             if(cell!=null&&cell.totalBytes()>0&&cell.usedBytes()>=0&&row.visibility>.95F){
-                int barY=top+rowHeight-3,barWidth=Math.max(1,max);float ratio=Math.max(0,Math.min(1,cell.usedBytes()/(float)cell.totalBytes()));
+                int barY=top+rowHeight-2,barWidth=Math.max(1,max);float ratio=Math.max(0,Math.min(1,cell.usedBytes()/(float)cell.totalBytes()));
                 g.fill(textX,barY,textX+barWidth,barY+2,p.border());
                 if(ratio>0)g.fill(textX,barY,textX+Math.max(1,Math.round(barWidth*ratio)),barY+2,ratio>=.95F?p.danger():ratio>=.8F?p.warning():p.accent());
             }
@@ -119,7 +119,7 @@ final class StorageTree {
     boolean click(double mx,double my){
         if(mx<x||mx>=x+width||my<y||my>=y+height)return false;
         for(var row:rows){double top=y+row.top-scroll;if(row.visibility<.65F||my<top||my>=top+row.height)continue;
-            if(row.branch&&mx<x+17+row.depth*11){setOpen(row.key,!isOpen(row.key));return true;}
+            if(row.branch&&mx<x+17+row.depth*6){setOpen(row.key,!isOpen(row.key));return true;}
             if(row.key.startsWith("dim:")){setOpen(row.key,!isOpen(row.key));return true;}
             if(row.key.equals("root")){select.accept("",-1);return true;}
             if(!row.device.isEmpty()){if(row.slot<0)setOpen(row.key,true);select.accept(row.device,row.slot);return true;}
@@ -136,5 +136,5 @@ final class StorageTree {
             });return result;
         }return List.of();
     }
-    ControllerScreen.UiRect rect(String key,boolean chevron){for(var row:rows)if(row.key.equals(key)&&row.visibility>.9F){int top=y+(int)Math.round(row.top-scroll);if(top<y||top+rowHeight>y+height)return null;return chevron?new ControllerScreen.UiRect(x+5+row.depth*11,top,9,rowHeight):new ControllerScreen.UiRect(x+18+row.depth*11,top,Math.max(8,width-24-row.depth*11),rowHeight);}return null;}
+    ControllerScreen.UiRect rect(String key,boolean chevron){for(var row:rows)if(row.key.equals(key)&&row.visibility>.9F){int top=y+(int)Math.round(row.top-scroll);if(top<y||top+rowHeight>y+height)return null;return chevron?new ControllerScreen.UiRect(x+5+row.depth*6,top,9,rowHeight):new ControllerScreen.UiRect(x+18+row.depth*6,top,Math.max(8,width-24-row.depth*6),rowHeight);}return null;}
 }

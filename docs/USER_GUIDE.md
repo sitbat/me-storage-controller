@@ -1,4 +1,4 @@
-# 0.4.0 使用说明 / User guide
+# 0.4.1 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版网络协议为 4，升级时请同时替换客户端和服务器上的旧版 JAR。界面与方块外观更新，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版将内容分页扩展到 45 格，网络协议升为 5；多人游戏客户端和服务器须同时升级，不能与 0.4.0 混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release uses network protocol 4; replace the old JAR on both client and server. The interface and block appearance are updated, while the game version remains **Minecraft 1.20.1 Forge**.
+This release expands content pages to 45 entries and uses protocol 5. Upgrade clients and servers together; version 0.4.0 is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -18,8 +18,8 @@ This release uses network protocol 4; replace the old JAR on both client and ser
 
 ```powershell
 .\gradlew.bat runClient -Pdemo -PeaeTest
-# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.0
-.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.0'
+# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.1
+.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.1'
 ```
 
 `demoWorld` 指定运行目录 `saves` 下的现成存档文件夹名，省略时默认为 `ME-Controller-Demo`。演示模式会进入该存档并尝试打开控制器界面，不执行自动测试或自动退出。如果控制器不存在或离线，会记录 `ME_STORAGE_DEMO_UNAVAILABLE` 并把操作权留给玩家。按 Esc 关闭界面后，可右键坐标 **8, 100, 8** 的控制器重新打开。此处说明启动方法，不代表当前实例已成功启动。
@@ -32,13 +32,17 @@ Use JDK 17 and an existing world under the run directory's `saves` folder. `demo
 
 The left tree follows **Entire network → Dimension → Device → Cell**. Click arrows to expand or collapse branches; multiple devices can remain open. Click a device name for its summary or a cell row for that cell's details. Expanding, collapsing and scrolling do not move cells or automatically close other devices.
 
-鼠标位于目录上时滚轮用于浏览树。滚离当前元件后，其详情仍保留。顶部“返回”从元件回到设备，再回到全网；“全网”直接返回网络概况。宽窗口在右侧显示层级路径和设备位置。
+鼠标位于目录上时滚轮用于浏览树。滚离当前元件后，其详情仍保留。“返回”从元件回到设备，再回到全网；“全网”直接返回网络概况。图标按钮提供悬停说明，标题与节点提示显示完整详情。
 
-Use the mouse wheel over the tree to scroll. Scrolling the selected cell out of view leaves its details selected. Back moves from cell to device, then to the network; All returns directly to the overview. Wide layouts display the path and device location on the right.
+Use the mouse wheel over the tree to scroll. Scrolling the selected cell out of view leaves its details selected. Back moves from cell to device, then to the network; All returns directly to the overview. Hover the title or path for full details.
 
-顶部有定位、返回、全网和主题按钮。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。宽窗口同时显示内容清单、元件操作区和玩家背包；紧凑窗口通过“存储内容 · 只读”和“元件与背包”标签切换。列表的物品图标是只读信息，只有元件操作区和玩家背包中的实际槽位可取放。
+界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格只读，点击查看精确数量，不会取出其中的物品或流体。
 
-Header controls provide Locate, Back, All and Theme. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. Wide windows show contents, cell controls and player inventory together. Compact windows use Contents · Read only and Cells & inventory tabs. Listed resource icons are read-only; actual cell-control and player-inventory slots handle transfers.
+The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. Content-grid entries are read-only: selecting one shows its exact quantity without extracting items or fluids.
+
+GUI 缩放为 Auto 时，仅此控制器界面会临时限制实际渲染倍率，使面板能完整显示；不会修改游戏的 GUI 缩放选项。关闭界面后恢复游戏原本计算的倍率，重新打开时再适配。演示启动同样保留玩家原有 GUI 缩放设置。
+
+With GUI Scale set to Auto, only this controller screen temporarily limits its rendering scale so the panel fits. The game option is unchanged. Closing restores the game's calculated scale, and reopening adapts again. Demo startup also preserves the player's GUI Scale setting.
 
 主容量条与元件下方的小容量条显示可获取的占用信息：低于 80% 使用蓝灰色，80% 至 95% 使用琥珀色，95% 起使用红色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
 
@@ -49,6 +53,10 @@ The main capacity bar and small cell bars show available occupancy information: 
 打开后先查看全网概况。目录搜索支持维度、设备名称与元件名称；搜索时显示匹配的分支，清空后恢复原来的展开偏好。设备详情显示维度和坐标；驱动器与 ME 箱子可以进一步查看其元件。使用返回按钮逐级回到设备或全网概况。
 
 The first view shows the grid overview. Tree search matches dimensions, device names and cell names, exposing matching branches while searching and restoring expansion preferences when cleared. Device details include dimension and coordinates. Drives and ME Chests offer cell details; Back moves up a level.
+
+点击左侧工具栏的 **A–Z 目录搜索图标**，可显示或收起目录搜索框。目录搜索与右侧内容搜索独立；要取消目录过滤，请清空目录搜索文字，收起输入框本身不会清除搜索条件。
+
+Click the **A–Z tree-search icon** on the left toolbar to show or hide the tree search field. Tree and content searches are independent. Clear the tree query to remove its filter; hiding the field retains the query.
 
 字节占用描述存储元件的内部容量，不等于物品个数：AE2 的类型开销和每字节存储数量会影响实际可存数量。类型占用描述可存储的不同条目数量。附属模组不公开这些数值时显示“未知”，不应将未知当成零或无限。
 
@@ -68,9 +76,9 @@ Search, sort by name or quantity, and page through contents. Item entries show a
 
 Use the device's cell slots to move complete cells to or from your inventory. Cell detail controls inspect the contents. The content list is not an ME Terminal: clicking a listed resource does not extract items or fluids.
 
-点击树中的元件行，或元件操作区槽位下方数字，进入元件详情；普通点击、Shift 点击实际槽位用于移动整个元件。超过 10 个槽位时，选中树中后面的元件会自动映射到对应操作页，也可使用元件区域的分页箭头。只读附属设备可查看详情但不开放取放槽位。跨维度元件只读；同维度取放会验证玩家操作权限和目标设备的 Forge 交互保护事件。
+点击树中的元件行进入元件详情；普通点击、Shift 点击实际槽位用于移动整个元件。超过 10 个槽位时，选中树中后面的元件会自动映射到对应操作页，也可使用元件区域的分页箭头。只读附属设备可查看详情但不开放取放槽位。跨维度元件只读；同维度取放会验证玩家操作权限和目标设备的 Forge 交互保护事件。
 
-Select a cell in the tree or use its numbered control below the slots. Click or Shift-click actual slots to move whole cells. Selecting later tree cells maps the controls to the appropriate page; cell-area arrows also change pages. Read-only addon devices can expose details without writable slots. Cross-dimensional operations are read-only; same-dimensional actions validate player access and the target's Forge interaction protection event.
+Select a cell in the tree to inspect it. Click or Shift-click actual slots to move whole cells. Selecting later tree cells maps the controls to the appropriate page; cell-area arrows also change pages. Read-only addon devices can expose details without writable slots. Cross-dimensional operations are read-only; same-dimensional actions validate player access and the target's Forge interaction protection event.
 
 ExtendedAE 扩展 ME 驱动器在目录中展示实际元件槽位。选择第 20 个元件时，操作区显示第 11–20 个真实槽位，其中最后一格就是所选元件。元件本身的兼容性仍取决于其存储接口，适配驱动器不等于保证所有第三方元件都能显示字节容量。
 
@@ -86,9 +94,9 @@ Cell moves affect the actual device. Removing a cell normally removes its conten
 
 ## 方块外观 / Block appearance
 
-控制器方块采用下沉前面板与独立底部状态灯条。前面板上的树和容量条纹是设备标识，实际存储数据请在界面查看。底部灯条反映真实联网状态：在线时缓慢呼吸并提供 4 级方块光照，掉电或失去频道后熄灭。模型与图集来源见 [视觉资源说明](ASSETS.md)。
+控制器方块使用官方 AE2 1.21.1 机器表面、显示器面板及终端遮罩，组合为适配 Forge 1.20.1 的自定义模型。福鲁伊克斯色显示层反映真实联网状态：在线时全亮并缓慢脉动，离线时降低亮度。实时容量仍需在界面中查看。美术来源、改编方式及 CC BY-NC-SA 3.0 许可见 [视觉资源说明](ASSETS.md)。
 
-The block has a recessed front panel and an independent lower status strip. Its painted tree/storage symbols identify the device; live storage data is shown in the GUI. The lower strip follows the actual network node: online it gently pulses and emits light level four; losing power or a channel turns it off. See [visual asset provenance](ASSETS.md).
+The block combines official AE2 1.21.1 machine surfaces, monitor artwork and terminal masks in a custom model adapted for Forge 1.20.1. Fluix-colored display layers follow the actual node state: full-bright with a slow pulse online, dimmed offline. Read live capacity in the GUI. See [asset provenance](ASSETS.md) for sources, adaptations and CC BY-NC-SA 3.0 licensing.
 
 ## 定位 / Locate
 

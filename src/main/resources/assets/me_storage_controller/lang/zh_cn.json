@@ -51,7 +51,7 @@
   "gui.me_storage_controller.empty_cell": "空槽位",
   "gui.me_storage_controller.cell_readonly": "只读存储元件",
   "gui.me_storage_controller.selected_device": "设备详情",
-  "gui.me_storage_controller.select_device": "选择设备以管理存储元件",
+  "gui.me_storage_controller.select_device": "请选择一个设备",
   "gui.me_storage_controller.devices_count": "%s 个设备",
   "gui.me_storage_controller.cell_range": "第 %s–%s 个，共 %s 个元件",
   "gui.me_storage_controller.via_device": "通过 %s 连接",
@@ -82,5 +82,17 @@
   "gui.me_storage_controller.selected_cell_info": "元件 %s · %s",
   "gui.me_storage_controller.root_short": "全网",
   "gui.me_storage_controller.sort_amount_short": "数量",
-  "gui.me_storage_controller.sort_name_short": "名称"
+  "gui.me_storage_controller.sort_name_short": "名称",
+  "gui.me_storage_controller.external_capacity_short": "容量由容器提供",
+  "gui.me_storage_controller.cells_short": "存储元件",
+  "gui.me_storage_controller.search_short": "搜索物品",
+  "gui.me_storage_controller.network_storage": "网络存储",
+  "gui.me_storage_controller.external_short": "外部存储",
+  "gui.me_storage_controller.toggle_tree": "展开 / 收起存储树",
+  "gui.me_storage_controller.terminal_title": "ME 存储",
+  "gui.me_storage_controller.previous_page": "上一页存储内容",
+  "gui.me_storage_controller.inventory_short": "背包",
+  "gui.me_storage_controller.capacity_unknown": "容量未知",
+  "gui.me_storage_controller.next_page": "下一页存储内容",
+  "gui.me_storage_controller.types_inline": "类型 %s/%s"
 }

@@ -58,6 +58,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private List<Snapshot.DirectoryEntry> directory=List.of();
     private long nextDirectoryRefresh;
     private boolean clientSlotsVisible=true;
+    private boolean clientCellsVisible=true;
 
     public ControllerMenu(int id,Inventory inventory,FriendlyByteBuf data) {
         this(id,inventory,inventory.player.level().getBlockEntity(data.readBlockPos()) instanceof ControllerBlockEntity be ? be : null);
@@ -75,7 +76,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         return new SlotItemHandler(remote,index,x,y) {
             @Override public boolean mayPlace(ItemStack stack) { return canEdit() && remote.isItemValid(index,stack); }
             @Override public boolean mayPickup(Player p) { return canEdit(); }
-            @Override public boolean isActive() { return player.level().isClientSide ? clientSlotsVisible && snapshot.editableSlots()>index : selected!=null && selected.cells()!=null && selected.cells().getSlots()>index+cellOffset(); }
+            @Override public boolean isActive() { return player.level().isClientSide ? clientCellsVisible && snapshot.editableSlots()>index : selected!=null && selected.cells()!=null && selected.cells().getSlots()>index+cellOffset(); }
         };
     }
     /** Only presentation coordinates change. Slot identity, ordering and backing inventories remain unchanged. */
@@ -83,9 +84,13 @@ public final class ControllerMenu extends AbstractContainerMenu {
         layoutSlots(8,cellY,8,inventoryY,hotbarY,true);
     }
     public void layoutSlots(int cellX,int cellY,int inventoryX,int inventoryY,int hotbarY,boolean visible) {
+        layoutSlots(cellX,cellY,10,inventoryX,inventoryY,hotbarY,visible,visible);
+    }
+    public void layoutSlots(int cellX,int cellY,int cellColumns,int inventoryX,int inventoryY,int hotbarY,boolean cellsVisible,boolean inventoryVisible) {
         if(!player.level().isClientSide) return;
-        clientSlotsVisible=visible;
-        for(int i=0;i<10;i++) replaceSlot(i,remoteSlot(i,cellX+18*i,cellY));
+        clientSlotsVisible=inventoryVisible;clientCellsVisible=cellsVisible;
+        int columns=Math.max(1,Math.min(10,cellColumns));
+        for(int i=0;i<10;i++) replaceSlot(i,remoteSlot(i,cellX+18*(i%columns),cellY+18*(i/columns)));
         for(int row=0;row<3;row++) for(int col=0;col<9;col++)
             replaceSlot(10+row*9+col,playerSlot(9+row*9+col,inventoryX+18*col,inventoryY+18*row));
         for(int col=0;col<9;col++) replaceSlot(37+col,playerSlot(col,inventoryX+18*col,hotbarY));
@@ -185,6 +190,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         return copy;
     }
     @Override public void broadcastChanges() {
+        boolean refreshed=false;
         if(!player.level().isClientSide) {
             long now=player.level().getGameTime();
             boolean navigating=pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell);
@@ -198,9 +204,12 @@ public final class ControllerMenu extends AbstractContainerMenu {
                 deviceQuery=request.deviceQuery(); contentQuery=request.contentQuery(); sortByAmount=request.sortByAmount(); nextRefresh=0;
                 deviceMatches=Set.copyOf(request.deviceMatches()); contentMatches=Set.copyOf(request.contentMatches());
             }
-            if(now>=nextRefresh) { refresh(); lastRefresh=now; nextRefresh=now+20; }
+            if(now>=nextRefresh) { refresh(); lastRefresh=now; nextRefresh=now+20; refreshed=true; }
         }
         super.broadcastChanges();
+        // Vanilla slot packets must precede the selection acknowledgement. The
+        // client stays locked until both labels and their real cells are current.
+        if(refreshed) send();
     }
     private void refresh() {
         var grid=grid();
@@ -208,7 +217,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
             directory=List.of(); nextDirectoryRefresh=0;
             selected=null; snapshot=new Snapshot(false,"gui.me_storage_controller.offline","",-1,List.of(),0,1,0,
                 controller==null ? Component.empty() : controller.getDisplayName(),new Snapshot.Capacity(-1,-1,-1,-1,0),List.of(),0,1,0,0,0,List.of(),null,acknowledgedRevision,List.of(),0);
-            send(); return;
+            return;
         }
         List<Device> devices=StorageScanner.discover(grid);
         selected=devices.stream().filter(d->d.id().equals(selectedId)).findFirst().orElse(null);
@@ -282,15 +291,14 @@ public final class ControllerMenu extends AbstractContainerMenu {
             || contentMatches.contains(entry.getKey().getId()))) contents.add(new Snapshot.Content(entry.getKey(),entry.getLongValue()));
         Comparator<Snapshot.Content> byName=Comparator.comparing(c->c.key().getDisplayName().getString(),String.CASE_INSENSITIVE_ORDER);
         contents.sort(sortByAmount ? Comparator.comparingLong(Snapshot.Content::amount).reversed().thenComparing(byName) : byName.thenComparing(c->c.key().getId().toString()));
-        int contentPages=pages(contents.size(),6); contentPage=Math.min(contentPage,contentPages-1);
-        int from=contentPage*6,to=Math.min(from+6,contents.size());
+        int contentPages=pages(contents.size(),Snapshot.CONTENT_PAGE_SIZE); contentPage=Math.min(contentPage,contentPages-1);
+        int from=contentPage*Snapshot.CONTENT_PAGE_SIZE,to=Math.min(from+Snapshot.CONTENT_PAGE_SIZE,contents.size());
         var previews=selectedCells.stream().skip(cellOffset()).limit(10).map(cell -> new Snapshot.CellPreview(cell.slot(),cell.stack(),cell.capacity().usedBytes(),cell.capacity().totalBytes(),cell.readable())).toList();
         refreshDirectory(devices,deviceInfos,cellReads);
         snapshot=new Snapshot(true,error,selectedId,selectedCell,infos,devicePage,devicePages,filtered.size(),title,capacity,
             List.copyOf(contents.subList(from,to)),contentPage,contentPages,contents.size(),
             selected!=null ? Math.max(0,StorageScanner.cellCount(selected)) : 0,
             canEdit() ? Math.max(0,Math.min(10,selected.cells().getSlots()-cellOffset())) : 0,previews,selectedInfo,acknowledgedRevision,directory,devices.size());
-        send();
     }
     /** Reuse reads already needed for detail/capacity. Other branches scan at most once per second. */
     private void refreshDirectory(List<Device> devices,Map<String,Snapshot.DeviceInfo> infos,

@@ -14,8 +14,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    // Version 4 adds the bounded directory tree to every snapshot.
-    private static final String VERSION="4";
+    // Version 5 raises content pages to the 9-by-5 grid; older decoders reject them.
+    private static final String VERSION="5";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
     public record Request(int containerId,String deviceId,int cell,int devicePage,int contentPage,String deviceQuery,String contentQuery,boolean sortByAmount,

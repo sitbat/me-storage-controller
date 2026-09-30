@@ -1,12 +1,12 @@
 modLoader="javafml"
 loaderVersion="[47,)"
-license="MIT"
+license="MIT (code); CC BY-NC-SA 3.0 (AE2-derived visual assets)"
 [[mods]]
 modId="me_storage_controller"
-version="0.4.0"
+version="0.4.1"
 displayName="ME Storage Controller"
 authors="ME Storage Controller contributors"
-description='''A hierarchical AE2 storage dashboard with remote storage-cell management.'''
+description='''An AE2 storage terminal with hierarchical browsing and remote storage-cell management.'''
 [[dependencies.me_storage_controller]]
 modId="forge"
 mandatory=true

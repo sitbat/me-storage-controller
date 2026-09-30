@@ -51,7 +51,7 @@
   "gui.me_storage_controller.empty_cell": "Empty slot",
   "gui.me_storage_controller.cell_readonly": "Read-only storage cell",
   "gui.me_storage_controller.selected_device": "Device details",
-  "gui.me_storage_controller.select_device": "Select a device to manage its cells",
+  "gui.me_storage_controller.select_device": "Select a device",
   "gui.me_storage_controller.devices_count": "%s devices",
   "gui.me_storage_controller.cell_range": "%s–%s of %s cells",
   "gui.me_storage_controller.via_device": "Connected via %s",
@@ -82,5 +82,17 @@
   "gui.me_storage_controller.selected_cell_info": "Cell %s · %s",
   "gui.me_storage_controller.root_short": "All",
   "gui.me_storage_controller.sort_amount_short": "Quantity",
-  "gui.me_storage_controller.sort_name_short": "Name"
+  "gui.me_storage_controller.sort_name_short": "Name",
+  "gui.me_storage_controller.external_capacity_short": "Container-managed capacity",
+  "gui.me_storage_controller.cells_short": "Storage cells",
+  "gui.me_storage_controller.search_short": "Search",
+  "gui.me_storage_controller.network_storage": "Network storage",
+  "gui.me_storage_controller.external_short": "External storage",
+  "gui.me_storage_controller.toggle_tree": "Show / hide storage tree",
+  "gui.me_storage_controller.terminal_title": "ME Storage",
+  "gui.me_storage_controller.previous_page": "Previous contents page",
+  "gui.me_storage_controller.inventory_short": "Inventory",
+  "gui.me_storage_controller.capacity_unknown": "Capacity unknown",
+  "gui.me_storage_controller.next_page": "Next contents page",
+  "gui.me_storage_controller.types_inline": "Types %s/%s"
 }

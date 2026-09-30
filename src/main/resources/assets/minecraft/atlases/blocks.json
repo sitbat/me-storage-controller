@@ -1,0 +1,13 @@
+{
+  "sources": [
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/block/generics/front" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/block/generics/back" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/block/generics/side" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/block/generics/top" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/block/generics/bottom" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/part/monitor_front" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/part/terminal_dark" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/part/terminal_medium" },
+    { "type": "minecraft:single", "resource": "me_storage_controller:ae2_1_21/part/terminal_bright" }
+  ]
+}

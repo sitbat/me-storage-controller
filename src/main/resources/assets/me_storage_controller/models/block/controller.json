@@ -1,9 +1,18 @@
 {
+  "credit": "AE2 1.21.1 textures: Ridanisaurus Rid, AlgorithmX2 et al. CC BY-NC-SA 3.0. Original block composition; see AE2-ASSET-NOTICE.txt.",
   "parent": "minecraft:block/block",
+  "render_type": "cutout",
   "textures": {
-    "particle": "me_storage_controller:block/controller_atlas",
-    "atlas": "me_storage_controller:block/controller_atlas",
-    "indicator": "minecraft:block/gray_concrete"
+    "particle": "me_storage_controller:ae2_1_21/block/generics/side",
+    "front": "me_storage_controller:ae2_1_21/block/generics/front",
+    "back": "me_storage_controller:ae2_1_21/block/generics/back",
+    "side": "me_storage_controller:ae2_1_21/block/generics/side",
+    "top": "me_storage_controller:ae2_1_21/block/generics/top",
+    "bottom": "me_storage_controller:ae2_1_21/block/generics/bottom",
+    "monitor": "me_storage_controller:ae2_1_21/part/monitor_front",
+    "dark": "me_storage_controller:ae2_1_21/part/terminal_dark",
+    "medium": "me_storage_controller:ae2_1_21/part/terminal_medium",
+    "bright": "me_storage_controller:ae2_1_21/part/terminal_bright"
   },
   "elements": [
     {
@@ -19,62 +28,62 @@
       ],
       "faces": {
         "north": {
-          "texture": "#atlas",
           "uv": [
             0,
             0,
-            8,
-            8
-          ]
+            16,
+            16
+          ],
+          "texture": "#front"
         },
         "south": {
-          "texture": "#atlas",
           "uv": [
-            8,
-            8,
+            0,
+            0,
             16,
             16
           ],
+          "texture": "#back",
           "cullface": "south"
         },
-        "east": {
-          "texture": "#atlas",
-          "uv": [
-            8,
-            0,
-            16,
-            8
-          ],
-          "cullface": "east"
-        },
         "west": {
-          "texture": "#atlas",
           "uv": [
-            8,
+            1,
             0,
             16,
-            8
-          ],
-          "cullface": "west"
-        },
-        "up": {
-          "texture": "#atlas",
-          "uv": [
-            0,
-            8,
-            8,
             16
           ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            15,
+            16
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "up": {
+          "uv": [
+            0,
+            1,
+            16,
+            16
+          ],
+          "texture": "#top",
           "cullface": "up"
         },
         "down": {
-          "texture": "#atlas",
           "uv": [
-            8,
-            8,
+            0,
+            0,
             16,
-            16
+            15
           ],
+          "texture": "#bottom",
           "cullface": "down"
         }
       }
@@ -86,264 +95,417 @@
         0
       ],
       "to": [
-        1.5,
         16,
+        2,
         1
       ],
       "faces": {
         "north": {
-          "texture": "#atlas",
           "uv": [
             0,
-            0,
-            0.75,
-            8
+            14,
+            16,
+            16
           ],
-          "cullface": "north"
+          "texture": "#front"
         },
-        "east": {
-          "texture": "#atlas",
+        "south": {
           "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
+            0,
+            14,
+            16,
+            16
+          ],
+          "texture": "#back",
+          "cullface": "south"
         },
         "west": {
-          "texture": "#atlas",
           "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
+            0,
+            14,
+            1,
+            16
           ],
+          "texture": "#side",
           "cullface": "west"
         },
-        "up": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "down": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        }
-      }
-    },
-    {
-      "from": [
-        14.5,
-        0,
-        0
-      ],
-      "to": [
-        16,
-        16,
-        1
-      ],
-      "faces": {
-        "north": {
-          "texture": "#atlas",
-          "uv": [
-            7.25,
-            0,
-            8,
-            8
-          ],
-          "cullface": "north"
-        },
         "east": {
-          "texture": "#atlas",
           "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
+            15,
+            14,
+            16,
+            16
           ],
+          "texture": "#side",
           "cullface": "east"
         },
-        "west": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
         "up": {
-          "texture": "#atlas",
           "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "down": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        }
-      }
-    },
-    {
-      "from": [
-        1.5,
-        14.5,
-        0
-      ],
-      "to": [
-        14.5,
-        16,
-        1
-      ],
-      "faces": {
-        "north": {
-          "texture": "#atlas",
-          "uv": [
-            0.75,
             0,
-            7.25,
-            0.75
+            0,
+            16,
+            1
           ],
-          "cullface": "north"
-        },
-        "east": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "west": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "up": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ],
+          "texture": "#top",
           "cullface": "up"
         },
         "down": {
-          "texture": "#atlas",
           "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        }
-      }
-    },
-    {
-      "from": [
-        1.5,
-        0,
-        0
-      ],
-      "to": [
-        14.5,
-        1.5,
-        1
-      ],
-      "faces": {
-        "north": {
-          "texture": "#atlas",
-          "uv": [
-            0.75,
-            7.25,
-            7.25,
-            8
+            0,
+            15,
+            16,
+            16
           ],
-          "cullface": "north"
-        },
-        "east": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "west": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "up": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ]
-        },
-        "down": {
-          "texture": "#atlas",
-          "uv": [
-            0.1,
-            1.4,
-            0.35,
-            6.6
-          ],
+          "texture": "#bottom",
           "cullface": "down"
         }
       }
     },
     {
       "from": [
-        5.5,
-        0.48,
-        -0.005
+        0,
+        14,
+        0
       ],
       "to": [
-        10.5,
-        0.78,
+        16,
+        16,
+        1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#front"
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            2
+          ],
+          "texture": "#back",
+          "cullface": "south"
+        },
+        "west": {
+          "uv": [
+            0,
+            0,
+            1,
+            2
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "east": {
+          "uv": [
+            15,
+            0,
+            16,
+            2
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            1
+          ],
+          "texture": "#top",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            15,
+            16,
+            16
+          ],
+          "texture": "#bottom",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        0,
+        2,
         0
+      ],
+      "to": [
+        2,
+        14,
+        1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            14,
+            2,
+            16,
+            14
+          ],
+          "texture": "#front"
+        },
+        "south": {
+          "uv": [
+            0,
+            2,
+            2,
+            14
+          ],
+          "texture": "#back",
+          "cullface": "south"
+        },
+        "west": {
+          "uv": [
+            0,
+            2,
+            1,
+            14
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "east": {
+          "uv": [
+            15,
+            2,
+            16,
+            14
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            2,
+            1
+          ],
+          "texture": "#top",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            0,
+            15,
+            2,
+            16
+          ],
+          "texture": "#bottom",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "from": [
+        14,
+        2,
+        0
+      ],
+      "to": [
+        16,
+        14,
+        1
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            2,
+            2,
+            14
+          ],
+          "texture": "#front"
+        },
+        "south": {
+          "uv": [
+            14,
+            2,
+            16,
+            14
+          ],
+          "texture": "#back",
+          "cullface": "south"
+        },
+        "west": {
+          "uv": [
+            0,
+            2,
+            1,
+            14
+          ],
+          "texture": "#side",
+          "cullface": "west"
+        },
+        "east": {
+          "uv": [
+            15,
+            2,
+            16,
+            14
+          ],
+          "texture": "#side",
+          "cullface": "east"
+        },
+        "up": {
+          "uv": [
+            14,
+            0,
+            16,
+            1
+          ],
+          "texture": "#top",
+          "cullface": "up"
+        },
+        "down": {
+          "uv": [
+            14,
+            15,
+            16,
+            16
+          ],
+          "texture": "#bottom",
+          "cullface": "down"
+        }
+      }
+    },
+    {
+      "name": "Recessed monitor background",
+      "from": [
+        2,
+        2,
+        0.95
+      ],
+      "to": [
+        14,
+        14,
+        1
       ],
       "shade": false,
       "faces": {
         "north": {
-          "texture": "#indicator",
           "uv": [
-            0,
-            0,
-            16,
-            16
-          ]
+            8,
+            8,
+            9,
+            9
+          ],
+          "texture": "#front",
+          "tintindex": 7
+        }
+      }
+    },
+    {
+      "name": "AE2 monitor pixel frame",
+      "from": [
+        2,
+        2,
+        0.85
+      ],
+      "to": [
+        14,
+        14,
+        1
+      ],
+      "shade": false,
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#monitor"
+        }
+      }
+    },
+    {
+      "name": "AE2 terminal dark mask",
+      "from": [
+        2,
+        2,
+        0.8
+      ],
+      "to": [
+        14,
+        14,
+        1
+      ],
+      "shade": false,
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#dark",
+          "tintindex": 1
+        }
+      }
+    },
+    {
+      "name": "AE2 terminal medium mask",
+      "from": [
+        2,
+        2,
+        0.8
+      ],
+      "to": [
+        14,
+        14,
+        1
+      ],
+      "shade": false,
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#medium",
+          "tintindex": 2
+        }
+      }
+    },
+    {
+      "name": "AE2 terminal bright mask",
+      "from": [
+        2,
+        2,
+        0.8
+      ],
+      "to": [
+        14,
+        14,
+        1
+      ],
+      "shade": false,
+      "faces": {
+        "north": {
+          "uv": [
+            2,
+            2,
+            14,
+            14
+          ],
+          "texture": "#bright",
+          "tintindex": 3
         }
       }
     }

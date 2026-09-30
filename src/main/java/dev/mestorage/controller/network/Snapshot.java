@@ -15,6 +15,8 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         List<CellPreview> cells, DeviceInfo selectedInfo, long revision,
         List<DirectoryEntry> directory, int directoryTotalDevices) {
     public static final int MAX_DIRECTORY_DEVICES=256;
+    /** One native-style content grid: nine columns and five rows. */
+    public static final int CONTENT_PAGE_SIZE=45;
     public static final int MAX_DIRECTORY_CELLS_PER_DEVICE=256;
     public static final int MAX_DIRECTORY_CELLS=4096;
     public record DirectoryEntry(DeviceInfo device,int cellSlots,List<CellPreview> cells) {
@@ -79,7 +81,7 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         for(int i=0;i<n;i++) devices.add(readDevice(b));
         int dp=b.readInt(),dps=b.readInt(),dc=b.readInt(); Component title=b.readComponent();
         var capacity=new Capacity(b.readLong(),b.readLong(),b.readLong(),b.readLong(),b.readInt(),b.readLong(),b.readLong(),b.readLong(),b.readLong());
-        n=b.readVarInt(); if(n<0 || n>6) throw new IllegalArgumentException("content page");
+        n=b.readVarInt(); if(n<0 || n>CONTENT_PAGE_SIZE) throw new IllegalArgumentException("content page");
         var contents=new ArrayList<Content>();
         for(int i=0;i<n;i++) { AEKey key=AEKey.readKey(b); long amount=b.readLong(); if(key!=null) contents.add(new Content(key,amount)); }
         int cp=b.readInt(),cps=b.readInt(),cc=b.readInt(),slots=b.readInt(),editable=b.readInt();

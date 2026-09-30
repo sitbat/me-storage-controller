@@ -16,211 +16,126 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 
-/** A storage file manager. Animated navigation never changes the geometry of real inventory slots. */
+/** Native-size AE terminal with a directory attachment. Content tiles are inspection only. */
 public final class ControllerScreen extends AbstractContainerScreen<ControllerMenu> {
+    private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states");
+    private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
     private final StorageTree tree=new StorageTree(this::select);
-    private EditBox treeSearch,contentSearch;
-    private Button theme,back,root,locate,contentPrevious,contentNext,cellsPrevious,cellsNext,contentsTab,inventoryTab,sort;
-    private boolean compact,inventoryPage,sortByAmount=true;
-    private int treeWidth,right,rightWidth,treeTop,treeHeight,dockTop,cellX,cellY,inventoryX,inventoryY,hotbarY;
-    private int contentSearchY,contentsY,contentRowHeight,contentFooterY,controlPressButton=-1;
+    private EditBox contentSearch,treeSearch;
+    private Button theme,root,back,sort,collapse,locate,contentPrevious,contentNext,cellsPrevious,cellsNext;
+    private boolean collapsed,treeOnly,narrow,treeVisible,mainVisible,sortByAmount=true,treeSearchOpen;
+    private int mainX=142,visibleRows=5,gridRowOffset,cellY,inventoryY,hotbarY,treeHeight,controlPressButton=-1;
     private long searchDue,lastFrame;
     private float delta=.016F,themeMix=ClientAppearance.isDark()?1:0;
     private DashboardPalette p=DashboardPalette.blend(themeMix);
-    private final float[] rowHover=new float[6];
+    private final float[] hover=new float[45];
     private String observedSelection="";
-
+    private AEKey focusedKey;
     public ControllerScreen(ControllerMenu menu,Inventory inventory,Component title){super(menu,inventory,title);}
     static Component tr(String key,Object... args){return Component.translatable("gui.me_storage_controller."+key,args);}
     @Override protected void init(){
-        imageWidth=Math.min(width-20,640);imageHeight=Math.min(height-12,360);
-        compact=imageWidth<560||imageHeight<336;
-        treeWidth=compact?Math.min(132,Math.max(72,imageWidth-228)):176;
-        right=treeWidth+24;rightWidth=imageWidth-right-12;treeTop=80;treeHeight=imageHeight-treeTop-25;
-        dockTop=imageHeight-94;contentSearchY=compact?88:114;contentsY=compact?110:136;
-        contentRowHeight=compact?16:Math.max(16,(dockTop-22-contentsY)/6);contentFooterY=compact?imageHeight-18:dockTop-17;
-        String tq=treeSearch==null?"":treeSearch.getValue(),cq=contentSearch==null?"":contentSearch.getValue();
-        super.init();
-        locate=button(imageWidth-212,8,44,20,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});
-        locate.setTooltip(Tooltip.create(tr("locate")));
-        back=button(imageWidth-164,8,34,20,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
-        back.setTooltip(Tooltip.create(tr("back")));
-        root=button(imageWidth-126,8,38,20,tr("root_short"),b->select("",-1));root.setTooltip(Tooltip.create(tr("network_root")));
-        theme=button(imageWidth-82,8,70,20,themeName(),b->setDarkThemeForTest(!ClientAppearance.isDark()));theme.setTooltip(Tooltip.create(tr("theme_toggle")));
-        treeSearch=search(12,56,treeWidth-4,tq,"tree_search",v->tree.setQuery(v));
-        contentSearch=search(right,contentSearchY,rightWidth-56,cq,"content_search_readonly",v->searchDue=System.currentTimeMillis()+250);
-        sort=button(imageWidth-64,contentSearchY,52,20,tr(sortByAmount?"sort_amount_short":"sort_name_short"),b->{sortByAmount=!sortByAmount;b.setMessage(tr(sortByAmount?"sort_amount_short":"sort_name_short"));updateSortTooltip();request(0);});
-        updateSortTooltip();
-        contentPrevious=button(right,contentFooterY,23,14,Component.literal("<"),b->request(menu.getSnapshot().contentPage()-1));
-        contentNext=button(imageWidth-35,contentFooterY,23,14,Component.literal(">"),b->request(menu.getSnapshot().contentPage()+1));
-        contentsTab=button(right,39,Math.min(104,rightWidth/2-2),19,tr("contents_readonly"),b->showInventory(false));
-        inventoryTab=button(right+Math.min(104,rightWidth/2-2)+4,39,rightWidth-Math.min(104,rightWidth/2-2)-4,19,tr("cells_inventory"),b->showInventory(true));
-        int pageY=compact?108:dockTop+73;
-        cellsPrevious=button(right+146,pageY,20,15,Component.literal("<"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),Math.max(0,cellOffset(s)-10));});
-        cellsNext=button(right+169,pageY,20,15,Component.literal(">"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),cellOffset(s)+10);});
-        cellsPrevious.setTooltip(Tooltip.create(tr("cells_previous")));cellsNext.setTooltip(Tooltip.create(tr("cells_next")));
-        layoutInventory();updateWidgets();
+        var window=minecraft.getWindow();int preferred=window.calculateScale(minecraft.options.guiScale().get(),minecraft.isEnforceUnicode());
+        int limit=Math.max(1,Math.min(window.getWidth()/494,window.getHeight()/324));window.setGuiScale(Math.min(preferred,limit));
+        width=window.getGuiScaledWidth();height=window.getGuiScaledHeight();narrow=width<352;
+        treeVisible=narrow?treeOnly:!collapsed;mainVisible=!narrow||!treeOnly;mainX=treeVisible&&!narrow?142:18;
+        imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(2,Math.min(5,(height-150)/18));imageHeight=150+visibleRows*18;
+        cellY=imageHeight-49;inventoryY=imageHeight-94;hotbarY=imageHeight-36;treeHeight=imageHeight-134;gridRowOffset=Math.min(gridRowOffset,5-visibleRows);
+        String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();
+        sort=icon(0,24,18,20,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setTooltip(Tooltip.create(tr(sortByAmount?"sort_amount":"sort_name")));request(0);});
+        ((IconButton)sort).sx=sortByAmount?16:0;
+        root=icon(0,46,18,20,160,16,tr("network_root"),b->select("",-1));
+        back=icon(0,68,18,20,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
+        collapse=icon(0,90,18,20,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
+        theme=icon(0,112,18,20,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
+        icon(0,134,18,20,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
+        locate=icon(117,imageHeight-85,16,16,64,240,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});
+        cellsPrevious=icon(108,imageHeight-69,12,12,48,48,tr("cells_previous"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),Math.max(0,offset(s)-10));});
+        cellsNext=icon(123,imageHeight-69,12,12,32,48,tr("cells_next"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),offset(s)+10);});
+        contentPrevious=icon(mainX+173,24,12,12,0,48,tr("previous_page"),b->request(menu.getSnapshot().contentPage()-1));
+        contentNext=icon(mainX+173,23+visibleRows*18-12,12,12,16,48,tr("next_page"),b->request(menu.getSnapshot().contentPage()+1));
+        contentSearch=search(mainX+82,12,85,cq,"content_search_readonly",v->searchDue=System.currentTimeMillis()+250);
+        treeSearch=search(25,12,110,tq,"tree_search",tree::setQuery);
+        menu.layoutSlots(26,cellY,5,mainX+8,inventoryY,hotbarY,treeVisible,mainVisible);updateWidgets();
     }
-    private void updateSortTooltip(){if(sort!=null)sort.setTooltip(Tooltip.create(tr(sortByAmount?"sort_amount":"sort_name")));}
-    private Component themeName(){return tr(ClientAppearance.isDark()?"theme_dark":"theme_light");}
-    private Button button(int x,int y,int w,int h,Component text,Button.OnPress action){return addRenderableWidget(new FlatButton(leftPos+x,topPos+y,w,h,text,action));}
-    private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> responder){
-        var box=new EditBox(font,leftPos+x+6,topPos+y+6,Math.max(16,w-12),12,tr(hint));box.setBordered(false);box.setMaxLength(64);box.setValue(value);box.setResponder(responder);return addRenderableWidget(box);
-    }
-    private void layoutInventory(){
-        cellX=right+6;cellY=compact?76:dockTop+18;inventoryX=compact?right+6:imageWidth-176;
-        inventoryY=compact?141:dockTop+16;hotbarY=compact?199:dockTop+74;
-        menu.layoutSlots(cellX,cellY,inventoryX,inventoryY,hotbarY,!compact||inventoryPage);
-    }
-    private void showInventory(boolean value){inventoryPage=value;layoutInventory();updateWidgets();}
-    private void select(String device,int cell){
-        if(device.isEmpty())tree.revealRoot();
-        searchDue=0;menu.request(device,cell,0,0,"",contentSearch==null?"":contentSearch.getValue(),sortByAmount);
-    }
-    private void request(int page){var s=menu.getSnapshot();searchDue=0;menu.request(s.selectedDevice(),s.selectedCell(),s.devicePage(),Math.max(0,page),"",contentSearch.getValue(),sortByAmount);}
-    private static int cellOffset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
-    @Override protected void containerTick(){
-        super.containerTick();treeSearch.tick();contentSearch.tick();
-        if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);
-        var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();
-        if(!observedSelection.equals(selection)){observedSelection=selection;if(!s.selectedDevice().isEmpty()){if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}else tree.revealRoot();}
-        updateWidgets();
-    }
-    private void updateWidgets(){
-        var s=menu.getSnapshot();boolean contents=!compact||!inventoryPage,inventory=!compact||inventoryPage;
-        back.active=!s.selectedDevice().isEmpty();theme.setMessage(themeName());
-        locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");
-        contentsTab.visible=inventoryTab.visible=compact;
-        contentSearch.visible=sort.visible=contentPrevious.visible=contentNext.visible=contents;
-        contentPrevious.active=s.contentPage()>0;contentNext.active=s.contentPage()+1<s.contentPages();
-        cellsPrevious.visible=cellsNext.visible=inventory&&s.cellSlots()>10;
-        cellsPrevious.active=cellOffset(s)>0;cellsNext.active=cellOffset(s)+10<s.cellSlots();
-    }
-    @Override protected void renderBg(GuiGraphics g,float partial,int mouseX,int mouseY){
-        long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;
-        themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);
-        var s=menu.getSnapshot();int x=leftPos,y=topPos;
-        rounded(g,x+2,y+4,imageWidth,imageHeight,6,0x33000000);rounded(g,x,y,imageWidth,imageHeight,5,p.border());rounded(g,x+1,y+1,imageWidth-2,imageHeight-2,4,p.background());
-        rounded(g,x+5,y+35,treeWidth+8,imageHeight-40,4,p.panel());rounded(g,x+right-5,y+35,rightWidth+10,imageHeight-40,4,p.panel());
-        g.fill(x+10,y+32,x+imageWidth-10,y+33,p.border());
-        clipped(g,compact&&!s.selectedDevice().isEmpty()?s.title():title,x+12,y+13,imageWidth-236,p.text());
-        clipped(g,tr("file_tree"),x+13,y+42,treeWidth-10,p.muted());
-        searchBackground(g,treeSearch,12,56,treeWidth-4,"tree_search");
-        tree.render(g,x+10,y+treeTop,treeWidth+1,treeHeight,compact,s,p,mouseX,mouseY,delta);
-        clipped(g,s.directoryTruncated()?tr("directory_limited"):tr("devices_count",s.directoryTotalDevices()),x+13,y+imageHeight-18,treeWidth-7,s.directoryTruncated()?p.warning():p.muted());
-        if(!compact||!inventoryPage){renderDetails(g,s);renderContents(g,s,mouseX,mouseY);searchBackground(g,contentSearch,right,contentSearchY,rightWidth-56,"content_search_readonly");}
-        if(!compact||inventoryPage)renderInventory(g,s,mouseX,mouseY);
-    }
-    private void renderDetails(GuiGraphics g,Snapshot s){
-        int x=leftPos+right,y=topPos;var cap=s.capacity();
-        long used=cap.usedBytes(),total=cap.totalBytes();Component metric=tr("bytes",number(used),number(total));
-        if(total<0&&cap.totalSlots()>=0){used=cap.occupiedSlots();total=cap.totalSlots();metric=tr("slots",number(used),number(total));}
-        else if(total<0&&cap.fluidCapacity()>=0){used=cap.fluidAmount();total=cap.fluidCapacity();metric=tr("fluid",number(used),number(total));}
-        int metricY=compact?65:92;
-        if(!compact){
-            Component breadcrumb=tr("network_root");if(s.selectedInfo()!=null)breadcrumb=breadcrumb.copy().append(" / ").append(s.selectedInfo().dimension().getPath()).append(" / ").append(s.selectedInfo().name());
-            if(s.selectedCell()>=0)breadcrumb=breadcrumb.copy().append(" / ").append(tr("cell",s.selectedCell()+1));
-            clipped(g,breadcrumb,x,y+42,rightWidth,p.muted());
-            clipped(g,s.title(),x,y+60,rightWidth-68,p.text());
-            boolean active=s.online()&&(s.selectedInfo()==null||s.selectedInfo().active());
-            g.fill(x+rightWidth-62,y+62,x+rightWidth-58,y+66,active?p.accent():p.danger());
-            clipped(g,tr(active?"status_online":"status_offline"),x+rightWidth-52,y+60,52,active?p.accent():p.danger());
-            Component metadata=s.selectedInfo()==null?tr("contents",s.contentCount()):tr("location_info",s.selectedInfo().dimension().getPath(),s.selectedInfo().pos().getX(),s.selectedInfo().pos().getY(),s.selectedInfo().pos().getZ());
-            clipped(g,metadata,x,y+76,rightWidth/2,p.muted());
-            if(cap.usedTypes()>=0)rightText(g,tr("types",number(cap.usedTypes()),number(cap.totalTypes())),x+rightWidth,y+76,rightWidth/2-5,p.muted());
+    @Override public void removed(){super.removed();var w=minecraft.getWindow();w.setGuiScale(w.calculateScale(minecraft.options.guiScale().get(),minecraft.isEnforceUnicode()));}
+    private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){var b=new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action);b.setTooltip(Tooltip.create(tooltip));return addRenderableWidget(b);}
+    private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> response){var b=new EditBox(font,leftPos+x,topPos+y,w,10,tr(hint));b.setBordered(false);b.setMaxLength(64);b.setValue(value);b.setResponder(response);return addRenderableWidget(b);}
+    private static int offset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
+    private void select(String device,int cell){searchDue=0;focusedKey=null;gridRowOffset=0;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
+    private void request(int page){var s=menu.getSnapshot();searchDue=0;focusedKey=null;gridRowOffset=0;menu.request(s.selectedDevice(),s.selectedCell(),s.devicePage(),Math.max(0,page),"",contentSearch.getValue(),sortByAmount);}
+    @Override protected void containerTick(){super.containerTick();contentSearch.tick();treeSearch.tick();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}updateWidgets();}
+    private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=s.contentPage()>0;contentNext.active=s.contentPage()+1<s.contentPages();}
+    private void nativeTint(GuiGraphics g){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,1);}
+    private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xffffffff,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
+    @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
+        if(treeVisible){frame(g,leftPos+18,topPos+6,124,imageHeight-16);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
+        if(mainVisible){int x=leftPos+mainX,y=topPos;nativeTint(g);g.blit(TERMINAL,x,y+6,0,0,195,17);for(int r=0;r<visibleRows;r++)g.blit(TERMINAL,x,y+23+r*18,0,r==0?17:r==visibleRows-1?53:35,195,18);g.setColor(1,1,1,1);
+            int capY=23+visibleRows*18;frame(g,x,y+capY,195,18);nativeTint(g);g.blit(TERMINAL,x,y+capY+18,0,71,195,99);g.setColor(1,1,1,1);
+            clipped(g,tr("terminal_title"),x+8,y+12,69,p.text());field(g,contentSearch,x+80,y+10,89,"search_short");renderGrid(g,s,mx,my);renderCapacity(g,s,x+8,y+capY+3);clipped(g,tr("inventory_short"),x+8,y+inventoryY-9,162,p.text());
         }
-        String percent=total>0?percent(used,total):"—";
-        clipped(g,metric,x,y+metricY,rightWidth-font.width(percent)-12,p.text());g.drawString(font,percent,x+rightWidth-font.width(percent),y+metricY,p.accent(),false);
-        rounded(g,x,y+metricY+12,rightWidth,4,2,p.border());
-        if(total>0&&used>0){float ratio=Math.min(1,used/(float)total);rounded(g,x,y+metricY+12,Math.max(2,Math.round(rightWidth*ratio)),4,2,usageColor(ratio));}
     }
-    private void renderContents(GuiGraphics g,Snapshot s,int mouseX,int mouseY){
-        int x=leftPos+right,y=topPos;
-        for(int i=0;i<6;i++){
-            if(i>=s.contents().size())continue;var c=s.contents().get(i);int cy=y+contentsY+i*contentRowHeight;
-            boolean over=hit(mouseX,mouseY,x,cy,rightWidth,contentRowHeight);rowHover[i]=animate(rowHover[i],over?1:0,18);
-            rounded(g,x,cy,rightWidth,contentRowHeight-1,2,DashboardPalette.mix(i%2==0?p.inset():p.panel(),p.hover(),rowHover[i]));
-            drawKey(g,c.key(),x+3,cy+Math.max(0,(contentRowHeight-16)/2));
-            String amount=exactAmount(c);int aw=font.width(amount);
-            clipped(g,displayName(c.key()),x+24,cy+(contentRowHeight-9)/2,Math.max(18,rightWidth-aw-36),p.text());
-            rightText(g,Component.literal(amount),x+rightWidth-5,cy+(contentRowHeight-9)/2,Math.min(aw,rightWidth-50),p.text());
-        }
-        if(s.contents().isEmpty())clipped(g,s.error().isEmpty()?tr("no_contents"):Component.translatable(s.error()),x+8,y+contentsY+20,rightWidth-16,s.error().isEmpty()?p.muted():p.warning());
-        if(!compact)clipped(g,tr("contents_readonly"),x+31,y+contentFooterY+3,rightWidth/2-62,p.muted());
-        centered(g,tr("page",s.contentPage()+1,Math.max(1,s.contentPages())),x+rightWidth/2,y+contentFooterY+3,p.muted());
+    private void field(GuiGraphics g,EditBox box,int x,int y,int w,String hint){g.fill(x,y,x+w,y+12,p.slot());g.fill(x,y,x+w,y+1,p.border());g.fill(x,y+11,x+w,y+12,DashboardPalette.mix(0xffffffff,0xff85859a,themeMix));box.setTextColor(p.text());if(box.getValue().isEmpty()&&!box.isFocused())clipped(g,tr(hint),box.getX(),box.getY(),box.getWidth(),p.muted());}
+    private void renderGrid(GuiGraphics g,Snapshot s,int mx,int my){for(int r=0;r<visibleRows;r++)for(int col=0;col<9;col++){int i=(gridRowOffset+r)*9+col;if(i>=s.contents().size())continue;var c=s.contents().get(i);int x=leftPos+mainX+8+col*18,y=topPos+24+r*18;boolean over=hit(mx,my,x,y,16,16);hover[i]=animate(hover[i],over?1:0,18);if(hover[i]>.01F)g.fill(x,y,x+16,y+16,((int)(hover[i]*90)<<24)|0xffffff);drawKey(g,c.key(),x,y);drawAmount(g,c,x,y);if(focused(s)!=null&&focused(s).key().equals(c.key())){g.fill(x,y,x+16,y+1,0xbbffffff);g.fill(x,y+15,x+16,y+16,0xbbffffff);}}
+        if(!s.error().isEmpty()||s.contents().isEmpty()){Component msg=s.error().isEmpty()?tr("no_contents"):Component.translatable(s.error());clipped(g,msg,leftPos+mainX+8,topPos+28,162,s.error().isEmpty()?p.text():p.danger());}
+        int trackY=topPos+39,trackHeight=visibleRows*18-30;g.fill(leftPos+mainX+176,trackY,leftPos+mainX+182,trackY+trackHeight,p.border());int thumb=Math.max(8,trackHeight/Math.max(1,s.contentPages()));int thumbY=trackY+(trackHeight-thumb)*s.contentPage()/Math.max(1,s.contentPages()-1);g.fill(leftPos+mainX+176,thumbY,leftPos+mainX+182,thumbY+thumb,p.panel());g.fill(leftPos+mainX+176,thumbY,leftPos+mainX+182,thumbY+1,0xffeeeeee);
     }
-    private void renderInventory(GuiGraphics g,Snapshot s,int mouseX,int mouseY){
-        int x=leftPos,y=topPos;
-        if(!compact)g.fill(x+right,y+dockTop-4,x+imageWidth-12,y+dockTop-3,p.border());
-        clipped(g,tr("cell_operations"),x+cellX,y+(compact?63:dockTop+3),180,p.text());
-        for(int i=0;i<10;i++){
-            int sx=x+cellX+i*18,absolute=cellOffset(s)+i;boolean available=absolute<s.cellSlots();slot(g,sx,y+cellY,i<s.editableSlots());
-            var preview=s.cells().stream().filter(c->c.slot()==absolute).findFirst().orElse(null);
-            if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,y+cellY);
-            g.fill(sx,y+cellY+17,sx+16,y+cellY+19,p.border());
-            if(preview!=null&&preview.totalBytes()>0){float r=Math.min(1,preview.usedBytes()/(float)preview.totalBytes());g.fill(sx,y+cellY+17,sx+Math.max(0,Math.round(16*r)),y+cellY+19,usageColor(r));}
-            if(s.selectedCell()==absolute)rounded(g,sx,y+cellY+20,16,11,2,p.selected());
-            centeredSmall(g,Component.literal(Integer.toString(absolute+1)),sx+8,y+cellY+21,available?p.text():p.muted(),15);
-        }
-        if(compact)clipped(g,tr("cell_page",s.cellSlots()==0?0:cellOffset(s)+1,Math.min(cellOffset(s)+10,s.cellSlots()),s.cellSlots()),x+cellX,y+113,133,p.muted());
-        else{clipped(g,tr(s.editableSlots()>0?"cell_operation_hint":"contents_readonly"),x+cellX,y+cellY+37,184,p.muted());clipped(g,tr("cell_page",s.cellSlots()==0?0:cellOffset(s)+1,Math.min(cellOffset(s)+10,s.cellSlots()),s.cellSlots()),x+cellX,y+dockTop+76,133,p.muted());}
-        clipped(g,tr("player_inventory"),x+inventoryX,y+(compact?129:dockTop+3),162,p.text());
-        for(int row=0;row<3;row++)for(int col=0;col<9;col++)slot(g,x+inventoryX+col*18,y+inventoryY+row*18,true);
-        for(int col=0;col<9;col++)slot(g,x+inventoryX+col*18,y+hotbarY,true);
+    private void drawAmount(GuiGraphics g,Snapshot.Content c,int x,int y){String v=abbreviate(c.amount());float scale=.65F;g.pose().pushPose();g.pose().translate(x+16-font.width(v)*scale,y+10,200);g.pose().scale(scale,scale,1);g.drawString(font,v,0,0,0xffffffff,true);g.pose().popPose();}
+    private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
+    private Snapshot.Content focused(Snapshot s){if(focusedKey!=null)for(var c:s.contents())if(c.key().equals(focusedKey))return c;return s.contents().isEmpty()?null:s.contents().get(0);}
+    private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());else clipped(g,tr("contents_readonly"),x+7,y+imageHeight-90,110,p.muted());
+        var d=s.selectedInfo();clipped(g,d==null?tr("network_root"):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
+        clipped(g,tr(s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
+        if(s.cellSlots()==0){clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
+        for(int i=0;i<10;i++){int absolute=offset(s)+i,sx=leftPos+26+(i%5)*18,sy=y+cellY+(i/5)*18;nativeTint(g);g.blit(STATES,sx-1,sy-1,192,192,18,18);g.setColor(1,1,1,1);var preview=s.cells().stream().filter(v->v.slot()==absolute).findFirst().orElse(null);if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,sy);}
     }
-    private void searchBackground(GuiGraphics g,EditBox box,int x,int y,int w,String hint){rounded(g,leftPos+x,topPos+y,w,20,3,box.isFocused()?p.accent():p.border());rounded(g,leftPos+x+1,topPos+y+1,w-2,18,2,p.inset());box.setTextColor(p.text());if(box.getValue().isEmpty()&&!box.isFocused())clipped(g,tr(hint),box.getX(),box.getY(),box.getWidth(),p.muted());}
-    private void slot(GuiGraphics g,int x,int y,boolean enabled){g.fill(x-1,y-1,x+17,y+17,p.border());g.fill(x,y,x+16,y+16,enabled?p.slot():p.inset());g.fill(x,y,x+16,y+1,DashboardPalette.mix(p.slot(),p.border(),.45F));}
-    private int usageColor(float amount){return amount>=.95F?p.danger():amount>=.8F?p.warning():p.accent();}
-    private float animate(float value,float target,float speed){return value+(target-value)*(1-(float)Math.exp(-delta*speed));}
-    static String number(long value){return value<0?tr("unknown").getString():NumberFormat.getIntegerInstance().format(value);}
-    private static String percent(long used,long total){var f=NumberFormat.getPercentInstance();f.setMaximumFractionDigits(1);return f.format(total<=0?0:Math.max(0,Math.min(1,used/(double)total)));}
-    static String exactAmount(Snapshot.Content c){var key=c.key();if(key instanceof AEFluidKey)return number(c.amount())+" mB";int unit=Math.max(1,key.getAmountPerUnit());String u=key.getUnitSymbol(),suffix=u==null||u.isBlank()?"":" "+u;if(unit==1)return number(c.amount())+suffix;try{return BigDecimal.valueOf(c.amount()).divide(BigDecimal.valueOf(unit)).stripTrailingZeros().toPlainString()+suffix;}catch(ArithmeticException e){return number(c.amount())+"/"+number(unit)+suffix;}}
-    private Component displayName(AEKey key){try{return AEKeyRendering.getDisplayName(key);}catch(RuntimeException ignored){return key.getDisplayName();}}
-    private void drawKey(GuiGraphics g,AEKey key,int x,int y){try{AEKeyRendering.drawInGui(minecraft,g,x,y,key);}catch(RuntimeException ignored){g.drawString(font,"?",x+4,y+4,p.muted(),false);}}
-    private void clipped(GuiGraphics g,Component text,int x,int y,int w,int color){if(w<4)return;String v=text.getString();if(font.width(v)>w)v=font.plainSubstrByWidth(v,Math.max(0,w-6))+"…";g.drawString(font,v,x,y,color,false);}
-    private void rightText(GuiGraphics g,Component text,int right,int y,int max,int color){String v=text.getString();if(font.width(v)>max)v=font.plainSubstrByWidth(v,Math.max(0,max-6))+"…";g.drawString(font,v,right-font.width(v),y,color,false);}
-    private void centered(GuiGraphics g,Component t,int x,int y,int color){g.drawString(font,t,x-font.width(t)/2,y,color,false);}
-    private void centeredSmall(GuiGraphics g,Component t,int x,int y,int color,int max){float s=Math.min(1,max/(float)Math.max(1,font.width(t)));g.pose().pushPose();g.pose().translate(x-font.width(t)*s/2,y,0);g.pose().scale(s,s,1);g.drawString(font,t,0,0,color,false);g.pose().popPose();}
-    static void rounded(GuiGraphics g,int x,int y,int w,int h,int radius,int color){if(w<=0||h<=0)return;int r=Math.min(radius,Math.min(w,h)/2);if(r<1){g.fill(x,y,x+w,y+h,color);return;}g.fill(x+r,y,x+w-r,y+h,color);g.fill(x,y+r,x+w,y+h-r,color);for(int i=1;i<r;i++){g.fill(x+r-i,y+i,x+w-r+i,y+i+1,color);g.fill(x+r-i,y+h-i-1,x+w-r+i,y+h-i,color);}}
-    private static boolean hit(double mx,double my,int x,int y,int w,int h){return mx>=x&&mx<x+w&&my>=y&&my<y+h;}
-    @Override protected void renderLabels(GuiGraphics g,int mouseX,int mouseY){}
-    @Override public void render(GuiGraphics g,int mouseX,int mouseY,float partial){
-        renderBackground(g);super.render(g,mouseX,mouseY,partial);renderTooltip(g,mouseX,mouseY);
-        var s=menu.getSnapshot();var tip=new ArrayList<Component>(tree.tooltip(mouseX,mouseY));int x=mouseX-leftPos,y=mouseY-topPos;
-        if(tip.isEmpty()&&(!compact||!inventoryPage)&&hit(x,y,right,contentsY,rightWidth,contentRowHeight*6)){int i=(y-contentsY)/contentRowHeight;if(i<s.contents().size()){var c=s.contents().get(i);try{tip.addAll(AEKeyRendering.getTooltip(c.key()));}catch(RuntimeException ignored){tip.add(displayName(c.key()));}tip.add(Component.literal(exactAmount(c)));tip.add(Component.literal(c.key().getId().toString()).withStyle(ChatFormatting.DARK_GRAY));tip.add(tr("contents_readonly"));}}
-        if(tip.isEmpty()&&(!compact||!inventoryPage)&&hit(x,y,right,compact?62:58,rightWidth,compact?23:55)){var c=s.capacity();tip.add(s.title());tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));tip.add(tr("types",number(c.usedTypes()),number(c.totalTypes())));if(c.totalSlots()>=0)tip.add(tr("slots",number(c.occupiedSlots()),number(c.totalSlots())));if(c.totalSlots()>=0||c.fluidCapacity()>=0)tip.add(tr("external_capacity"));if(c.fluidCapacity()>=0)tip.add(tr("fluid",number(c.fluidAmount()),number(c.fluidCapacity())));if(c.unknownCells()>0)tip.add(tr("unknown_cells",c.unknownCells()));if(!s.error().isEmpty())tip.add(Component.translatable(s.error()));}
-        if(tip.isEmpty()&&(!compact||inventoryPage)&&hit(x,y,cellX,cellY+17,180,15)){int absolute=cellOffset(s)+(x-cellX)/18;if(absolute<s.cellSlots()){tip.add(tr("cell_details",absolute+1));s.cells().stream().filter(c->c.slot()==absolute).findFirst().ifPresent(c->tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes()))));tip.add(tr("cell_operation_hint"));}}
-        if(!tip.isEmpty())g.renderComponentTooltip(font,tip,mouseX,mouseY);
+    private void renderCapacity(GuiGraphics g,Snapshot s,int x,int y){var c=s.capacity();long used=c.usedBytes(),total=c.totalBytes();Component label;
+        if(total>=0)label=Component.literal(bytesSummary(used)+" / "+bytesSummary(total));else if(c.totalSlots()>=0){used=c.occupiedSlots();total=c.totalSlots();label=tr("slots",number(used),number(total));}else if(c.fluidCapacity()>=0){used=c.fluidAmount();total=c.fluidCapacity();label=Component.literal(number(used)+" / "+number(total)+" mB");}else label=tr("capacity_unknown");
+        String types=c.usedTypes()>=0?tr("types_inline",number(c.usedTypes()),number(c.totalTypes())).getString():"";int tw=font.width(types);clipped(g,label,x,y,162-(types.isEmpty()?0:tw+5),p.text());if(!types.isEmpty())g.drawString(font,types,x+162-tw,y,p.text(),false);g.fill(x,y+10,x+160,y+12,p.slot());if(total>0&&used>0){float ratio=Math.min(1,used/(float)total);g.fill(x,y+10,x+Math.max(1,Math.round(160*ratio)),y+12,ratio>=.95F?p.danger():ratio>=.8F?p.warning():p.accent());}
     }
-    @Override public boolean mouseClicked(double mx,double my,int button){
-        if(button==0&&tree.click(mx,my)){controlPressButton=button;return true;}
-        int x=(int)mx-leftPos,y=(int)my-topPos;var s=menu.getSnapshot();
-        if(button==0&&(!compact||inventoryPage)&&hit(x,y,cellX,cellY+20,180,12)){int cell=cellOffset(s)+(x-cellX)/18;if(cell<s.cellSlots()){controlPressButton=button;select(s.selectedDevice(),cell);return true;}}
-        boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&w.active&&w.isMouseOver(mx,my));
-        boolean handled=super.mouseClicked(mx,my,button);if(handled&&widget)controlPressButton=button;return handled;
+    private static String bytesSummary(long bytes){if(bytes<0)return tr("unknown").getString();if(bytes<1024)return bytes+" B";var f=NumberFormat.getNumberInstance();f.setMaximumFractionDigits(1);return f.format(bytes/1024.0)+" KiB";}
+    private Component breadcrumb(Snapshot s){var path=tr("network_root").copy();if(s.selectedInfo()!=null)path.append(" / ").append(s.selectedInfo().dimension().toString()).append(" / ").append(s.selectedInfo().name());if(s.selectedCell()>=0)path.append(" / ").append(tr("cell",s.selectedCell()+1));return path;}
+    @Override protected void renderLabels(GuiGraphics g,int mx,int my){}
+    @Override public void render(GuiGraphics g,int mx,int my,float partial){renderBackground(g);super.render(g,mx,my,partial);var s=menu.getSnapshot();if(treeVisible)for(int i=0;i<10;i++){int abs=offset(s)+i,x=leftPos+26+(i%5)*18,y=topPos+cellY+(i/5)*18;if(abs==s.selectedCell()){g.fill(x-1,y-1,x+17,y,p.selected());g.fill(x-1,y+16,x+17,y+17,p.selected());}s.cells().stream().filter(v->v.slot()==abs&&v.totalBytes()>0).findFirst().ifPresent(v->{g.fill(x,y+16,x+16,y+17,p.border());int used=(int)Math.min(16,Math.round(16.0*v.usedBytes()/v.totalBytes()));if(used>0)g.fill(x,y+16,x+used,y+17,p.accent());});}
+        renderTooltip(g,mx,my);var tip=new ArrayList<Component>(treeVisible?tree.tooltip(mx,my):List.of());int index=contentIndex(mx,my);if(tip.isEmpty()&&index>=0&&index<s.contents().size()){var c=s.contents().get(index);try{tip.addAll(AEKeyRendering.getTooltip(c.key()));}catch(RuntimeException e){tip.add(displayName(c.key()));}tip.add(Component.literal(exactAmount(c)));tip.add(tr("contents_readonly"));tip.add(Component.literal(c.key().getId().toString()).withStyle(ChatFormatting.DARK_GRAY));}
+        int lx=mx-leftPos,ly=my-topPos;if(tip.isEmpty()&&mainVisible&&hit(lx,ly,mainX,23+visibleRows*18,195,18)){var c=s.capacity();tip.add(breadcrumb(s));tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));tip.add(tr("types",number(c.usedTypes()),number(c.totalTypes())));if(c.totalSlots()>=0)tip.add(tr("slots",number(c.occupiedSlots()),number(c.totalSlots())));if(c.fluidCapacity()>=0)tip.add(tr("fluid",number(c.fluidAmount()),number(c.fluidCapacity())));if(c.totalSlots()>=0||c.fluidCapacity()>=0)tip.add(tr("external_capacity"));if(c.unknownCells()>0)tip.add(tr("unknown_cells",c.unknownCells()));if(!s.error().isEmpty())tip.add(Component.translatable(s.error()));}
+        if(tip.isEmpty()&&treeVisible&&hit(lx,ly,24,imageHeight-105,112,49)){tip.add(breadcrumb(s));var c=focused(s);if(c!=null){tip.add(displayName(c.key()));tip.add(Component.literal(exactAmount(c)));}if(s.selectedInfo()!=null){var d=s.selectedInfo();tip.add(Component.literal(d.dimension()+" · "+d.pos().toShortString()));if(!d.face().isEmpty()){tip.add(tr("via_device",d.sourceName()));tip.add(tr("connection_face",tr("direction."+d.face())));}}}
+        int remote=remoteIndex(mx,my);if(tip.isEmpty()&&remote>=0&&offset(s)+remote<s.cellSlots()){int abs=offset(s)+remote;tip.add(tr("cell_details",abs+1));s.cells().stream().filter(c->c.slot()==abs).findFirst().ifPresent(c->{tip.add(c.icon().isEmpty()?tr("empty_cell"):c.icon().getHoverName());tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));});tip.add(tr(remote<s.editableSlots()?"cell_operation_hint":"cell_readonly"));}
+        if(tip.isEmpty()&&mainVisible&&hit(lx,ly,mainX+6,6,72,16))tip.add(breadcrumb(s));
+        if(!tip.isEmpty())g.renderComponentTooltip(font,tip,mx,my);
     }
+    private int contentIndex(double mx,double my){if(!mainVisible)return -1;double x=mx-leftPos-mainX-7,y=my-topPos-23;if(x<0||x>=162||y<0||y>=visibleRows*18)return -1;return (gridRowOffset+(int)y/18)*9+(int)x/18;}
+    private int remoteIndex(double mx,double my){if(!treeVisible)return -1;double x=mx-leftPos-25,y=my-topPos-cellY+1;if(x<0||x>=90||y<0||y>=36)return -1;return (int)y/18*5+(int)x/18;}
+    @Override public boolean mouseClicked(double mx,double my,int button){if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){if(button==0&&i<menu.getSnapshot().contents().size())focusedKey=menu.getSnapshot().contents().get(i).key();controlPressButton=button;return true;}
+        int remote=remoteIndex(mx,my);var snapshot=menu.getSnapshot();if(remote>=snapshot.editableSlots()&&remote>=0&&offset(snapshot)+remote<snapshot.cellSlots()){if(button==0)select(snapshot.selectedDevice(),offset(snapshot)+remote);controlPressButton=button;return true;}
+        boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&hit(mx,my,w.getX(),w.getY(),w.getWidth(),w.getHeight()));boolean handled=super.mouseClicked(mx,my,button);if(widget){controlPressButton=button;return true;}return handled;}
     @Override public boolean mouseReleased(double mx,double my,int button){if(controlPressButton==button){controlPressButton=-1;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
-    @Override public boolean mouseScrolled(double mx,double my,double amount){if(tree.wheel(mx,my,amount))return true;return super.mouseScrolled(mx,my,amount);}
-    @Override public boolean keyPressed(int key,int scan,int modifiers){if(key!=256&&(treeSearch.isFocused()||contentSearch.isFocused())){(treeSearch.isFocused()?treeSearch:contentSearch).keyPressed(key,scan,modifiers);return true;}return super.keyPressed(key,scan,modifiers);}
+    @Override public boolean mouseScrolled(double mx,double my,double amount){if(treeVisible&&tree.wheel(mx,my,amount))return true;if(contentIndex(mx,my)>=0){int row=gridRowOffset+(amount<0?1:-1);if(row>=0&&row<=5-visibleRows){gridRowOffset=row;return true;}var s=menu.getSnapshot();int page=s.contentPage()+(amount<0?1:-1);if(page>=0&&page<s.contentPages())request(page);return true;}return super.mouseScrolled(mx,my,amount);}
+    @Override public boolean keyPressed(int key,int scan,int mods){if(key!=256&&(treeSearch.isFocused()&&treeSearch.visible||contentSearch.isFocused()&&contentSearch.visible)){(treeSearch.isFocused()&&treeSearch.visible?treeSearch:contentSearch).keyPressed(key,scan,mods);return true;}return super.keyPressed(key,scan,mods);}
     @Override protected void slotClicked(Slot slot,int id,int button,ClickType type){if(menu.canSendClick(id,type))super.slotClicked(slot,id,button,type);}
-    public void setDarkThemeForTest(boolean dark){if(ClientAppearance.isDark()!=dark)ClientAppearance.setDark(dark);if(theme!=null)theme.setMessage(themeName());}
-
+    private float animate(float value,float target,float speed){return value+(target-value)*(1-(float)Math.exp(-delta*speed));}
+    static String number(long n){return n<0?tr("unknown").getString():NumberFormat.getIntegerInstance().format(n);}
+    static String exactAmount(Snapshot.Content c){var key=c.key();if(key instanceof AEFluidKey)return number(c.amount())+" mB";int unit=Math.max(1,key.getAmountPerUnit());String u=key.getUnitSymbol(),suffix=u==null||u.isBlank()?"":" "+u;if(unit==1)return number(c.amount())+suffix;try{return BigDecimal.valueOf(c.amount()).divide(BigDecimal.valueOf(unit)).stripTrailingZeros().toPlainString()+suffix;}catch(ArithmeticException e){return number(c.amount())+"/"+number(unit)+suffix;}}
+    private Component displayName(AEKey key){try{return AEKeyRendering.getDisplayName(key);}catch(RuntimeException e){return key.getDisplayName();}}
+    private void drawKey(GuiGraphics g,AEKey key,int x,int y){try{AEKeyRendering.drawInGui(minecraft,g,x,y,key);}catch(RuntimeException e){g.drawString(font,"?",x+4,y+4,p.text(),false);}}
+    private void clipped(GuiGraphics g,Component c,int x,int y,int w,int color){if(w<4)return;String v=c.getString();if(font.width(v)>w)v=font.plainSubstrByWidth(v,Math.max(0,w-6))+"…";g.drawString(font,v,x,y,color,false);}
+    private void fit(GuiGraphics g,Component c,int x,int y,int w,int color){float scale=Math.min(1,w/(float)Math.max(1,font.width(c)));g.pose().pushPose();g.pose().translate(x,y,0);g.pose().scale(scale,scale,1);g.drawString(font,c,0,0,color,false);g.pose().popPose();}
+    static void rounded(GuiGraphics g,int x,int y,int w,int h,int r,int color){if(w>0&&h>0)g.fill(x,y,x+w,y+h,color);}
+    private static boolean hit(double mx,double my,int x,int y,int w,int h){return mx>=x&&mx<x+w&&my>=y&&my<y+h;}
+    public void setDarkThemeForTest(boolean dark){if(ClientAppearance.isDark()!=dark)ClientAppearance.setDark(dark);}
     private UiRect rect(AbstractWidget w){return w==null||!w.visible?null:new UiRect(w.getX(),w.getY(),w.getWidth(),w.getHeight());}
-    UiRect smokeThemeRect(){return rect(theme);}UiRect smokeRootRect(){return rect(root);}UiRect smokeBackRect(){return rect(back);}
-    UiRect smokeTreeViewport(){return new UiRect(leftPos+10,topPos+treeTop,treeWidth+1,treeHeight);}
-    UiRect smokeDeviceRect(String id,boolean chevron){return tree.rect("dev:"+id,chevron);}UiRect smokeCellRect(String id,int cell){return tree.rect("cell:"+id+":"+cell,false);}
-    void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}
-    boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
-    UiRect smokeInventoryTabRect(){return rect(inventoryTab);}UiRect smokeContentsTabRect(){return rect(contentsTab);}UiRect smokeContentSearchRect(){return contentSearch.visible?new UiRect(contentSearch.getX(),contentSearch.getY(),contentSearch.getWidth(),contentSearch.getHeight()):null;}
-    private final class FlatButton extends Button{
-        float hover;FlatButton(int x,int y,int w,int h,Component text,OnPress action){super(x,y,w,h,text,action,DEFAULT_NARRATION);}
-        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){hover=animate(hover,isHoveredOrFocused()&&active?1:0,20);boolean selected=this==contentsTab&&!inventoryPage||this==inventoryTab&&inventoryPage;
-            rounded(g,getX(),getY(),getWidth(),getHeight(),3,selected?p.accent():p.border());rounded(g,getX()+1,getY()+1,getWidth()-2,getHeight()-2,2,selected?p.selected():DashboardPalette.mix(p.panel(),p.hover(),hover));
-            centeredSmall(g,getMessage(),getX()+getWidth()/2,getY()+(getHeight()-9)/2,active?p.text():p.muted(),getWidth()-8);}
-    }
+    UiRect smokeThemeRect(){return rect(theme);}UiRect smokeRootRect(){return rect(root);}UiRect smokeBackRect(){return rect(back);}UiRect smokeSortRect(){return rect(sort);}UiRect smokeCollapseRect(){return rect(collapse);}UiRect smokeContentPreviousRect(){return rect(contentPrevious);}UiRect smokeContentNextRect(){return rect(contentNext);}
+    UiRect smokePanelRect(){return new UiRect(leftPos,topPos,imageWidth,imageHeight);}UiRect smokeSlotRect(int i){if(i<0||i>=menu.slots.size()||!menu.getSlot(i).isActive())return null;var s=menu.getSlot(i);return new UiRect(leftPos+s.x,topPos+s.y,16,16);}
+    UiRect smokeContentRect(int i){int row=i/9-gridRowOffset;if(!mainVisible||i<0||i>=45||row<0||row>=visibleRows)return null;return new UiRect(leftPos+mainX+8+i%9*18,topPos+24+row*18,16,16);}
+    AEKey smokeFocusedKey(){var c=focused(menu.getSnapshot());return c==null?null:c.key();}
+    UiRect smokeTreeViewport(){return treeVisible?new UiRect(leftPos+22,topPos+26,116,treeHeight):null;}UiRect smokeDeviceRect(String id,boolean chevron){return treeVisible?tree.rect("dev:"+id,chevron):null;}UiRect smokeCellRect(String id,int cell){return treeVisible?tree.rect("cell:"+id+":"+cell,false):null;}
+    void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
+    UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}
+    private final class IconButton extends Button {int sx,sy;float over;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
+        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);g.setColor(1,1,1,1);if(over>.01F)g.fill(getX()+1,getY()+1,getX()+getWidth()-1,getY()+getHeight()-1,((int)(over*45)<<24)|0xffffff);int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));g.setColor(1,1,1,active?1:.4F);g.blit(STATES,getX()+(getWidth()-size)/2,getY()+(getHeight()-size)/2,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);}}
 }
