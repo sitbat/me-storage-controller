@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.mestorage.controller.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": ["EnergyServiceMixin", "FluxTransferHandlerMixin", "FluxPointMixin"],
+  "injectors": {"defaultRequire": 1}
+}

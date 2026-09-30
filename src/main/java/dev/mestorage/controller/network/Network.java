@@ -15,10 +15,11 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    // Version 7 distinguishes unlimited capacity from unknown addon capacity.
-    private static final String VERSION="7";
+    // Version 8 streams the complete directory separately in bounded frames.
+    private static final String VERSION="8";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
+    public static Consumer<DirectoryMessage> directoryReceiver = message -> {};
     public record Request(int containerId,String deviceId,int cell,int devicePage,int contentPage,String deviceQuery,String contentQuery,boolean sortByAmount,
                           List<ResourceLocation> deviceMatches,List<ResourceLocation> contentMatches,long revision) {
         void write(FriendlyByteBuf b) {
@@ -35,8 +36,12 @@ public final class Network {
         }
     }
     public record SnapshotMessage(int containerId,Snapshot snapshot) {
-        void write(FriendlyByteBuf b) { b.writeVarInt(containerId); snapshot.write(b); }
+        void write(FriendlyByteBuf b) { b.writeVarInt(containerId); snapshot.withDirectory(List.of(),snapshot.directoryTotalDevices()).write(b); }
         static SnapshotMessage read(FriendlyByteBuf b) { return new SnapshotMessage(b.readVarInt(),Snapshot.read(b)); }
+    }
+    public record DirectoryMessage(int containerId,DirectoryTransfer.Frame frame) {
+        void write(FriendlyByteBuf b) { b.writeVarInt(containerId); frame.write(b); }
+        static DirectoryMessage read(FriendlyByteBuf b) { return new DirectoryMessage(b.readVarInt(),DirectoryTransfer.Frame.read(b)); }
     }
     /** Keys identify displayed entries; quantities and carried stacks are never client supplied. */
     public record ContentAction(int containerId,long revision,String deviceId,int cell,AEKey key,int button,boolean shift) {
@@ -61,8 +66,13 @@ public final class Network {
                 ServerPlayer player=context.get().getSender();
                 if(player!=null && player.containerMenu instanceof ControllerMenu menu && menu.containerId==message.containerId()) menu.handleContentAction(message);
             }).add();
+        CHANNEL.messageBuilder(DirectoryMessage.class,3,NetworkDirection.PLAY_TO_CLIENT).encoder(DirectoryMessage::write).decoder(DirectoryMessage::read)
+            .consumerMainThread((message,context)->directoryReceiver.accept(message)).add();
     }
     public static void request(Request request) { CHANNEL.sendToServer(request); }
     public static void contentAction(ContentAction action) { CHANNEL.sendToServer(action); }
     public static void send(ServerPlayer player,int containerId,Snapshot snapshot) { CHANNEL.send(PacketDistributor.PLAYER.with(()->player),new SnapshotMessage(containerId,snapshot)); }
+    public static void sendDirectory(ServerPlayer player,int containerId,DirectoryTransfer.Frame frame) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(()->player),new DirectoryMessage(containerId,frame));
+    }
 }

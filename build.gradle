@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.4.12'
+version = '0.4.13'
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -16,6 +16,7 @@ minecraft {
             // Remap AE2/GuideME dependency mixins in the named development environment.
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            args '--mixin.config', 'me_storage_controller.mixins.json'
             mods { me_storage_controller { source sourceSets.main } }
         }
         client {
@@ -25,7 +26,7 @@ minecraft {
             }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v0412').absolutePath
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v0413').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }
@@ -37,7 +38,7 @@ repositories {
     maven { url 'https://modmaven.dev' }
     maven { url 'https://maven.guideme.appliedenergistics.org' }
     mavenCentral()
-    if (project.hasProperty('eaeTest') || project.hasProperty('mekTest') || project.hasProperty('omniTest')) {
+    if (project.hasProperty('eaeTest') || project.hasProperty('mekTest') || project.hasProperty('omniTest') || project.hasProperty('fluxTest')) {
         flatDir { dirs project.findProperty('compatModsDir') ?: '../../work/vendor' }
     }
 }
@@ -58,6 +59,9 @@ dependencies {
     if (project.hasProperty('omniTest')) {
         runtimeOnly fg.deobf('local:ae2omnicells:1.20.1-forge-1.1.6')
     }
+    if (project.hasProperty('fluxTest')) {
+        runtimeOnly fg.deobf('local:FluxNetworks:1.20.1-7.2.1.15')
+    }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('test') { useJUnitPlatform() }
@@ -65,6 +69,6 @@ tasks.named('jar') {
     exclude 'dev/mestorage/controller/test/**'
     exclude 'dev/mestorage/controller/client/ClientSmokeTest*'
     exclude 'data/me_storage_controller/structures/empty.nbt'
-    manifest { attributes 'Implementation-Version': project.version }
+    manifest { attributes 'Implementation-Version': project.version, 'MixinConfigs': 'me_storage_controller.mixins.json' }
     finalizedBy 'reobfJar'
 }

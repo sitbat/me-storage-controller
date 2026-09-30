@@ -88,4 +88,14 @@ The theme button switches light and dark appearances and remembers your choice. 
 
 Select a device and click Locate. A loaded target in the same dimension, within **256 blocks**, receives a temporary outline for **15 seconds**. For a storage bus, the target is its connected container. Otherwise, use the shown dimension and coordinates. Locate does not teleport you or load distant chunks.
 
-If the directory reports that it is incomplete, some branches are not displayed. This does not mean their storage has disappeared from the network.
+Large directories arrive in bounded batches and update when complete, without device or cell count truncation. Expand branches and scroll to browse every enumerable entry. Refreshes retain the previous tree and selection.
+
+## Bypass AE energy conversion limit
+
+This server setting is off by default and applies to the whole world. Administrators can query it with `/mestorage energyBypass`, enable it with `/mestorage energyBypass true`, or disable it with `/mestorage energyBypass false`. Changes apply immediately and are saved.
+
+Alternatively edit the world's `serverconfig/me-storage-controller-server.toml`: under `[energy]`, set `bypassAeEnergyLimit = true`. Dedicated servers use their own world configuration.
+
+When enabled, energy acceptors convert real external energy on demand, allowing consumption beyond the grid's existing AE buffer capacity. Energy cells still charge, store and discharge normally. Available source energy and its own output limits still apply.
+
+Flux Networks points attached to acceptors request supply based on real demand. A sudden request may need to wait for Flux's normal supply cycle; point and plug transfer limits remain managed by Flux.

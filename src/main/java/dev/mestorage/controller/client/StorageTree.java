@@ -85,8 +85,9 @@ final class StorageTree {
         this.x=x;this.y=y;this.width=width;this.height=height;this.snapshot=data;rowHeight=nextRowHeight;layout();
         var font=Minecraft.getInstance().font;
         g.enableScissor(x,y,x+width,y+height);
-        for(var row:rows){
-            int top=y+(int)Math.round(row.top-scroll);int rh=(int)Math.ceil(row.height);if(top+rh<y||top>=y+height||row.visibility<.6F)continue;
+        for(int rowIndex=firstVisible();rowIndex<rows.size();rowIndex++){
+            var row=rows.get(rowIndex);
+            int top=y+(int)Math.round(row.top-scroll);int rh=(int)Math.ceil(row.height);if(top>=y+height)break;if(top+rh<y||row.visibility<.6F)continue;
             boolean over=mouseX>=x&&mouseX<x+width-5&&mouseY>=top&&mouseY<top+rh&&mouseY>=y&&mouseY<y+height;
             float hoverValue=hover.getOrDefault(row.key,0F);hoverValue+=(over?1-hoverValue:-hoverValue)*(1-(float)Math.exp(-dt*18));hover.put(row.key,hoverValue);
             boolean selected=row.key.equals("root")?data.selectedDevice().isEmpty():!row.device.isEmpty()&&row.device.equals(data.selectedDevice())&&row.slot==data.selectedCell();
@@ -116,9 +117,15 @@ final class StorageTree {
         if(down){g.fill(x,y,x+1,y+2,color);g.fill(x+1,y+1,x+2,y+3,color);g.fill(x+2,y+2,x+3,y+4,color);g.fill(x+3,y+1,x+4,y+3,color);g.fill(x+4,y,x+5,y+2,color);}
         else{g.fill(x,y,x+2,y+1,color);g.fill(x+1,y+1,x+3,y+2,color);g.fill(x+2,y+2,x+4,y+3,color);g.fill(x+1,y+3,x+3,y+4,color);g.fill(x,y+4,x+2,y+5,color);}
     }
+    /** Rows stay complete, but rendering/hit testing starts at the visible viewport. */
+    private int firstVisible(){
+        int low=0,high=rows.size();
+        while(low<high){int middle=(low+high)>>>1;var row=rows.get(middle);if(row.top+row.height<scroll)low=middle+1;else high=middle;}
+        return low;
+    }
     boolean click(double mx,double my){
         if(mx<x||mx>=x+width||my<y||my>=y+height)return false;
-        for(var row:rows){double top=y+row.top-scroll;if(row.visibility<.65F||my<top||my>=top+row.height)continue;
+        for(int index=firstVisible();index<rows.size();index++){var row=rows.get(index);double top=y+row.top-scroll;if(top>=y+height)break;if(row.visibility<.65F||my<top||my>=top+row.height)continue;
             if(row.branch&&mx<x+17+row.depth*6){setOpen(row.key,!isOpen(row.key));return true;}
             if(row.key.startsWith("dim:")){setOpen(row.key,!isOpen(row.key));return true;}
             if(row.key.equals("root")){select.accept("",-1);return true;}
@@ -128,10 +135,10 @@ final class StorageTree {
     boolean wheel(double mx,double my,double amount){if(mx<x||mx>=x+width||my<y||my>=y+height)return false;revealKey=null;scroll=Math.max(0,Math.min(Math.max(0,totalHeight-height),scroll-amount*rowHeight*2));return true;}
     List<Component> tooltip(int mx,int my){
         if(mx<x||mx>=x+width||my<y||my>=y+height)return List.of();
-        for(var row:rows){double top=y+row.top-scroll;if(row.visibility<.65F||my<top||my>=top+row.height)continue;
+        for(int index=firstVisible();index<rows.size();index++){var row=rows.get(index);double top=y+row.top-scroll;if(top>=y+height)break;if(row.visibility<.65F||my<top||my>=top+row.height)continue;
             var result=new ArrayList<Component>();result.add(row.label);
             if(!row.device.isEmpty())snapshot.directory().stream().filter(e->e.device().id().equals(row.device)).findFirst().ifPresent(e->{
-                if(row.slot<0){var d=e.device();result.add(Component.literal(d.dimension()+" · "+d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()));if(e.truncated())result.add(tr("directory_limited"));}
+                if(row.slot<0){var d=e.device();result.add(Component.literal(d.dimension()+" · "+d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()));}
                 else e.cells().stream().filter(c->c.slot()==row.slot).findFirst().ifPresent(c->result.add(tr("bytes",ControllerScreen.number(c.usedBytes()),ControllerScreen.number(c.totalBytes()))));
             });return result;
         }return List.of();

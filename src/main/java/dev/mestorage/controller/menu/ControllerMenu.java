@@ -13,6 +13,7 @@ import dev.mestorage.controller.MEStorageController;
 import dev.mestorage.controller.block.ControllerBlockEntity;
 import dev.mestorage.controller.network.Network;
 import dev.mestorage.controller.network.Snapshot;
+import dev.mestorage.controller.network.DirectoryTransfer;
 import dev.mestorage.controller.storage.StorageScanner;
 import dev.mestorage.controller.storage.ContentAccess;
 import dev.mestorage.controller.storage.ContainerTransfers;
@@ -64,6 +65,11 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private boolean reportedStorageError;
     private List<Snapshot.DirectoryEntry> directory=List.of();
     private long nextDirectoryRefresh;
+    private DirectoryTransfer.Assembler directoryAssembler=new DirectoryTransfer.Assembler();
+    private DirectoryTransfer.Cursor directoryCursor;
+    private List<Snapshot.DirectoryEntry> queuedDirectory;
+    private List<Snapshot.DirectoryEntry> lastOfferedDirectory;
+    private long directoryGeneration,lastDirectorySend=Long.MIN_VALUE;
     private boolean clientSlotsVisible=true;
     private boolean clientCellsVisible=true;
     private MEStorage observedCellStorage;
@@ -117,8 +123,19 @@ public final class ControllerMenu extends AbstractContainerMenu {
     public long getRequestedRevision() { return requestedRevision; }
     public void setSnapshot(Snapshot value) {
         if(value.revision()<snapshot.revision()) return;
-        snapshot=value;
+        if(!value.online()) {
+            directory=List.of(); directoryAssembler=new DirectoryTransfer.Assembler();
+        }
+        snapshot=value.withDirectory(directory,value.directoryTotalDevices());
         if(value.revision()>=requestedRevision) selectionPending=false;
+    }
+    public void acceptDirectoryFrame(DirectoryTransfer.Frame frame) {
+        if(!player.level().isClientSide || !snapshot.online()) return;
+        var complete=directoryAssembler.accept(frame);
+        if(complete!=null) {
+            directory=complete;
+            snapshot=snapshot.withDirectory(complete,complete.size());
+        }
     }
     public void request(String deviceId,int cell,int dp,int cp,String dq,String cq,boolean amount) {
         if(!deviceId.equals(snapshot.selectedDevice()) || cell!=snapshot.selectedCell()) {
@@ -355,6 +372,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         // Vanilla slot packets must precede the selection acknowledgement. The
         // client stays locked until both labels and their real cells are current.
         if(refreshed) send();
+        flushDirectory();
     }
     private boolean isContentPageRequest(Network.Request request) {
         return request.deviceId().equals(selectedId) && request.cell()==selectedCell && request.devicePage()==devicePage
@@ -493,11 +511,10 @@ public final class ControllerMenu extends AbstractContainerMenu {
         long now=player.level().getGameTime(); boolean refreshAll=now>=nextDirectoryRefresh;
         var old=new HashMap<String,Snapshot.DirectoryEntry>();
         for(var entry:directory) old.put(entry.device().id(),entry);
-        var entries=new ArrayList<Snapshot.DirectoryEntry>(); int remaining=Snapshot.MAX_DIRECTORY_CELLS;
+        var entries=new ArrayList<Snapshot.DirectoryEntry>();
         for(var device:devices) {
-            if(entries.size()>=Snapshot.MAX_DIRECTORY_DEVICES) break;
             int count=StorageScanner.cellCount(device);
-            int limit=Math.min(Math.max(0,count),Math.min(Snapshot.MAX_DIRECTORY_CELLS_PER_DEVICE,remaining));
+            int limit=Math.max(0,count);
             var cached=old.get(device.id()); var read=cellReads.get(device.id());
             List<Snapshot.CellPreview> children;
             if(read!=null || refreshAll || cached==null || cached.cellSlots()!=count || cached.cells().size()!=limit) {
@@ -506,12 +523,35 @@ public final class ControllerMenu extends AbstractContainerMenu {
                         cell.capacity().usedBytes(),cell.capacity().totalBytes(),cell.readable())).toList();
             } else children=cached.cells();
             entries.add(new Snapshot.DirectoryEntry(infos.get(device.id()),count,children));
-            remaining-=children.size();
         }
         directory=List.copyOf(entries);
         if(refreshAll) nextDirectoryRefresh=now+20;
     }
-    private void send() { if(player instanceof ServerPlayer server) Network.send(server,containerId,snapshot); }
+    private void send() {
+        if(player instanceof ServerPlayer server) {
+            Network.send(server,containerId,snapshot);
+            if(snapshot.online()) {
+                if(directory!=lastOfferedDirectory) { queuedDirectory=directory; lastOfferedDirectory=directory; }
+            } else { queuedDirectory=null; directoryCursor=null; lastOfferedDirectory=null; }
+        }
+    }
+    /** No more than 96 KiB/tick; a refresh queues the latest generation without cancelling an active stream. */
+    private void flushDirectory() {
+        if(!(player instanceof ServerPlayer server) || !snapshot.online()) return;
+        long now=player.level().getGameTime();
+        if(now==lastDirectorySend) return;
+        lastDirectorySend=now;
+        for(int sent=0;sent<2;sent++) {
+            if(directoryCursor==null) {
+                if(queuedDirectory==null) return;
+                directoryCursor=new DirectoryTransfer.Cursor(++directoryGeneration,queuedDirectory);
+                queuedDirectory=null;
+            }
+            var frame=directoryCursor.next();
+            Network.sendDirectory(server,containerId,frame);
+            if(directoryCursor.finished()) directoryCursor=null;
+        }
+    }
     private static boolean matches(String value,String query) { return value.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)); }
     private static int pages(int size,int limit) { return Math.max(1,(size+limit-1)/limit); }
     private int cellOffset() { return Math.max(0,selectedCell)/10*10; }

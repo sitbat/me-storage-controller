@@ -95,5 +95,8 @@
   "gui.me_storage_controller.capacity_unknown": "Capacity unknown",
   "gui.me_storage_controller.next_page": "Next contents page",
   "gui.me_storage_controller.types_inline": "Types %s/%s",
-  "gui.me_storage_controller.cell_slot": "Cell slot %s"
+  "gui.me_storage_controller.cell_slot": "Cell slot %s",
+  "config.me_storage_controller.bypass_ae_energy_limit": "Bypass AE energy conversion limit",
+  "command.me_storage_controller.energy_bypass": "Bypass AE energy conversion limit: %s",
+  "command.me_storage_controller.config_save_failed": "Could not save the server configuration; the previous setting was restored. Check server logs and file permissions."
 }

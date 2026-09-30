@@ -1,4 +1,4 @@
-# 0.4.12 使用说明 / User guide
+# 0.4.13 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-0.4.12 新增 AE2 Omni Cells 1.20.1-forge 1.1.6 的容量与类型上限适配，保留既有界面与操作。已知无限上限显示 **∞**，未知数值仍显示未知。网络协议升级至 **7**，客户端和服务器必须同步更新，不能与协议6版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
+0.4.13支持完整存储目录分批同步，新增默认关闭的“绕过AE能量转换限制”选项，保留既有界面、操作和OmniCells适配。已知无限上限显示 **∞**，未知数值仍显示未知。网络协议升级至 **8**，客户端和服务器必须同步更新，不能与0.4.12及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-Version 0.4.12 adds capacity and type-limit support for AE2 Omni Cells 1.20.1-forge 1.1.6, retaining existing controls and behavior. Known unlimited bounds display **∞**; unavailable values remain unknown. Protocol is now **7**: update client and server together; protocol-6 versions cannot connect. The runtime remains **Minecraft 1.20.1 Forge**.
+Version 0.4.13 streams complete storage directories and adds an optional energy bypass, disabled by default, retaining existing controls and OmniCells support. Known unlimited bounds display **∞**; unavailable values remain unknown. Protocol is now **8**: update client and server together; 0.4.12 and earlier versions cannot connect. The runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 游戏内指南 / In-game guide
 
@@ -136,9 +136,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.12 使用协议 **7**，必须同步更新客户端与服务器。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.13使用协议 **8**，必须同步更新客户端与服务器。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.12 uses protocol **7** and requires updating client and server together.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.13 uses protocol **8** and requires updating client and server together.
 
 ## 管理整个元件 / Move complete cells
 
@@ -161,6 +161,31 @@ Search accepts client-localized item/fluid registry names, custom names and regi
 元件移动直接作用于对应设备。取出元件后，其中内容通常会从该网络的可用库存消失，直到重新插入。存储总线连接的普通箱子、储罐不提供元件槽位。
 
 Cell moves affect the actual device. Removing a cell normally removes its contents from the grid's available storage until it is reinserted. Ordinary chests and tanks connected by storage buses do not offer cell slots.
+
+## 绕过AE能量转换限制 / AE energy conversion bypass
+
+默认关闭，配置作用于整个服务端存档。拥有2级权限的管理员使用以下命令查询或修改；修改立即生效并保存到当前存档。
+
+Off by default and scoped to the server world. Administrators with permission level 2 can query or change it. Changes apply immediately and persist in the active world.
+
+```text
+/mestorage energyBypass
+/mestorage energyBypass true
+/mestorage energyBypass false
+```
+
+配置文件位于 `<存档>/serverconfig/me-storage-controller-server.toml`。客户端单独修改文件不能覆盖专用服务器的设置。
+
+The configuration is `<world>/serverconfig/me-storage-controller-server.toml`. A client's local setting does not override a dedicated server.
+
+```toml
+[energy]
+    bypassAeEnergyLimit = false
+```
+
+开启后，AE的用电需求可由贴着能源接收器的真实外部电源补足，不再仅受ME网络中AE缓存容量限制。能源元件保持原有充放电和储能容量；已有缓存先参与供电。支持可主动提取的Forge Energy电源，以及 **Flux Networks 1.20.1-7.2.1.15** 无线点。Flux无线点按真实请求向其原网络申请供电，首次突发需求可能要等待数个原生供电周期。Flux优先级、传输限额、上游供能和剩余电量继续有效；其他仅主动推送、无法提取的供电接口尚未做专门适配。
+
+When enabled, real sources attached to an AE energy acceptor can meet demand beyond the grid's AE buffer capacity. Existing caches supply energy first, and cells retain normal capacity and charging. Supports extractable Forge Energy sources and **Flux Networks 1.20.1-7.2.1.15** points. Flux receives real demand through its normal network scheduling; a new burst can require several supply cycles. Flux priorities, limits and available upstream energy remain effective. Other push-only interfaces have no dedicated adapter yet.
 
 ## 方块外观 / Block appearance
 
@@ -190,9 +215,9 @@ Click Locate in device details. A loaded target within 256 blocks in the same di
 
 ## 兼容性解释 / Understanding compatibility
 
-目录每次最多显示 256 个设备、每个设备最多 256 个元件，总计最多 4,096 个元件条目；达到限制或部分元件无法枚举时，会提示目录只显示部分内容。这个显示限制不代表未显示的存储已经从网络消失。
+目录不再按设备数、单设备元件数或总元件数截断。大型目录分批同步，接收完整后更新，刷新期间保留原有树、选择和滚动位置。展开分支后可滚动到底部查看全部可枚举条目。
 
-The directory is bounded to 256 devices, 256 cells per device and 4,096 cell entries overall. A partial-directory notice appears if these limits are reached or some cells cannot be enumerated. This display limit does not mean omitted storage has disappeared from the network.
+The directory is no longer truncated by device count, cells per device or total cell count. Large directories synchronize in bounded batches and replace the previous tree once complete, retaining selection and scroll. Expand and scroll through all enumerable entries.
 
 本模组读取当前网络能公开的存储信息。标准 AE2 驱动器和 ME 箱子拥有可管理的元件槽位；通过通用接口识别的其他设备可能只支持内容读取。存储总线过滤、提取模式或附属模组的实现会影响所见内容。
 

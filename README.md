@@ -1,22 +1,26 @@
 # ME Storage Controller / ME存储控制器
 
-**0.4.12 · AE2 Omni Cells support / AE2 Omni Cells兼容**
+**0.4.13 · 完整存储树与可选能量旁路 / Complete storage tree and optional energy bypass**
 
 Minecraft **1.20.1 Forge** 的 AE2 附属模组。通过一个联网方块，逐级查看全网、存储设备和存储元件的占用及实际内容，直接存取右侧物品，并在设备详情中管理整个存储元件。
 
 An AE2 addon for **Minecraft 1.20.1 Forge**. Browse network, device and cell storage details, inspect exact contents, transfer items and move complete storage cells through a connected controller.
 
-本版新增 AE2 Omni Cells **1.20.1-forge 1.1.6** 容量适配，覆盖 Omni、Complex Omni、Quantum 三系 1k～256M 及创造 Long／BigInteger 元件。已知无限上限显示 **∞**，与未知容量区分；内容仍读取 AE2 实时存储接口。混合资源存取及元件搬移已通过实际模组测试，详细范围见本版记录。既有侧栏、存储树与原生 GUI 比例保持不变。
+支持 AE2 Omni Cells **1.20.1-forge 1.1.6** 容量适配，覆盖 Omni、Complex Omni、Quantum 三系 1k～256M 及创造 Long／BigInteger 元件。已知无限上限显示 **∞**，与未知容量区分；内容仍读取 AE2 实时存储接口。混合资源存取及元件搬移已通过实际模组测试，详细范围见本版记录。既有侧栏、存储树与原生 GUI 比例保持不变。
 
-This release adds capacity support for AE2 Omni Cells **1.20.1-forge 1.1.6**: Omni, Complex Omni and Quantum tiers from 1k to 256M, plus creative Long/BigInteger cells. Known unlimited bounds display **∞**, separately from unknown values; contents still come from live AE2 storage. Mixed-resource transfers and cell movement passed actual-mod integration tests; the release record lists the tested scope. The sidebar, storage tree and native GUI scale are unchanged.
+Capacity support includes AE2 Omni Cells **1.20.1-forge 1.1.6**: Omni, Complex Omni and Quantum tiers from 1k to 256M, plus creative Long/BigInteger cells. Known unlimited bounds display **∞**, separately from unknown values; contents still come from live AE2 storage. Mixed-resource transfers and cell movement passed actual-mod integration tests; the release record lists the tested scope. The sidebar, storage tree and native GUI scale are unchanged.
+
+0.4.13取消存储树的设备／元件数量截断，大型目录分批完整同步。新增默认关闭的服务端设置“绕过AE能量转换限制”，管理员可使用 `/mestorage energyBypass true` 开启、`false` 关闭，并保存到存档的 `serverconfig/me-storage-controller-server.toml`。能源元件保持原有缓存功能；Flux Networks无线点通过真实供电需求适配。详见使用说明和当前测试记录。
+
+Version 0.4.13 removes directory count truncation and streams complete large trees. The server setting for bypassing AE buffer-capacity limits defaults to off. Administrators can use `/mestorage energyBypass true` or `false`; changes persist in the world serverconfig. Existing energy cells retain their buffering role, with a demand-driven adapter for Flux Networks points. See the guide and validation record.
 
 容量自动切换 B／KB／MB／GB／TB／PB／EB（1024 进位），并在栏宽不足时缩放文字，避免省略容量；悬停仍显示精确字节。容器存取保持 0.4.4 行为。
 
 Capacity summaries now use adaptive B/KB/MB/GB/TB/PB/EB labels (powers of 1024) and fit the available width. Hover for exact bytes. Container transfers retain 0.4.4 behavior.
 
-本版通过 AE2 `ContainerItemStrategies` 支持流体及附属模组注册的化学品容器存取，保留简洁提示框，不新增操作教学文字。界面继续使用官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列、最多 5 行的内容网格、侧边图标栏、文件树，以及元件槽与玩家背包。完整双栏布局为 340×240 逻辑像素，按当前界面比例适配可用空间，运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.12 记录](docs/RELEASE_0.4.12.md)；[0.4.11](docs/RELEASE_0.4.11.md) 及更早记录单独保留。
+本版通过 AE2 `ContainerItemStrategies` 支持流体及附属模组注册的化学品容器存取，保留简洁提示框，不新增操作教学文字。界面继续使用官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列、最多 5 行的内容网格、侧边图标栏、文件树，以及元件槽与玩家背包。完整双栏布局为 340×240 逻辑像素，按当前界面比例适配可用空间，运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.13 记录](docs/RELEASE_0.4.13.md)；[0.4.11](docs/RELEASE_0.4.11.md) 及更早记录单独保留。
 
-This update supports fluid and addon-registered chemical containers through AE2's `ContainerItemStrategies`, retaining concise tooltips without new instructions. The approved terminal layout retains thirteen original AE2 1.21.1 PNGs, a nine-column content grid with up to five rows, icon toolbar, storage tree, cell slots and player inventory. The full two-column layout uses 340×240 logical pixels and adapts to the space available at the current GUI scale. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.12 record](docs/RELEASE_0.4.12.md); [0.4.11](docs/RELEASE_0.4.11.md) and earlier records remain separate.
+This update supports fluid and addon-registered chemical containers through AE2's `ContainerItemStrategies`, retaining concise tooltips without new instructions. The approved terminal layout retains thirteen original AE2 1.21.1 PNGs, a nine-column content grid with up to five rows, icon toolbar, storage tree, cell slots and player inventory. The full two-column layout uses 340×240 logical pixels and adapts to the space available at the current GUI scale. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.13 record](docs/RELEASE_0.4.13.md); [0.4.11](docs/RELEASE_0.4.11.md) and earlier records remain separate.
 
 ## 安装 / Installation
 
@@ -30,9 +34,9 @@ The development baseline is **Java 17, Forge 47.4.0, AE2 15.4.10 and GuideME 20.
 
 Install matching versions of this mod and its dependencies on **both client and server**. Place the controller and connect it using ME cable; it needs power and **one channel**. It does not provide channels or replace AE2's ME Controller. Right-click it to browse devices and cells.
 
-0.4.12 使用网络协议 **7**，以区分无限上限与未知容量。**客户端和服务器必须同步更新**，不能与协议6的0.4.11及更早版本混用。
+0.4.13 使用网络协议 **8**，支持大型存储目录分批同步。**客户端和服务器必须同步更新**，不能与0.4.12及更早版本混用。
 
-Version 0.4.12 uses protocol **7** to distinguish unlimited bounds from unknown capacity. **Update client and server together**; protocol-6 releases such as 0.4.11 and earlier cannot connect.
+Version 0.4.13 uses protocol **8** for batched large-directory synchronization. **Update client and server together**; 0.4.12 and earlier releases cannot connect.
 
 ## 功能与边界 / Features and scope
 
@@ -46,9 +50,9 @@ Version 0.4.12 uses protocol **7** to distinguish unlimited bounds from unknown 
 - 外部存储受存储总线的可见性与过滤规则影响；不会把字节、槽位和流体体积合成同一个占用百分比。 / External storage follows what the storage bus exposes; byte, slot and fluid capacities are not mixed into one occupancy percentage.
 - 服务端验证远程元件操作。AE2 15.x 本身未提供旧版安全终端接口；不能声称本模组接入旧版安全终端或所有领地保护系统。使用领地保护模组时，请执行手动权限测试。 / Remote cell operations are server-validated. AE2 15.x does not provide the older security-terminal API; integration with older AE2 security terminals or every claim-protection mod is not claimed. Test your protection mod explicitly.
 
-这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.12 的验收状态见 [当前测试记录](docs/RELEASE_0.4.12.md)。大型整合包、双客户端并发和保护模组仍需实测。
+这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.13 的验收状态见 [当前测试记录](docs/RELEASE_0.4.13.md)。大型整合包、双客户端并发和保护模组仍需实测。
 
-See the [current report](docs/RELEASE_0.4.12.md) for validation status. Broader modpacks, concurrent clients and protection mods remain unverified.
+See the [current report](docs/RELEASE_0.4.13.md) for validation status. Broader modpacks, concurrent clients and protection mods remain unverified.
 
 远程元件操作仅限同维度；跨维度设备仍可浏览。第三方设备只有在能可靠识别物理元件槽时才允许取放，否则只读。注册为全局存储提供者且没有节点／位置的来源，包含在全网内容中，但可能无法逐设备定位。总览的字节容量仅汇总能识别的存储元件，不代表外部容器的总容量。
 
@@ -114,7 +118,7 @@ For OmniCells integration tests, place `ae2omnicells-1.20.1-forge-1.1.6.jar` in 
 - [使用说明 / User guide](docs/USER_GUIDE.md)
 - [模型与纹理来源 / Visual asset provenance](docs/ASSETS.md)
 - [手动测试计划 / Manual test plan](docs/MANUAL_TEST_PLAN.md)
-- [0.4.12 测试记录 / Current test report](docs/RELEASE_0.4.12.md)
+- [0.4.13 测试记录 / Current test report](docs/RELEASE_0.4.13.md)
 - [0.4.8 历史测试记录 / Historical test report](docs/RELEASE_0.4.8.md)
 - [0.4.7 历史测试记录 / Historical test report](docs/RELEASE_0.4.7.md)
 - [0.4.6 历史测试记录 / Historical test report](docs/RELEASE_0.4.6.md)

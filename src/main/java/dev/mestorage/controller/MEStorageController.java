@@ -2,6 +2,7 @@ package dev.mestorage.controller;
 
 import dev.mestorage.controller.block.ControllerBlock;
 import dev.mestorage.controller.block.ControllerBlockEntity;
+import dev.mestorage.controller.config.ControllerConfig;
 import dev.mestorage.controller.menu.ControllerMenu;
 import dev.mestorage.controller.network.Network;
 import net.minecraft.world.inventory.MenuType;
@@ -14,6 +15,9 @@ import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -32,13 +36,24 @@ public final class MEStorageController {
     public static final RegistryObject<MenuType<ControllerMenu>> MENU = MENUS.register("controller", () -> IForgeMenuType.create(ControllerMenu::new));
 
     public MEStorageController() {
+        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ControllerConfig.SPEC, ControllerConfig.FILE_NAME);
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         BLOCKS.register(bus);
         ITEMS.register(bus);
         ENTITIES.register(bus);
         MENUS.register(bus);
+        if (!FMLEnvironment.production) registerTestFixtures(bus);
         bus.addListener(this::creativeTab);
         Network.register();
+    }
+
+    private static void registerTestFixtures(IEventBus bus) {
+        try {
+            Class.forName("dev.mestorage.controller.test.EnergyBypassGameTests")
+                    .getMethod("registerFixtures", IEventBus.class).invoke(null, bus);
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("Could not register development energy fixtures", failure);
+        }
     }
 
     private void creativeTab(BuildCreativeModeTabContentsEvent event) {

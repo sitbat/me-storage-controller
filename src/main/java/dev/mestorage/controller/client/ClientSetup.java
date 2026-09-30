@@ -57,6 +57,11 @@ public final class ClientSetup {
                 if (player != null && player.containerMenu instanceof ControllerMenu menu
                         && menu.containerId == packet.containerId()) menu.setSnapshot(packet.snapshot());
             };
+            Network.directoryReceiver = packet -> {
+                var player = Minecraft.getInstance().player;
+                if (player != null && player.containerMenu instanceof ControllerMenu menu
+                        && menu.containerId == packet.containerId()) menu.acceptDirectoryFrame(packet.frame());
+            };
         });
     }
 }

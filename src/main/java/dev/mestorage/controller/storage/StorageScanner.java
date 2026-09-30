@@ -178,7 +178,7 @@ public final class StorageScanner {
         return readCells(device,Integer.MAX_VALUE);
     }
 
-    /** A directory only needs its bounded prefix, never every cell of an addon host. */
+    /** Read up to the requested physical slot count; full directories request every slot. */
     public static List<CellInfo> readCells(Device device,int limit) {
         if (!(device.owner() instanceof IChestOrDrive host)) return List.of();
         var cells = new ArrayList<CellInfo>();

@@ -14,17 +14,18 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         Capacity capacity, List<Content> contents, int contentPage, int contentPages, int contentCount, int cellSlots, int editableSlots,
         List<CellPreview> cells, DeviceInfo selectedInfo, long revision,
         List<DirectoryEntry> directory, int directoryTotalDevices) {
-    public static final int MAX_DIRECTORY_DEVICES=256;
     /** One native-style content grid: nine columns and five rows. */
     public static final int CONTENT_PAGE_SIZE=45;
-    public static final int MAX_DIRECTORY_CELLS_PER_DEVICE=256;
-    public static final int MAX_DIRECTORY_CELLS=4096;
     public record DirectoryEntry(DeviceInfo device,int cellSlots,List<CellPreview> cells) {
         public DirectoryEntry { cells=List.copyOf(cells); }
         public boolean truncated() { return cellSlots<0 || cellSlots>cells.size(); }
     }
     public boolean directoryTruncated() {
         return directoryTotalDevices>directory.size() || directory.stream().anyMatch(DirectoryEntry::truncated);
+    }
+    public Snapshot withDirectory(List<DirectoryEntry> entries,int total) {
+        return new Snapshot(online,error,selectedDevice,selectedCell,devices,devicePage,devicePages,deviceCount,title,
+                capacity,contents,contentPage,contentPages,contentCount,cellSlots,editableSlots,cells,selectedInfo,revision,entries,total);
     }
     public record DeviceInfo(String id, Component name, String kind, ResourceLocation dimension, BlockPos pos, boolean active,
                              Component sourceName, String face, String adapter, ItemStack icon) {}
@@ -62,18 +63,18 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
             for(var child:entry.cells) writeCell(b,child);
         }
     }
-    private static void writeCell(FriendlyByteBuf b,CellPreview cell) {
+    static void writeCell(FriendlyByteBuf b,CellPreview cell) {
         b.writeInt(cell.slot); b.writeItem(cell.icon); b.writeLong(cell.usedBytes); b.writeLong(cell.totalBytes); b.writeBoolean(cell.readable);
     }
-    private static CellPreview readCell(FriendlyByteBuf b) {
+    static CellPreview readCell(FriendlyByteBuf b) {
         return new CellPreview(b.readInt(),b.readItem(),b.readLong(),b.readLong(),b.readBoolean());
     }
-    private static void writeDevice(FriendlyByteBuf b,DeviceInfo d) {
+    static void writeDevice(FriendlyByteBuf b,DeviceInfo d) {
         b.writeUtf(d.id,256); b.writeComponent(d.name); b.writeUtf(d.kind,32);
         b.writeResourceLocation(d.dimension); b.writeBlockPos(d.pos); b.writeBoolean(d.active);
         b.writeComponent(d.sourceName); b.writeUtf(d.face,16); b.writeUtf(d.adapter,32); b.writeItem(d.icon);
     }
-    private static DeviceInfo readDevice(FriendlyByteBuf b) {
+    static DeviceInfo readDevice(FriendlyByteBuf b) {
         return new DeviceInfo(b.readUtf(256),b.readComponent(),b.readUtf(32),b.readResourceLocation(),b.readBlockPos(),b.readBoolean(),b.readComponent(),b.readUtf(16),b.readUtf(32),b.readItem());
     }
     public static Snapshot read(FriendlyByteBuf b) {
@@ -92,12 +93,11 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         for(int i=0;i<n;i++) previews.add(readCell(b));
         var selectedInfo=b.readBoolean() ? readDevice(b) : null;
         long revision=b.readLong(); int totalDevices=b.readVarInt();
-        n=b.readVarInt(); if(totalDevices<0 || n<0 || n>MAX_DIRECTORY_DEVICES || n>totalDevices) throw new IllegalArgumentException("directory size");
-        var directory=new ArrayList<DirectoryEntry>(n); int children=0;
+        n=b.readVarInt(); if(totalDevices<0 || n<0 || n>b.readableBytes() || n>totalDevices) throw new IllegalArgumentException("directory size");
+        var directory=new ArrayList<DirectoryEntry>(n);
         for(int i=0;i<n;i++) {
             var device=readDevice(b); int cellSlots=b.readInt(),count=b.readVarInt();
-            if(cellSlots< -1 || count<0 || count>MAX_DIRECTORY_CELLS_PER_DEVICE || count>Math.max(0,cellSlots)
-                    || (children+=count)>MAX_DIRECTORY_CELLS) throw new IllegalArgumentException("directory children");
+            if(cellSlots< -1 || count<0 || count>b.readableBytes()/22 || count>Math.max(0,cellSlots)) throw new IllegalArgumentException("directory children");
             var childList=new ArrayList<CellPreview>(count);
             for(int j=0;j<count;j++) {
                 var child=readCell(b);

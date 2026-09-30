@@ -95,5 +95,8 @@
   "gui.me_storage_controller.capacity_unknown": "容量未知",
   "gui.me_storage_controller.next_page": "下一页存储内容",
   "gui.me_storage_controller.types_inline": "类型 %s/%s",
-  "gui.me_storage_controller.cell_slot": "元件槽位 %s"
+  "gui.me_storage_controller.cell_slot": "元件槽位 %s",
+  "config.me_storage_controller.bypass_ae_energy_limit": "绕过AE能量转换限制",
+  "command.me_storage_controller.energy_bypass": "绕过AE能量转换限制：%s",
+  "command.me_storage_controller.config_save_failed": "配置保存失败，已恢复原设置。请检查服务端日志和配置文件权限。"
 }
