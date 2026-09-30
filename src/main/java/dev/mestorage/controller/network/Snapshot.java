@@ -12,7 +12,18 @@ import net.minecraft.world.item.ItemStack;
 public record Snapshot(boolean online, String error, String selectedDevice, int selectedCell,
         List<DeviceInfo> devices, int devicePage, int devicePages, int deviceCount, Component title,
         Capacity capacity, List<Content> contents, int contentPage, int contentPages, int contentCount, int cellSlots, int editableSlots,
-        List<CellPreview> cells, DeviceInfo selectedInfo, long revision) {
+        List<CellPreview> cells, DeviceInfo selectedInfo, long revision,
+        List<DirectoryEntry> directory, int directoryTotalDevices) {
+    public static final int MAX_DIRECTORY_DEVICES=256;
+    public static final int MAX_DIRECTORY_CELLS_PER_DEVICE=256;
+    public static final int MAX_DIRECTORY_CELLS=4096;
+    public record DirectoryEntry(DeviceInfo device,int cellSlots,List<CellPreview> cells) {
+        public DirectoryEntry { cells=List.copyOf(cells); }
+        public boolean truncated() { return cellSlots<0 || cellSlots>cells.size(); }
+    }
+    public boolean directoryTruncated() {
+        return directoryTotalDevices>directory.size() || directory.stream().anyMatch(DirectoryEntry::truncated);
+    }
     public record DeviceInfo(String id, Component name, String kind, ResourceLocation dimension, BlockPos pos, boolean active,
                              Component sourceName, String face, String adapter, ItemStack icon) {}
     public record CellPreview(int slot, ItemStack icon, long usedBytes, long totalBytes, boolean readable) {}
@@ -25,7 +36,7 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
     public record Content(AEKey key, long amount) {}
     public static Snapshot empty() {
         return new Snapshot(false,"", "",-1,List.of(),0,1,0,Component.translatable("gui.me_storage_controller.network"),
-            new Capacity(-1,-1,-1,-1,0), List.of(),0,1,0,0,0,List.of(),null,0);
+            new Capacity(-1,-1,-1,-1,0), List.of(),0,1,0,0,0,List.of(),null,0,List.of(),0);
     }
     public void write(FriendlyByteBuf b) {
         b.writeBoolean(online); b.writeUtf(error,128); b.writeUtf(selectedDevice,256); b.writeInt(selectedCell);
@@ -41,6 +52,17 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         for(var cell:cells) { b.writeInt(cell.slot); b.writeItem(cell.icon); b.writeLong(cell.usedBytes); b.writeLong(cell.totalBytes); b.writeBoolean(cell.readable); }
         b.writeBoolean(selectedInfo!=null); if(selectedInfo!=null) writeDevice(b,selectedInfo);
         b.writeLong(revision);
+        b.writeVarInt(directoryTotalDevices); b.writeVarInt(directory.size());
+        for(var entry:directory) {
+            writeDevice(b,entry.device); b.writeInt(entry.cellSlots); b.writeVarInt(entry.cells.size());
+            for(var child:entry.cells) writeCell(b,child);
+        }
+    }
+    private static void writeCell(FriendlyByteBuf b,CellPreview cell) {
+        b.writeInt(cell.slot); b.writeItem(cell.icon); b.writeLong(cell.usedBytes); b.writeLong(cell.totalBytes); b.writeBoolean(cell.readable);
+    }
+    private static CellPreview readCell(FriendlyByteBuf b) {
+        return new CellPreview(b.readInt(),b.readItem(),b.readLong(),b.readLong(),b.readBoolean());
     }
     private static void writeDevice(FriendlyByteBuf b,DeviceInfo d) {
         b.writeUtf(d.id,256); b.writeComponent(d.name); b.writeUtf(d.kind,32);
@@ -63,8 +85,23 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         int cp=b.readInt(),cps=b.readInt(),cc=b.readInt(),slots=b.readInt(),editable=b.readInt();
         n=b.readVarInt(); if(n<0 || n>10) throw new IllegalArgumentException("cell page");
         var previews=new ArrayList<CellPreview>();
-        for(int i=0;i<n;i++) previews.add(new CellPreview(b.readInt(),b.readItem(),b.readLong(),b.readLong(),b.readBoolean()));
+        for(int i=0;i<n;i++) previews.add(readCell(b));
         var selectedInfo=b.readBoolean() ? readDevice(b) : null;
-        return new Snapshot(online,error,selected,cell,List.copyOf(devices),dp,dps,dc,title,capacity,List.copyOf(contents),cp,cps,cc,slots,editable,List.copyOf(previews),selectedInfo,b.readLong());
+        long revision=b.readLong(); int totalDevices=b.readVarInt();
+        n=b.readVarInt(); if(totalDevices<0 || n<0 || n>MAX_DIRECTORY_DEVICES || n>totalDevices) throw new IllegalArgumentException("directory size");
+        var directory=new ArrayList<DirectoryEntry>(n); int children=0;
+        for(int i=0;i<n;i++) {
+            var device=readDevice(b); int cellSlots=b.readInt(),count=b.readVarInt();
+            if(cellSlots< -1 || count<0 || count>MAX_DIRECTORY_CELLS_PER_DEVICE || count>Math.max(0,cellSlots)
+                    || (children+=count)>MAX_DIRECTORY_CELLS) throw new IllegalArgumentException("directory children");
+            var childList=new ArrayList<CellPreview>(count);
+            for(int j=0;j<count;j++) {
+                var child=readCell(b);
+                if(child.slot()!=j) throw new IllegalArgumentException("directory cell index");
+                childList.add(child);
+            }
+            directory.add(new DirectoryEntry(device,cellSlots,childList));
+        }
+        return new Snapshot(online,error,selected,cell,List.copyOf(devices),dp,dps,dc,title,capacity,List.copyOf(contents),cp,cps,cc,slots,editable,List.copyOf(previews),selectedInfo,revision,List.copyOf(directory),totalDevices);
     }
 }

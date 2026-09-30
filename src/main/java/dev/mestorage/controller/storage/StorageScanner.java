@@ -173,11 +173,16 @@ public final class StorageScanner {
     }
 
     public static List<CellInfo> readCells(Device device) {
+        return readCells(device,Integer.MAX_VALUE);
+    }
+
+    /** A directory only needs its bounded prefix, never every cell of an addon host. */
+    public static List<CellInfo> readCells(Device device,int limit) {
         if (!(device.owner() instanceof IChestOrDrive host)) return List.of();
         var cells = new ArrayList<CellInfo>();
         int count = cellCount(device);
         if (count < 0) return List.of(new CellInfo(0, ItemStack.EMPTY, null, Capacity.UNKNOWN, CellState.ABSENT, false));
-        for (int slot = 0; slot < count; slot++) {
+        for (int slot = 0; slot < Math.min(count,Math.max(0,limit)); slot++) {
             ItemStack stack = ItemStack.EMPTY;
             try {
                 if (device.cells() != null && slot < device.cells().getSlots()) {

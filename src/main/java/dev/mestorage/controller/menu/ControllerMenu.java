@@ -55,6 +55,9 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private long requestedRevision;
     private long acknowledgedRevision;
     private boolean reportedStorageError;
+    private List<Snapshot.DirectoryEntry> directory=List.of();
+    private long nextDirectoryRefresh;
+    private boolean clientSlotsVisible=true;
 
     public ControllerMenu(int id,Inventory inventory,FriendlyByteBuf data) {
         this(id,inventory,inventory.player.level().getBlockEntity(data.readBlockPos()) instanceof ControllerBlockEntity be ? be : null);
@@ -66,19 +69,31 @@ public final class ControllerMenu extends AbstractContainerMenu {
         for(int x=0;x<9;x++) addSlot(new Slot(inventory,x,8+18*x,209));
     }
     private Slot remoteSlot(int index,int y) {
-        return new SlotItemHandler(remote,index,8+18*index,y) {
+        return remoteSlot(index,8+18*index,y);
+    }
+    private Slot remoteSlot(int index,int x,int y) {
+        return new SlotItemHandler(remote,index,x,y) {
             @Override public boolean mayPlace(ItemStack stack) { return canEdit() && remote.isItemValid(index,stack); }
             @Override public boolean mayPickup(Player p) { return canEdit(); }
-            @Override public boolean isActive() { return player.level().isClientSide ? snapshot.editableSlots()>index : selected!=null && selected.cells()!=null && selected.cells().getSlots()>index+cellOffset(); }
+            @Override public boolean isActive() { return player.level().isClientSide ? clientSlotsVisible && snapshot.editableSlots()>index : selected!=null && selected.cells()!=null && selected.cells().getSlots()>index+cellOffset(); }
         };
     }
     /** Only presentation coordinates change. Slot identity, ordering and backing inventories remain unchanged. */
     public void layoutSlots(int cellY,int inventoryY,int hotbarY) {
+        layoutSlots(8,cellY,8,inventoryY,hotbarY,true);
+    }
+    public void layoutSlots(int cellX,int cellY,int inventoryX,int inventoryY,int hotbarY,boolean visible) {
         if(!player.level().isClientSide) return;
-        for(int i=0;i<10;i++) replaceSlot(i,remoteSlot(i,cellY));
+        clientSlotsVisible=visible;
+        for(int i=0;i<10;i++) replaceSlot(i,remoteSlot(i,cellX+18*i,cellY));
         for(int row=0;row<3;row++) for(int col=0;col<9;col++)
-            replaceSlot(10+row*9+col,new Slot(playerInventory,9+row*9+col,8+18*col,inventoryY+18*row));
-        for(int col=0;col<9;col++) replaceSlot(37+col,new Slot(playerInventory,col,8+18*col,hotbarY));
+            replaceSlot(10+row*9+col,playerSlot(9+row*9+col,inventoryX+18*col,inventoryY+18*row));
+        for(int col=0;col<9;col++) replaceSlot(37+col,playerSlot(col,inventoryX+18*col,hotbarY));
+    }
+    private Slot playerSlot(int index,int x,int y) {
+        return new Slot(playerInventory,index,x,y) {
+            @Override public boolean isActive() { return clientSlotsVisible; }
+        };
     }
     private void replaceSlot(int index,Slot slot) { slot.index=index; slots.set(index,slot); }
     public Snapshot getSnapshot() { return snapshot; }
@@ -190,8 +205,9 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private void refresh() {
         var grid=grid();
         if(grid==null || !stillValid(player)) {
+            directory=List.of(); nextDirectoryRefresh=0;
             selected=null; snapshot=new Snapshot(false,"gui.me_storage_controller.offline","",-1,List.of(),0,1,0,
-                controller==null ? Component.empty() : controller.getDisplayName(),new Snapshot.Capacity(-1,-1,-1,-1,0),List.of(),0,1,0,0,0,List.of(),null,acknowledgedRevision);
+                controller==null ? Component.empty() : controller.getDisplayName(),new Snapshot.Capacity(-1,-1,-1,-1,0),List.of(),0,1,0,0,0,List.of(),null,acknowledgedRevision,List.of(),0);
             send(); return;
         }
         List<Device> devices=StorageScanner.discover(grid);
@@ -210,6 +226,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         var infos=filtered.stream().skip((long)devicePage*3).limit(3).map(d->deviceInfos.get(d.id())).toList();
         var selectedInfo=selected==null ? null : deviceInfos.get(selected.id());
         List<StorageScanner.CellInfo> selectedCells=List.of();
+        Map<String,List<StorageScanner.CellInfo>> cellReads=new HashMap<>();
         KeyCounter keys;
         Snapshot.Capacity capacity;
         Component title;
@@ -227,7 +244,12 @@ public final class ControllerMenu extends AbstractContainerMenu {
             long used=0,total=0,types=0,typeTotal=0; int unknown=0;
             for(var device:devices) {
                 if(!device.active()) continue;
-                var cap=StorageScanner.capacity(device); unknown+=cap.unknownCells();
+                var cap=StorageScanner.Capacity.UNKNOWN;
+                if(device.owner() instanceof IChestOrDrive && !StorageScanner.isDegraded(device)) {
+                    var cells=StorageScanner.readCells(device); cellReads.put(device.id(),cells);
+                    cap=StorageScanner.aggregateCapacity(cells);
+                }
+                unknown+=cap.unknownCells();
                 if(cap.known()) { used=StorageScanner.saturatedAdd(used,cap.usedBytes()); total=StorageScanner.saturatedAdd(total,cap.totalBytes());
                     types=StorageScanner.saturatedAdd(types,cap.usedTypes()); typeTotal=StorageScanner.saturatedAdd(typeTotal,cap.totalTypes()); }
             }
@@ -235,6 +257,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         } else {
             title=selectedInfo.name();
             var cells=StorageScanner.readCells(selected);
+            cellReads.put(selected.id(),cells);
             selectedCells=cells;
             var cap=selected.owner() instanceof IChestOrDrive && !StorageScanner.isDegraded(selected)
                 ? StorageScanner.aggregateCapacity(cells) : StorageScanner.Capacity.UNKNOWN;
@@ -262,11 +285,36 @@ public final class ControllerMenu extends AbstractContainerMenu {
         int contentPages=pages(contents.size(),6); contentPage=Math.min(contentPage,contentPages-1);
         int from=contentPage*6,to=Math.min(from+6,contents.size());
         var previews=selectedCells.stream().skip(cellOffset()).limit(10).map(cell -> new Snapshot.CellPreview(cell.slot(),cell.stack(),cell.capacity().usedBytes(),cell.capacity().totalBytes(),cell.readable())).toList();
+        refreshDirectory(devices,deviceInfos,cellReads);
         snapshot=new Snapshot(true,error,selectedId,selectedCell,infos,devicePage,devicePages,filtered.size(),title,capacity,
             List.copyOf(contents.subList(from,to)),contentPage,contentPages,contents.size(),
             selected!=null ? Math.max(0,StorageScanner.cellCount(selected)) : 0,
-            canEdit() ? Math.max(0,Math.min(10,selected.cells().getSlots()-cellOffset())) : 0,previews,selectedInfo,acknowledgedRevision);
+            canEdit() ? Math.max(0,Math.min(10,selected.cells().getSlots()-cellOffset())) : 0,previews,selectedInfo,acknowledgedRevision,directory,devices.size());
         send();
+    }
+    /** Reuse reads already needed for detail/capacity. Other branches scan at most once per second. */
+    private void refreshDirectory(List<Device> devices,Map<String,Snapshot.DeviceInfo> infos,
+                                  Map<String,List<StorageScanner.CellInfo>> cellReads) {
+        long now=player.level().getGameTime(); boolean refreshAll=now>=nextDirectoryRefresh;
+        var old=new HashMap<String,Snapshot.DirectoryEntry>();
+        for(var entry:directory) old.put(entry.device().id(),entry);
+        var entries=new ArrayList<Snapshot.DirectoryEntry>(); int remaining=Snapshot.MAX_DIRECTORY_CELLS;
+        for(var device:devices) {
+            if(entries.size()>=Snapshot.MAX_DIRECTORY_DEVICES) break;
+            int count=StorageScanner.cellCount(device);
+            int limit=Math.min(Math.max(0,count),Math.min(Snapshot.MAX_DIRECTORY_CELLS_PER_DEVICE,remaining));
+            var cached=old.get(device.id()); var read=cellReads.get(device.id());
+            List<Snapshot.CellPreview> children;
+            if(read!=null || refreshAll || cached==null || cached.cellSlots()!=count || cached.cells().size()!=limit) {
+                if(read==null) read=StorageScanner.readCells(device,limit);
+                children=read.stream().limit(limit).map(cell -> new Snapshot.CellPreview(cell.slot(),cell.stack(),
+                        cell.capacity().usedBytes(),cell.capacity().totalBytes(),cell.readable())).toList();
+            } else children=cached.cells();
+            entries.add(new Snapshot.DirectoryEntry(infos.get(device.id()),count,children));
+            remaining-=children.size();
+        }
+        directory=List.copyOf(entries);
+        if(refreshAll) nextDirectoryRefresh=now+20;
     }
     private void send() { if(player instanceof ServerPlayer server) Network.send(server,containerId,snapshot); }
     private static boolean matches(String value,String query) { return value.toLowerCase(Locale.ROOT).contains(query.toLowerCase(Locale.ROOT)); }

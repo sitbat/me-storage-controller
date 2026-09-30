@@ -1,0 +1,1 @@
+PASS: real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; theme/compact and placed-block captures. Normal/Shift transfers, twelve rapid left-click events per tested drive and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: PASS

@@ -2,12 +2,12 @@ package dev.mestorage.controller.client;
 
 record DashboardPalette(int background, int panel, int inset, int border, int text, int muted,
                         int accent, int selected, int hover, int slot, int danger, int warning) {
-    static final DashboardPalette DARK = new DashboardPalette(0xff454650, 0xff454650, 0xff2d303c,
-            0xff171821, 0xffe0e1e8, 0xffadb0c0, 0xffa0b7d4, 0xff586b83, 0xff55596b,
-            0xff343745, 0xffe99b96, 0xffd3bf92);
-    static final DashboardPalette LIGHT = new DashboardPalette(0xffc9cad2, 0xffc9cad2, 0xffa9aec0,
-            0xff484659, 0xff413f54, 0xff656b81, 0xff526c94, 0xfface9ff, 0xffb8c3d6,
-            0xffa9aec0, 0xffa84742, 0xff8b671e);
+    static final DashboardPalette DARK = new DashboardPalette(0xff14181f, 0xff1b212b, 0xff161c25,
+            0xff323d4c, 0xffe7edf5, 0xffa1b1c4, 0xff78c9f1, 0xff263f54, 0xff273342,
+            0xff27303d, 0xffff9c9c, 0xffebc278);
+    static final DashboardPalette LIGHT = new DashboardPalette(0xfff0f3f7, 0xfffcfdff, 0xfff3f6fa,
+            0xffc9d3df, 0xff202d40, 0xff586b82, 0xff17628b, 0xffdcedf9, 0xffe7eef6,
+            0xffe2eaf3, 0xffb03c4a, 0xff916015);
 
     static DashboardPalette blend(float dark) {
         return new DashboardPalette(mix(LIGHT.background, DARK.background, dark), mix(LIGHT.panel, DARK.panel, dark),

@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.3.0'
+version = '0.4.0'
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -21,11 +21,11 @@ minecraft {
         client {
             if (project.hasProperty('demo')) {
                 property 'mestorage.clientDemo', 'true'
-                args '--quickPlaySingleplayer', 'ME-Controller-Demo', '--width', '1280', '--height', '720'
+                args '--quickPlaySingleplayer', project.findProperty('demoWorld') ?: 'ME-Controller-Demo', '--width', '1280', '--height', '720'
             }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v030').absolutePath
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v040').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }

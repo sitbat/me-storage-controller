@@ -1,0 +1,6 @@
+{
+  "parent": "me_storage_controller:block/controller",
+  "textures": {
+    "indicator": "minecraft:block/light_blue_concrete"
+  }
+}

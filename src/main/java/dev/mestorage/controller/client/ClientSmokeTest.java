@@ -56,6 +56,7 @@ public final class ClientSmokeTest {
     private static volatile boolean captureDone;
     private static volatile String failure;
     private static BlockPos controllerPos;
+    private static BlockPos galleryPos;
     private static String targetId = "";
     private static int transferPhase;
     private static int transferTicks;
@@ -71,8 +72,24 @@ public final class ClientSmokeTest {
     private static volatile boolean rapidServerVerified;
     private static boolean rapidComplete;
     private static int heldToolbarPhase;
+    private static int blockCaptureTicks;
+    private static int blockCaptureStage;
+    private static int treePhase;
+    private static int treeWait;
+    private static boolean treeVerified;
+    private static boolean treeTransitionCapturePending;
+    private static String normalTreeId;
+    private static String secondTreeId;
+    private static double previousTreeScroll;
+    private static boolean inventoryPrepared;
+    private static boolean captureViewPrepared;
+    private static int captureWait;
+    private static volatile boolean failureCaptureDone;
+    private static int failureCaptureTicks;
+    private static String failureResult;
     private static final String[] NAMES = { "dark-network", "dark-drive", "dark-cell", "dark-expanded-cell20",
-            "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "compact-light", "compact-dark" };
+            "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "compact-light", "compact-dark",
+            "light-drive", "light-cell", "light-fluid", "light-external", "compact-inventory-light", "compact-inventory-dark" };
 
     private ClientSmokeTest() {}
 
@@ -80,6 +97,10 @@ public final class ClientSmokeTest {
     public static void tick(TickEvent.ClientTickEvent event) {
         if (!ENABLED || event.phase != TickEvent.Phase.END || phase == 9) return;
         var mc = Minecraft.getInstance();
+        if (phase == 8) {
+            if (failureCaptureDone || ++failureCaptureTicks > 100) finish(mc, failureResult);
+            return;
+        }
         try {
             if (failure != null) throw new IllegalStateException(failure);
             if (mc.player == null || mc.getSingleplayerServer() == null) return;
@@ -116,10 +137,18 @@ public final class ClientSmokeTest {
             } else if (phase == 2 && mc.player.containerMenu instanceof ControllerMenu menu
                     && mc.screen instanceof ControllerScreen && menu.getSnapshot().online()) {
                 driveCapture(mc, menu);
+            } else if (phase == 3) {
+                captureBlockAppearance(mc);
             }
         } catch (Throwable problem) {
             problem.printStackTrace();
-            finish(mc, "FAILED: " + problem);
+            if (DEMO) {
+                System.err.println("ME_STORAGE_DEMO_UNAVAILABLE: " + problem
+                        + "; automatic opening stopped; the game remains available for manual play");
+                phase = 9;
+                return;
+            }
+            captureFailureThenFinish(mc, problem);
         }
     }
 
@@ -239,7 +268,10 @@ public final class ClientSmokeTest {
     }
 
     private static void driveCapture(Minecraft mc, ControllerMenu menu) {
+        // Real cursor movement keeps hover tooltips out of captures without changing screen rendering.
+        org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), 0, 0);
         Snapshot s = menu.getSnapshot();
+        if (!treeVerified && !verifyStorageTree(mc, menu)) return;
         if (capturing) {
             if (!captureDone) return;
             capturing = false;
@@ -258,28 +290,35 @@ public final class ClientSmokeTest {
             rapidServerVerified = false;
             rapidComplete = false;
             heldToolbarPhase = 0;
+            inventoryPrepared = false;
+            captureViewPrepared = false;
+            captureWait = 0;
             if (++view == NAMES.length) {
-                finish(mc, "PASS: real client theme/compact captures, exact counts, normal/Shift packet transfers, and twelve rapid real left-click GUI events per tested drive preserved one cell and all contents. ExtendedAE page-two and localized copper search: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+                phase = 3;
+                blockCaptureTicks = 0;
+                blockCaptureStage = 0;
                 return;
             }
         }
         if (!expanded && (view == 3 || view == 7)) { view++; requested = false; }
-        boolean expandedView = view == 3 || view == 7;
-        String registry = switch (view) { case 1, 2 -> "ae2:drive"; case 3, 7 -> "expatternprovider:ex_drive";
-            case 4 -> "ae2:chest"; default -> ""; };
-        int cell = expandedView ? 19 : view == 2 || view == 4 ? 0 : -1;
+        boolean inventoryCapture = view == 14 || view == 15;
+        boolean expandedView = view == 3 || view == 7 || inventoryCapture && expanded;
+        String registry = switch (view) { case 1, 2, 10, 11 -> "ae2:drive"; case 3, 7 -> "expatternprovider:ex_drive";
+            case 14, 15 -> expanded ? "expatternprovider:ex_drive" : "ae2:drive";
+            case 4, 12 -> "ae2:chest"; default -> ""; };
+        int cell = expandedView ? 19 : inventoryCapture || view == 2 || view == 4 || view == 11 || view == 12 ? 0 : -1;
         if (!requested) {
             mc.getToasts().clear();
             org.lwjgl.glfw.GLFW.glfwSetCursorPos(mc.getWindow().getWindow(), 0, 0);
-            int scale = view >= 8 ? 3 : 2;
+            int scale = view == 8 || view == 9 || inventoryCapture ? 3 : 2;
             if (mc.options.guiScale().get() != scale) { mc.options.guiScale().set(scale); mc.resizeDisplay(); }
             var screen = (ControllerScreen) mc.screen;
-            screen.setDarkThemeForTest(view < 6 || view == 9);
+            screen.setDarkThemeForTest(view < 6 || view == 9 || view == 15);
             if (awaitingPage >= 0 && s.devicePage() != awaitingPage) return;
             awaitingPage = -1;
-            var wanted = s.devices().stream().filter(d -> view == 5 ? d.kind().equalsIgnoreCase("external")
+            var wanted = s.directory().stream().map(Snapshot.DirectoryEntry::device).filter(d -> view == 5 || view == 13 ? d.kind().equalsIgnoreCase("external")
                     : !registry.isEmpty() && registry.equals(ForgeRegistries.ITEMS.getKey(d.icon().getItem()).toString())).findFirst();
-            if ((!registry.isEmpty() || view == 5) && wanted.isEmpty()) {
+            if ((!registry.isEmpty() || view == 5 || view == 13) && wanted.isEmpty()) {
                 if (++searchedPages > s.devicePages()) throw new IllegalStateException("Missing smoke device " + registry);
                 awaitingPage = (s.devicePage() + 1) % Math.max(1, s.devicePages());
                 menu.request("", -1, awaitingPage, 0, "", "", true);
@@ -292,6 +331,12 @@ public final class ClientSmokeTest {
         }
         if (!s.selectedDevice().equals(targetId) || s.selectedCell() != cell) return;
         if (++stableTicks < 20) return;
+        if ((view == 2 || view == 3) && !inventoryPrepared) {
+            var inventoryTab = ((ControllerScreen) mc.screen).smokeInventoryTabRect();
+            if (inventoryTab != null) clickUi((ControllerScreen) mc.screen, inventoryTab);
+            inventoryPrepared = true;
+            return;
+        }
         if (view == 1 && navigationRaceTicks != -2) {
             if (navigationRaceTicks == -1) {
                 menu.request("", -1, s.devicePage(), 0, "", "", true);
@@ -329,6 +374,18 @@ public final class ClientSmokeTest {
         if (view == 5 && (s.capacity().occupiedSlots() != 1 || s.capacity().totalSlots() != 27
                 || s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.EMERALD)) && c.amount() == 37)))
             throw new IllegalStateException("External barrel lost exact 37 emeralds or 1/27 capacity");
+        if (!captureViewPrepared) {
+            var captureTab = inventoryCapture ? ((ControllerScreen) mc.screen).smokeInventoryTabRect()
+                    : ((ControllerScreen) mc.screen).smokeContentsTabRect();
+            if (inventoryCapture && captureTab == null) throw new IllegalStateException("Compact inventory tab was not available");
+            if (captureTab != null) clickUi((ControllerScreen) mc.screen, captureTab);
+            captureViewPrepared = true;
+            return;
+        }
+        if (++captureWait < 4) return;
+        if (inventoryCapture && (!menu.getSlot(expanded ? 9 : 0).isActive()
+                || !menu.getSlot(expanded ? 9 : 0).getItem().is(AEItems.ITEM_CELL_64K.asItem())))
+            throw new IllegalStateException("Compact inventory tab did not expose the selected physical cell");
         capturing = true;
         File directory = output(mc);
         directory.mkdirs();
@@ -337,6 +394,127 @@ public final class ClientSmokeTest {
             System.out.println("ME_STORAGE_SMOKE_SCREENSHOT " + result.getString());
             if (!new File(directory, "screenshots/" + screenshotName).isFile()) failure = "Screenshot save failed: " + result.getString();
             captureDone = true;
+        });
+    }
+
+    private static void clickUi(ControllerScreen screen, ControllerScreen.UiRect rect) {
+        if (rect == null) throw new IllegalStateException("Requested tree/control row is not currently visible");
+        screen.mouseClicked(rect.centerX(), rect.centerY(), 0);
+        screen.mouseReleased(rect.centerX(), rect.centerY(), 0);
+    }
+
+    /** Real tree gestures; reveal helpers move the viewport but never change menu selection. */
+    private static boolean verifyStorageTree(Minecraft mc, ControllerMenu menu) {
+        var screen = (ControllerScreen) mc.screen;
+        var s = menu.getSnapshot();
+        if (treeTransitionCapturePending && treeWait == 6) {
+            treeTransitionCapturePending = false;
+            captureExtra(mc, "smoke-tree-transition.png");
+        }
+        if (treeWait > 0 && --treeWait > 0) return false;
+        int targetCell = expanded ? 19 : 0;
+        switch (treePhase) {
+            case 0 -> {
+                captureExtra(mc, "smoke-tree-initial.png");
+                normalTreeId = treeDeviceId(s, "ae2:drive");
+                secondTreeId = treeDeviceId(s, expanded ? "expatternprovider:ex_drive" : "ae2:chest");
+                screen.smokeExpandDevice(normalTreeId);
+                screen.smokeExpandDevice(secondTreeId);
+                screen.smokeRevealDevice(normalTreeId);
+            }
+            case 1 -> {
+                requireTreeBranches(screen, true, true);
+                clickUi(screen, screen.smokeDeviceRect(normalTreeId, true));
+            }
+            case 2 -> {
+                requireTreeBranches(screen, false, true);
+                clickUi(screen, screen.smokeDeviceRect(normalTreeId, true));
+                treeTransitionCapturePending = true;
+            }
+            case 3 -> {
+                requireTreeBranches(screen, true, true);
+                screen.smokeRevealDevice(secondTreeId);
+            }
+            case 4 -> clickUi(screen, screen.smokeDeviceRect(secondTreeId, true));
+            case 5 -> {
+                requireTreeBranches(screen, true, false);
+                clickUi(screen, screen.smokeDeviceRect(secondTreeId, true));
+            }
+            case 6 -> {
+                requireTreeBranches(screen, true, true);
+                captureExtra(mc, "smoke-tree-expanded.png");
+                screen.smokeRevealCell(secondTreeId, targetCell);
+            }
+            case 7 -> clickUi(screen, screen.smokeCellRect(secondTreeId, targetCell));
+            case 8 -> {
+                assertTreeSelection(s, secondTreeId, targetCell);
+                var expected = expanded ? AEItemKey.of(Items.COPPER_INGOT) : AEFluidKey.of(Fluids.WATER);
+                long amount = expanded ? 98765 : 23456;
+                if (s.contents().stream().noneMatch(c -> c.key().equals(expected) && c.amount() == amount))
+                    throw new IllegalStateException("Actual tree cell selection returned wrong contents");
+                previousTreeScroll = screen.smokeTreeScrollOffset();
+                var viewport = screen.smokeTreeViewport();
+                screen.mouseScrolled(viewport.centerX(), viewport.centerY(), 12);
+            }
+            case 9 -> {
+                assertTreeSelection(s, secondTreeId, targetCell);
+                if (expanded && Math.abs(screen.smokeTreeScrollOffset() - previousTreeScroll) < 1)
+                    throw new IllegalStateException("Expanded tree did not actually scroll away from cell twenty");
+                var viewport = screen.smokeTreeViewport();
+                screen.mouseScrolled(viewport.centerX(), viewport.centerY(), -12);
+            }
+            case 10 -> {
+                assertTreeSelection(s, secondTreeId, targetCell);
+                requireTreeBranches(screen, true, true);
+                screen.smokeRevealCell(secondTreeId, targetCell);
+            }
+            case 11 -> {
+                assertTreeSelection(s, secondTreeId, targetCell);
+                if (screen.smokeCellRect(secondTreeId, targetCell) == null)
+                    throw new IllegalStateException("Selected cell did not return into view after scrolling");
+                clickUi(screen, screen.smokeBackRect());
+            }
+            case 12 -> {
+                assertTreeSelection(s, secondTreeId, -1);
+                clickUi(screen, screen.smokeRootRect());
+            }
+            case 13 -> {
+                assertTreeSelection(s, "", -1);
+                treeVerified = true;
+                System.out.println("ME_STORAGE_SMOKE_TREE PASS independent real chevron collapse/expand, actual cell selection, scroll retains selection, Back and network root");
+                return true;
+            }
+            default -> throw new IllegalStateException("Unknown tree test phase " + treePhase);
+        }
+        treePhase++;
+        treeWait = treePhase == 8 || treePhase == 12 || treePhase == 13 ? 25 : 8;
+        return false;
+    }
+
+    private static String treeDeviceId(Snapshot snapshot, String itemId) {
+        return snapshot.directory().stream().map(Snapshot.DirectoryEntry::device)
+                .filter(device -> itemId.equals(ForgeRegistries.ITEMS.getKey(device.icon().getItem()).toString()))
+                .map(Snapshot.DeviceInfo::id).findFirst()
+                .orElseThrow(() -> new IllegalStateException("Directory omitted test device " + itemId));
+    }
+
+    private static void requireTreeBranches(ControllerScreen screen, boolean normal, boolean second) {
+        if (screen.smokeDeviceExpanded(normalTreeId) != normal || screen.smokeDeviceExpanded(secondTreeId) != second)
+            throw new IllegalStateException("Device expansion states are not independent: expected " + normal + "," + second);
+    }
+
+    private static void assertTreeSelection(Snapshot snapshot, String device, int cell) {
+        if (!snapshot.selectedDevice().equals(device) || snapshot.selectedCell() != cell)
+            throw new IllegalStateException("Tree navigation selection mismatch: expected " + device + "/" + cell
+                    + " actual=" + snapshot.selectedDevice() + "/" + snapshot.selectedCell());
+    }
+
+    private static void captureExtra(Minecraft mc, String name) {
+        File directory = output(mc);
+        directory.mkdirs();
+        Screenshot.grab(directory, name, mc.getMainRenderTarget(), result -> {
+            System.out.println("ME_STORAGE_SMOKE_TREE_SCREENSHOT " + result.getString());
+            if (!new File(directory, "screenshots/" + name).isFile()) failure = "Tree screenshot failed: " + name;
         });
     }
 
@@ -417,8 +595,10 @@ public final class ClientSmokeTest {
             var slot = menu.getSlot(visibleSlot);
             double slotX = screen.getGuiLeft() + slot.x + 8;
             double slotY = screen.getGuiTop() + slot.y + 8;
-            double themeX = screen.getGuiLeft() - 21 + 9;
-            double themeY = screen.getGuiTop() + 47 + 9;
+            var themeRect = screen.smokeThemeRect();
+            if (themeRect == null) throw new IllegalStateException("Theme control is not visible");
+            double themeX = themeRect.centerX();
+            double themeY = themeRect.centerY();
             if (heldToolbarPhase == 0 || heldToolbarPhase == 3) {
                 screen.mouseClicked(slotX, slotY, 0);
                 screen.mouseReleased(slotX, slotY, 0);
@@ -501,27 +681,110 @@ public final class ClientSmokeTest {
     }
 
     private static boolean verifyLocalizedSearch(ControllerMenu menu) {
-        if (searchPhase >= 3) return true;
+        if (searchPhase >= 4) return true;
         if (searchTicks > 0 && --searchTicks > 0) return false;
         var s = menu.getSnapshot();
+        var screen = (ControllerScreen) Minecraft.getInstance().screen;
         if (searchPhase == 0) {
-            menu.request(targetId, 19, s.devicePage(), 0, "", "铜锭", true);
+            var tab = screen.smokeContentsTabRect();
+            if (tab != null) clickUi(screen, tab);
         } else if (searchPhase == 1) {
+            clickUi(screen, screen.smokeContentSearchRect());
+            screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_HOME, 0, 0);
+            for (int i = 0; i < 64; i++) screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_DELETE, 0, 0);
+            screen.charTyped('铜', 0);
+            screen.charTyped('锭', 0);
+        } else if (searchPhase == 2) {
             if (s.contentCount() != 1 || s.contents().size() != 1 || !s.contents().get(0).key().equals(AEItemKey.of(Items.COPPER_INGOT))
                     || s.contents().get(0).amount() != 98765) throw new IllegalStateException("Localized copper search did not preserve exact 98765 count");
-            menu.request(targetId, 19, s.devicePage(), 0, "", "", true);
+            captureExtra(Minecraft.getInstance(), "smoke-localized-search.png");
+            screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_HOME, 0, 0);
+            screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_DELETE, 0, 0);
+            screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_DELETE, 0, 0);
         } else {
             if (s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.COPPER_INGOT)) && c.amount() == 98765))
                 throw new IllegalStateException("Clearing localized search lost copper contents");
-            System.out.println("ME_STORAGE_SMOKE_LOCALIZED_SEARCH PASS 铜锭 = 98765; clearing restored contents");
+            System.out.println("ME_STORAGE_SMOKE_LOCALIZED_SEARCH PASS real focused text input 铜锭 = 98765; Home/Delete clearing restored contents");
         }
         searchPhase++;
         searchTicks = 25;
-        return searchPhase >= 3;
+        return searchPhase >= 4;
     }
 
     private static File output(Minecraft mc) {
         return new File(System.getProperty("mestorage.smokeOutput", mc.gameDirectory.getAbsolutePath()));
+    }
+
+    /** Capture the real placed model after all GUI checks, only in the disposable smoke world. */
+    private static void captureBlockAppearance(Minecraft mc) {
+        blockCaptureTicks++;
+        if (blockCaptureStage == 0 && blockCaptureTicks == 1) {
+            mc.player.closeContainer();
+            mc.options.hideGui = true;
+            captureDone = false;
+            var playerId = mc.player.getUUID();
+            galleryPos = controllerPos.east(6);
+            mc.getSingleplayerServer().execute(() -> {
+                try {
+                    var player = mc.getSingleplayerServer().getPlayerList().getPlayer(playerId);
+                    if (player == null) throw new IllegalStateException("Missing block-capture player");
+                    player.serverLevel().setDayTime(6000);
+                    player.serverLevel().setWeatherParameters(6000, 0, false, false);
+                    // The isolated gallery leaves the front and sides unobstructed by test storage devices.
+                    for (int x = -2; x <= 2; x++) for (int z = -2; z <= 2; z++) {
+                        player.serverLevel().setBlockAndUpdate(galleryPos.offset(x, -2, z), Blocks.SMOOTH_STONE.defaultBlockState());
+                        for (int y = -1; y <= 2; y++)
+                            player.serverLevel().setBlockAndUpdate(galleryPos.offset(x, y, z), Blocks.AIR.defaultBlockState());
+                    }
+                    player.serverLevel().setBlockAndUpdate(galleryPos.below(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+                    player.serverLevel().setBlockAndUpdate(galleryPos, MEStorageController.CONTROLLER.get().defaultBlockState());
+                    player.teleportTo(player.serverLevel(), galleryPos.getX() + 2.8, galleryPos.getY(),
+                            galleryPos.getZ() - 2.2, 40, 18);
+                } catch (Throwable problem) { failure = problem.toString(); }
+            });
+            return;
+        }
+        if (!mc.level.getBlockState(galleryPos).is(MEStorageController.CONTROLLER.get())) return;
+        boolean lit = mc.level.getBlockState(galleryPos).getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT);
+        if (blockCaptureStage == 0 && blockCaptureTicks >= 60) {
+            if (!lit) throw new IllegalStateException("Powered block appearance did not report online status");
+            if (!capturing) { capturing = true; grabBlockScreenshot(mc, "smoke-block-online.png"); return; }
+            if (!captureDone) return;
+            blockCaptureStage = 1;
+            blockCaptureTicks = 0;
+            capturing = false;
+            captureDone = false;
+            mc.getSingleplayerServer().execute(() -> mc.getSingleplayerServer().overworld()
+                    .setBlockAndUpdate(galleryPos.below(), Blocks.AIR.defaultBlockState()));
+        } else if (blockCaptureStage == 1 && blockCaptureTicks >= 40) {
+            if (lit) {
+                if (blockCaptureTicks > 300) throw new IllegalStateException("Unpowered block appearance did not turn offline");
+                return;
+            }
+            if (!capturing) { capturing = true; grabBlockScreenshot(mc, "smoke-block-offline.png"); return; }
+            if (!captureDone) return;
+            blockCaptureStage = 2;
+            blockCaptureTicks = 0;
+            mc.getSingleplayerServer().execute(() -> mc.getSingleplayerServer().overworld()
+                    .setBlockAndUpdate(galleryPos.below(), AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState()));
+        } else if (blockCaptureStage == 2 && blockCaptureTicks >= 30) {
+            if (!lit) {
+                if (blockCaptureTicks > 300) throw new IllegalStateException("Block did not illuminate after power restoration");
+                return;
+            }
+            System.out.println("ME_STORAGE_SMOKE_BLOCK_STATUS PASS online/offline captures and restored online state");
+            finish(mc, "PASS: real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; theme/compact and placed-block captures. Normal/Shift transfers, twelve rapid left-click events per tested drive and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+        }
+    }
+
+    private static void grabBlockScreenshot(Minecraft mc, String name) {
+        File directory = output(mc);
+        directory.mkdirs();
+        Screenshot.grab(directory, name, mc.getMainRenderTarget(), result -> {
+            System.out.println("ME_STORAGE_SMOKE_BLOCK_SCREENSHOT " + result.getString());
+            if (!new File(directory, "screenshots/" + name).isFile()) failure = "Block screenshot save failed: " + name;
+            captureDone = true;
+        });
     }
 
     private static void finish(Minecraft mc, String result) {
@@ -533,5 +796,29 @@ public final class ClientSmokeTest {
         } catch (Exception problem) { problem.printStackTrace(); }
         System.out.println("ME_STORAGE_SMOKE_RESULT " + result);
         mc.stop();
+    }
+
+    private static void captureFailureThenFinish(Minecraft mc, Throwable problem) {
+        failureResult = "FAILED: " + problem;
+        int failedPhase = phase;
+        phase = 8;
+        failureCaptureTicks = 0;
+        failureCaptureDone = false;
+        try {
+            File directory = output(mc);
+            directory.mkdirs();
+            String state = "phase=" + failedPhase + " view=" + view + " treePhase=" + treePhase
+                    + " treeWait=" + treeWait + " target=" + targetId + " failure=" + problem;
+            if (mc.screen instanceof ControllerScreen screen) state += " treeScroll=" + screen.smokeTreeScrollOffset();
+            Files.writeString(directory.toPath().resolve("client-smoke-failure-state.txt"), state + System.lineSeparator());
+            System.err.println("ME_STORAGE_SMOKE_FAILURE_STATE " + state);
+            Screenshot.grab(directory, "smoke-failure.png", mc.getMainRenderTarget(), result -> {
+                System.out.println("ME_STORAGE_SMOKE_FAILURE_SCREENSHOT " + result.getString());
+                failureCaptureDone = true;
+            });
+        } catch (Throwable captureProblem) {
+            System.err.println("ME_STORAGE_SMOKE_FAILURE_CAPTURE_ERROR " + captureProblem);
+            failureCaptureDone = true;
+        }
     }
 }

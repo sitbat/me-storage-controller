@@ -15,6 +15,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public final class ControllerBlockEntity extends BlockEntity implements IInWorldGridNodeHost, MenuProvider {
     private IManagedGridNode mainNode = newNode();
@@ -30,6 +31,13 @@ public final class ControllerBlockEntity extends BlockEntity implements IInWorld
     public IManagedGridNode getMainNode() { return mainNode; }
     public static void tick(Level level, BlockPos pos, BlockState state, ControllerBlockEntity be) {
         if (!be.initialized && !be.stopped && !be.isRemoved()) { be.mainNode.create(level, pos); be.initialized=true; }
+        // LIT is authoritative and synced through the block state, including loss
+        // of power/channel. Changing this property preserves the existing node.
+        if (!be.stopped && !be.isRemoved() && level.getGameTime()%5==0) {
+            boolean online=be.mainNode.isActive();
+            if (state.getValue(BlockStateProperties.LIT)!=online)
+                level.setBlock(pos,state.setValue(BlockStateProperties.LIT,online),2);
+        }
     }
     @Override public IGridNode getGridNode(Direction side) { return mainNode.getNode(); }
     @Override public AECableType getCableConnectionType(Direction side) { return AECableType.SMART; }

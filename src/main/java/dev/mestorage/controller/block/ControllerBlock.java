@@ -27,10 +27,14 @@ import net.minecraftforge.network.NetworkHooks;
 
 public final class ControllerBlock extends BaseEntityBlock {
     public ControllerBlock() {
-        super(Properties.of().mapColor(MapColor.METAL).strength(4, 10).sound(SoundType.METAL).requiresCorrectToolForDrops());
-        registerDefaultState(stateDefinition.any().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH));
+        super(Properties.of().mapColor(MapColor.METAL).strength(4, 10).sound(SoundType.METAL)
+                .lightLevel(state -> state.getValue(BlockStateProperties.LIT) ? 4 : 0).requiresCorrectToolForDrops());
+        registerDefaultState(stateDefinition.any().setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.NORTH)
+                .setValue(BlockStateProperties.LIT, false));
     }
-    @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) { builder.add(BlockStateProperties.HORIZONTAL_FACING); }
+    @Override protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(BlockStateProperties.HORIZONTAL_FACING, BlockStateProperties.LIT);
+    }
     @Override public BlockState getStateForPlacement(BlockPlaceContext ctx) { return defaultBlockState().setValue(BlockStateProperties.HORIZONTAL_FACING, ctx.getHorizontalDirection().getOpposite()); }
     @Override public RenderShape getRenderShape(BlockState state) { return RenderShape.MODEL; }
     @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ControllerBlockEntity(pos, state); }

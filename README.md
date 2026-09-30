@@ -1,14 +1,14 @@
 # ME Storage Controller / ME 存储控制器
 
-**0.3.0 · Rapid-click fix and terminal appearance / 连续左键修复与终端外观**
+**0.4.0 · Storage tree and visual update / 文件树与外观更新**
 
 Minecraft **1.20.1 Forge** 的 AE2 附属模组。通过一个联网方块，逐级查看全网、存储设备和存储元件的占用及实际内容，并在设备详情中管理整个存储元件。
 
 An AE2 addon for **Minecraft 1.20.1 Forge**. Browse network, device and cell storage details, inspect exact contents, and move complete storage cells through a connected controller.
 
-本轮针对快速连续左键取放元件被忽略的问题调整交互，并将界面改为参考 AE2 1.21.1 终端的紧凑灰色外观。运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.3.0 记录](docs/RELEASE_0.3.0.md)；[0.2.0 记录](docs/RELEASE_0.2.0.md) 与 [0.1.0 记录](docs/TEST_REPORT.md) 单独保留。
+本轮将设备导航重构为可展开、折叠和滚动的文件树，并更新现代简洁界面及控制器方块外观。运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.0 记录](docs/RELEASE_0.4.0.md)；[0.3.0](docs/RELEASE_0.3.0.md)、[0.2.0](docs/RELEASE_0.2.0.md) 与 [0.1.0](docs/TEST_REPORT.md) 历史记录单独保留。
 
-This update addresses ignored rapid left-click cell transfers and introduces a compact gray interface inspired by AE2's 1.21.1 terminal. The runtime remains Minecraft 1.20.1 Forge. See the [0.3.0 record](docs/RELEASE_0.3.0.md); historical [0.2.0](docs/RELEASE_0.2.0.md) and [0.1.0](docs/TEST_REPORT.md) records remain separate.
+This update introduces an expandable, collapsible and scrollable storage tree, a modern minimal interface, and refreshed controller-block appearance. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.0 record](docs/RELEASE_0.4.0.md); historical [0.3.0](docs/RELEASE_0.3.0.md), [0.2.0](docs/RELEASE_0.2.0.md) and [0.1.0](docs/TEST_REPORT.md) records remain separate.
 
 ## 安装 / Installation
 
@@ -18,17 +18,17 @@ The development baseline is **Java 17, Forge 47.4.0, AE2 15.4.10 and GuideME 20.
 
 1. 在客户端和服务器的 `mods` 文件夹安装相同版本的本模组及依赖。单人游戏只需安装到对应游戏实例。
 2. 放置 **ME 存储控制器**，通过 ME 线缆接入网络。它需要供电和 **1 个频道**，不是用来替代 AE2 原版 ME 控制器的频道供应设备。
-3. 右键打开界面。从设备列表选择驱动器、ME 箱子或外部存储来源，再查看单个元件。
+3. 右键打开界面。在存储目录中展开维度与设备，选择驱动器、ME 箱子、外部存储来源或单个元件。
 
 Install matching versions of this mod and its dependencies on **both client and server**. Place the controller and connect it using ME cable; it needs power and **one channel**. It does not provide channels or replace AE2's ME Controller. Right-click it to browse devices and cells.
 
-从旧版本升级时，**客户端和服务器都必须升级到 0.3.0**；本版网络协议更新为 3，不能与旧版混用。
+从旧版本升级时，**客户端和服务器都必须升级到 0.4.0**；本版网络协议更新为 4，不能与旧版混用。
 
-**Upgrade both client and server to 0.3.0**. The network protocol is now version 3 and is incompatible with earlier releases.
+**Upgrade both client and server to 0.4.0**. The network protocol is now version 4 and is incompatible with earlier releases.
 
 ## 功能与边界 / Features and scope
 
-- 紧凑终端窗口，灰色斜面边框、凹陷槽位和侧边工具栏，保留深色／浅色主题、搜索、排序、分页和中英文。 / Compact terminal with gray beveled borders, recessed slots and a side toolbar, retaining light/dark themes, search, sorting, pagination and both languages.
+- 文件树式设备与元件管理，支持多个设备展开、滚动和层级路径；提供清晰文字控件、深浅主题、搜索、排序及中英文。 / Tree-based device/cell management with multiple expanded branches, scrolling and hierarchical navigation, plus labeled controls, themes, search, sorting and both languages.
 - 显示可获取的字节占用、类型槽位和进度条，内容清单展示精确数量。流体与其他存储类型按其实际单位显示。 / Available byte/type capacity information, progress bars, and exact content quantities with type-appropriate units.
 - 设备详情允许存入、取出**整个存储元件**；内容清单只读，不能直接取出里面的物品或流体。 / Device details allow moving **complete storage cells**; content lists are read-only.
 - 名称、维度、坐标与临时定位高亮。高亮仅适用于同维度、客户端已加载且不超过 256 格的设备，持续 15 秒。 / Names, dimensions, coordinates and a 15-second highlight for loaded devices within 256 blocks in the same dimension.
@@ -37,9 +37,9 @@ Install matching versions of this mod and its dependencies on **both client and 
 - 外部存储受存储总线的可见性与过滤规则影响；不会把字节、槽位和流体体积合成同一个占用百分比。 / External storage follows what the storage bus exposes; byte, slot and fluid capacities are not mixed into one occupancy percentage.
 - 服务端验证远程元件操作。AE2 15.x 本身未提供旧版安全终端接口；不能声称本模组接入旧版安全终端或所有领地保护系统。使用领地保护模组时，请执行手动权限测试。 / Remote cell operations are server-validated. AE2 15.x does not provide the older security-terminal API; integration with older AE2 security terminals or every claim-protection mod is not claimed. Test your protection mod explicitly.
 
-这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.3.0 已通过 **5 项 JUnit、安装实际 ExtendedAE 的 12 项服务端 GameTests，以及真实客户端 24 次快速左键与持物工具栏操作**。元件数量和内容保持一致，十张新界面截图已完成；无附属环境也通过 9 项实际游戏测试，另 3 项附属测试明确跳过。详见 [当前测试记录与截图](docs/RELEASE_0.3.0.md)。大型整合包、双客户端并发和保护模组仍需实测。
+这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.0 已通过 **5 项 JUnit 和安装实际 ExtendedAE 的 14 项真实 GameTests**；无附属基线通过 11 项实际 GameTests，另外 3 项可选检查明确跳过。最终客户端文件树导航、24 次快速左键、持物控件、中文搜索及方块在线／离线状态均通过，并生成 22 张实际截图，见 [当前测试记录](docs/RELEASE_0.4.0.md)。大型整合包、双客户端并发和保护模组仍需实测。
 
-Version 0.3.0 passed **five JUnit tests, twelve server GameTests with ExtendedAE, and actual client checks covering twenty-four rapid left clicks and held-cell toolbar actions**. Cell counts/contents were preserved and ten new captures completed. The addon-absent baseline also passed nine executed GameTests, with three addon cases explicitly skipped. See the [current report and screenshots](docs/RELEASE_0.3.0.md). Broader modpacks, concurrent clients and protection mods remain unverified.
+Version 0.4.0 passed **five JUnit tests and fourteen real GameTests with ExtendedAE installed**. The addon-absent baseline passed eleven real GameTests with three explicit optional skips. The final client passed tree navigation, twenty-four rapid clicks, held-control interactions, localized search and online/offline block-state checks, producing twenty-two actual captures; see the [current report](docs/RELEASE_0.4.0.md). Broader modpacks, concurrent clients and protection mods remain unverified.
 
 远程元件操作仅限同维度；跨维度设备仍可浏览。第三方设备只有在能可靠识别物理元件槽时才允许取放，否则只读。注册为全局存储提供者且没有节点／位置的来源，包含在全网内容中，但可能无法逐设备定位。总览的字节容量仅汇总能识别的存储元件，不代表外部容器的总容量。
 
@@ -91,12 +91,14 @@ Build artifacts are in `build/libs/`. Install the JAR without the `-sources` suf
 ## 项目文件 / Project files
 
 - [使用说明 / User guide](docs/USER_GUIDE.md)
+- [模型与纹理来源 / Visual asset provenance](docs/ASSETS.md)
 - [手动测试计划 / Manual test plan](docs/MANUAL_TEST_PLAN.md)
-- [0.3.0 测试记录 / Current test report](docs/RELEASE_0.3.0.md)
+- [0.4.0 测试记录 / Current test report](docs/RELEASE_0.4.0.md)
+- [0.3.0 历史测试记录 / Historical test report](docs/RELEASE_0.3.0.md)
 - [0.2.0 历史测试记录 / Historical test report](docs/RELEASE_0.2.0.md)
 - [0.1.0 历史记录与截图 / Historical test report and screenshots](docs/TEST_REPORT.md)
 - [许可证 / License](LICENSE)
 
-本模组原创代码和 JSON 模型采用 MIT 许可证。方块模型通过资源路径引用 AE2 与 Minecraft 已安装的纹理，不在本模组中复制分发这些纹理。本项目不是 AE2 官方项目。
+本模组原创代码和 JSON 模型采用 MIT 许可证。0.4.0 方块使用本项目制作的原创纹理图集；来源与制作方式见 [视觉资源说明](docs/ASSETS.md)。发行包不复制 AE2 纹理。本项目不是 AE2 官方项目。
 
-Original mod code and JSON models are MIT licensed. Block models reference textures from installed AE2 and Minecraft resources without bundling copies. This is an independent addon, not an official AE2 project.
+Original mod code and JSON models are MIT licensed. The 0.4.0 block uses an original texture atlas created for this project; see [visual asset provenance](docs/ASSETS.md). No AE2 textures are bundled. This is an independent addon, not an official AE2 project.
