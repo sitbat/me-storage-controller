@@ -43,7 +43,8 @@ import net.minecraft.resources.ResourceLocation;
 /** Opt-in development-only integration capture. Run exclusively in a disposable smoke-test world. */
 @Mod.EventBusSubscriber(modid = MEStorageController.ID, value = Dist.CLIENT)
 public final class ClientSmokeTest {
-    private static final boolean ENABLED = !FMLEnvironment.production && Boolean.getBoolean("mestorage.clientSmokeTest");
+    private static final boolean DEMO = !FMLEnvironment.production && Boolean.getBoolean("mestorage.clientDemo");
+    private static final boolean ENABLED = DEMO || !FMLEnvironment.production && Boolean.getBoolean("mestorage.clientSmokeTest");
     private static int phase;
     private static int ticks;
     private static int view;
@@ -75,6 +76,10 @@ public final class ClientSmokeTest {
             if (failure != null) throw new IllegalStateException(failure);
             if (mc.player == null || mc.getSingleplayerServer() == null) return;
             if (++ticks > 6000) throw new IllegalStateException("Client smoke timed out in phase " + phase + " view " + view);
+            if (DEMO) {
+                openDemo(mc);
+                return;
+            }
             if (phase == 0) {
                 mc.options.guiScale().set(2);
                 mc.getTutorial().setStep(TutorialSteps.NONE);
@@ -100,6 +105,37 @@ public final class ClientSmokeTest {
         } catch (Throwable problem) {
             problem.printStackTrace();
             finish(mc, "FAILED: " + problem);
+        }
+    }
+
+    /** Open the existing demo fixture once, then leave all interaction to the player. */
+    private static void openDemo(Minecraft mc) {
+        if (phase == 0 && ticks >= 100) {
+            mc.options.guiScale().set(2);
+            mc.getTutorial().setStep(TutorialSteps.NONE);
+            mc.getToasts().clear();
+            mc.resizeDisplay();
+            var id = mc.player.getUUID();
+            mc.getSingleplayerServer().execute(() -> {
+                try {
+                    var player = mc.getSingleplayerServer().getPlayerList().getPlayer(id);
+                    if (player == null) throw new IllegalStateException("Missing demo player");
+                    var pos = new BlockPos(8, 100, 8);
+                    var controller = player.serverLevel().getBlockEntity(pos);
+                    if (!(controller instanceof ControllerBlockEntity block) || !block.getMainNode().isActive())
+                        throw new IllegalStateException("Prepared demo controller is missing or offline");
+                    player.setGameMode(net.minecraft.world.level.GameType.CREATIVE);
+                    player.getAbilities().flying = true;
+                    player.onUpdateAbilities();
+                    player.teleportTo(player.serverLevel(), 8.5, 100, 11.5, 180, 20);
+                    NetworkHooks.openScreen(player, block, pos);
+                } catch (Throwable problem) { failure = problem.toString(); }
+            });
+            phase = 1;
+        } else if (phase == 1 && mc.screen instanceof ControllerScreen
+                && mc.player.containerMenu instanceof ControllerMenu menu && menu.getSnapshot().online()) {
+            System.out.println("ME_STORAGE_DEMO_READY: dashboard open; interactive instance remains running");
+            phase = 9;
         }
     }
 

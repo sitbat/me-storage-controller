@@ -8,6 +8,18 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
+## 本地演示启动 / Local demo
+
+使用 JDK 17，并确保已有演示存档 `run/saves/ME-Controller-Demo`。在项目根目录执行以下命令；ExtendedAE 与 Glodium 的测试依赖使用项目配置的默认目录，其他位置可追加 `-PcompatModsDir=C:/path/to/compat-jars`。
+
+```powershell
+.\gradlew.bat runClient -Pdemo -PeaeTest
+```
+
+演示模式会进入该存档并打开控制器界面，不执行自动测试或自动退出。按 Esc 关闭界面后，可右键坐标 **8, 100, 8** 的控制器重新打开。此处说明启动方法，不代表当前实例已成功启动。
+
+Use JDK 17 and an existing `run/saves/ME-Controller-Demo` world. Run the command above from the project root; add `-PcompatModsDir=C:/path/to/compat-jars` if the ExtendedAE/Glodium JARs are outside the configured default directory. Demo mode opens the controller without running automated tests or exiting automatically. After pressing Esc, right-click the controller at **8, 100, 8** to reopen it. These are launch instructions, not confirmation that an instance has started.
+
 ## 仪表盘外观 / Dashboard appearance
 
 右上角的“深色／浅色”按钮切换主题。主题偏好保存在当前客户端的 `config/me-storage-controller-client.properties`，不需要服务器设置，也不改变网络中的存储内容。界面根据窗口和 GUI 缩放调整布局；空间较小时会精简辅助标签，关键控件、元件槽位和玩家物品栏继续保留。

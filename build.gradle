@@ -19,6 +19,10 @@ minecraft {
             mods { me_storage_controller { source sourceSets.main } }
         }
         client {
+            if (project.hasProperty('demo')) {
+                property 'mestorage.clientDemo', 'true'
+                args '--quickPlaySingleplayer', 'ME-Controller-Demo', '--width', '1280', '--height', '720'
+            }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
                 property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v020').absolutePath
