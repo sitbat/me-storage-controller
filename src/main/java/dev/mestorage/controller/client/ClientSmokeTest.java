@@ -96,6 +96,11 @@ public final class ClientSmokeTest {
     private static int resolutionWait;
     private static int contentGridPhase;
     private static int contentGridWait;
+    private static int gridCoveragePage;
+    private static int wheelPhase;
+    private static int wheelWait;
+    private static int wheelExpected;
+    private static int wheelView=-1;
     private static final java.util.Set<appeng.api.stacks.AEKey> gridKeys=new java.util.HashSet<>();
     private static final int RAPID_PAIRS=12;
     private static int synchronizedAcks;
@@ -246,7 +251,7 @@ public final class ClientSmokeTest {
         var drive = (DriveBlockEntity) level.getBlockEntity(controllerPos.east());
         var chest = (ChestBlockEntity) level.getBlockEntity(controllerPos.west());
         drive.getInternalInventory().setItemDirect(0, AEItems.ITEM_CELL_64K.stack());
-        drive.getInternalInventory().setItemDirect(1, AEItems.ITEM_CELL_16K.stack());
+        for(int slot=1;slot<=5;slot++)drive.getInternalInventory().setItemDirect(slot, AEItems.ITEM_CELL_16K.stack());
         chest.getInternalInventory().setItemDirect(1, AEItems.FLUID_CELL_64K.stack());
         var expandedId = new ResourceLocation("expatternprovider", "ex_drive");
         expanded = ForgeRegistries.BLOCKS.containsKey(expandedId);
@@ -279,15 +284,16 @@ public final class ClientSmokeTest {
         inventory.insert(AEItemKey.of(Items.DIAMOND), 64, Actionable.MODULATE, source);
         inventory.insert(AEItemKey.of(Items.COBBLESTONE), 123456, Actionable.MODULATE, source);
         inventory.insert(AEItemKey.of(Items.OAK_LOG), 23000, Actionable.MODULATE, source);
-        // Real distinct content exceeds the 45-slot page, so pagination is exercised.
+        // Five real cells avoid AE's per-cell type limit while exercising more than five grid pages.
         var gridItems=net.minecraft.core.registries.BuiltInRegistries.ITEM.stream()
                 .filter(item->item instanceof net.minecraft.world.item.BlockItem
                         && ForgeRegistries.ITEMS.getKey(item).getNamespace().equals("minecraft")
                         && item!=Items.COBBLESTONE && item!=Items.OAK_LOG)
-                .sorted(java.util.Comparator.comparing(item->ForgeRegistries.ITEMS.getKey(item).toString())).limit(52).toList();
+                .sorted(java.util.Comparator.comparing(item->ForgeRegistries.ITEMS.getKey(item).toString())).limit(260).toList();
+        if(gridItems.size()!=260)throw new IllegalStateException("Multi-page fixture requires 260 distinct vanilla block items");
         for(int i=0;i<gridItems.size();i++) {
-            long accepted=drive.getCellInventory(1).insert(AEItemKey.of(gridItems.get(i)),i+1,Actionable.MODULATE,source);
-            if(accepted!=i+1)throw new IllegalStateException("Failed to populate 52-key real content-grid fixture");
+            long accepted=drive.getCellInventory(1+i/52).insert(AEItemKey.of(gridItems.get(i)),i+1,Actionable.MODULATE,source);
+            if(accepted!=i+1)throw new IllegalStateException("Failed to populate 260-key real content-grid fixture");
         }
         chest.getCellInventory(0).insert(AEFluidKey.of(Fluids.WATER), 23456, Actionable.MODULATE, source);
         chest.getCellInventory(0).insert(AEFluidKey.of(Fluids.LAVA), 777000, Actionable.MODULATE, source);
@@ -343,6 +349,7 @@ public final class ClientSmokeTest {
         if (!treeVerified && !verifyStorageTree(mc, menu)) return;
         if(view==0 && !verifyNavigationSync(menu))return;
         if(view==0 && !verifyContentGrid(mc,menu)) return;
+        if(view==0 && !verifyContentWheel(mc,menu)) return;
         if(view==0 && !verifyContentTransfers(mc,menu)) return;
         if (capturing) {
             if (!captureDone) return;
@@ -439,6 +446,7 @@ public final class ClientSmokeTest {
         }
         if (!s.selectedDevice().equals(targetId) || s.selectedCell() != cell) return;
         if (++stableTicks < 20) return;
+        if(view==16&&!verifyContentWheel(mc,menu))return;
         if ((view == 1 || view == 2 || view == 3 || view == 18 || view == 21) && !inventoryPrepared) {
             var inventoryTab = ((ControllerScreen) mc.screen).smokeInventoryTabRect();
             if (inventoryTab != null) clickUi((ControllerScreen) mc.screen, inventoryTab);
@@ -447,7 +455,7 @@ public final class ClientSmokeTest {
         }
         if (autoView) {
             if (mc.options.guiScale().get() != 0) throw new IllegalStateException("Controller changed the Auto GUI option");
-            double expectedScale = view >= 20 ? 3 : 2;
+            double expectedScale = mc.getWindow().calculateScale(0,mc.isEnforceUnicode());
             if (mc.getWindow().getGuiScale() != expectedScale)
                 throw new IllegalStateException("Auto controller scale incorrect: " + mc.getWindow().getGuiScale());
         }
@@ -543,21 +551,26 @@ public final class ClientSmokeTest {
         switch(contentGridPhase) {
             case 0 -> {
                 if(!snapshot.selectedDevice().isEmpty())return false;
-                if(snapshot.contentCount()<=Snapshot.CONTENT_PAGE_SIZE || snapshot.contents().size()!=45 || snapshot.contentPages()!=2)
-                    throw new IllegalStateException("Grid smoke fixture must contain two pages with 45 visible keys");
+                if(snapshot.contentCount()<260 || snapshot.contents().size()!=45 || snapshot.contentPages()<5)
+                    throw new IllegalStateException("Grid smoke fixture must contain at least five pages with 45 keys per full page");
                 gridKeys.clear();snapshot.contents().forEach(entry->gridKeys.add(entry.key()));
+                gridCoveragePage=1;
                 assertAmountOrder(snapshot);
                 clickUi(screen,screen.smokeContentNextRect());
             }
             case 1 -> {
-                if(snapshot.contentPage()!=1||snapshot.contents().size()!=snapshot.contentCount()-45)
-                    throw new IllegalStateException("Real Next control did not show the final content page");
+                if(snapshot.contentPage()!=gridCoveragePage)
+                    throw new IllegalStateException("Real Next control did not show requested content page "+gridCoveragePage);
                 for(var entry:snapshot.contents())if(!gridKeys.add(entry.key()))throw new IllegalStateException("Grid pages duplicate a key");
+                if(gridCoveragePage+1<snapshot.contentPages()) {
+                    gridCoveragePage++;clickUi(screen,screen.smokeContentNextRect());contentGridWait=10;return false;
+                }
                 if(gridKeys.size()!=snapshot.contentCount())throw new IllegalStateException("Grid pages omitted stored keys");
                 assertAmountOrder(snapshot);
                 captureExtra(mc,"smoke-grid-page-two.png", () -> clickUi(screen,screen.smokeContentPreviousRect()));
             }
             case 2 -> {
+                if(snapshot.contentPage()>0){clickUi(screen,screen.smokeContentPreviousRect());contentGridWait=10;return false;}
                 if(snapshot.contentPage()!=0||snapshot.contents().size()!=45)throw new IllegalStateException("Previous control did not restore page zero");
                 clickUi(screen,screen.smokeSortRect());
             }
@@ -577,10 +590,67 @@ public final class ClientSmokeTest {
             }
             case 5 -> {
                 if(!menu.getCarried().isEmpty())throw new IllegalStateException("Empty-cursor fluid inspection changed inventory");
-                System.out.println("ME_STORAGE_SMOKE_CONTENT_GRID PASS 45-slot page, 52+ types, full unique-key coverage, real Next/Previous/name/amount controls; fluid inspection preserves empty cursor");
+                System.out.println("ME_STORAGE_SMOKE_CONTENT_GRID PASS 45-slot page, 260+ types, full unique-key coverage, real Next/Previous/name/amount controls; fluid inspection preserves empty cursor");
             }
         }
         contentGridPhase++;contentGridWait=25;return contentGridPhase>=6;
+    }
+
+    /** Actual mouse wheel events, including multiple events before the server can acknowledge any of them. */
+    private static boolean verifyContentWheel(Minecraft mc,ControllerMenu menu) {
+        var screen=(ControllerScreen)mc.screen;
+        if(wheelView!=view){wheelView=view;wheelPhase=0;wheelWait=0;wheelExpected=0;}
+        if(wheelPhase>=8)return true;
+        if(screen.smokeContentScrollPosition()!=wheelExpected)
+            throw new IllegalStateException("Wheel target moved backward during acknowledgement: phase="+wheelPhase+" expected="+wheelExpected+" actual="+screen.smokeContentScrollPosition());
+        if(wheelWait>0&&--wheelWait>0)return false;
+        if(screen.smokeContentPending())throw new IllegalStateException("Wheel target not acknowledged within 25 ticks");
+        if(screen.smokeContentAcknowledgedPage()!=screen.smokeContentTargetPage())
+            throw new IllegalStateException("Wheel acknowledgement disagrees with latest requested page");
+        var grid=screen.smokeContentScrollRect();var scrollbar=screen.smokeScrollbarRect();
+        if(grid==null||scrollbar==null||screen.smokeContentScrollMax()<5)
+            throw new IllegalStateException("Wheel smoke requires a visible grid, scrollbar and at least five scroll positions");
+        switch(wheelPhase) {
+            case 0 -> {
+                for(int i=0;i<3;i++)wheel(screen,grid,-1);
+                wheelExpected=3;
+            }
+            case 1 -> {wheel(screen,grid,-3);wheelExpected=Math.min(6,screen.smokeContentScrollMax());}
+            case 2 -> {
+                wheel(screen,scrollbar,100);wheelExpected=0;
+                for(int i=0;i<3;i++) {
+                    wheel(screen,scrollbar,-.25);
+                    if(screen.smokeContentScrollPosition()!=0)throw new IllegalStateException("Fractional wheel moved before one full step");
+                }
+                wheel(screen,scrollbar,-.25);wheelExpected=1;
+            }
+            case 3 -> {
+                wheel(screen,scrollbar,-100);wheel(screen,scrollbar,1);
+                wheelExpected=screen.smokeContentScrollMax()-1;
+            }
+            case 4 -> {
+                wheel(screen,grid,100);wheel(screen,grid,-1);wheelExpected=1;
+            }
+            case 5 -> {
+                // New requests arrive while previous requests are still pending; the last target must win.
+                wheel(screen,scrollbar,-3);wheel(screen,scrollbar,2);wheelExpected=2;
+            }
+            case 6 -> {
+                wheel(screen,grid,100);wheelExpected=0;
+            }
+            case 7 -> {
+                System.out.println("ME_STORAGE_SMOKE_WHEEL PASS nativeScale="+mc.getWindow().getGuiScale()+" visibleRows="+screen.smokeContentVisibleRows()
+                        +" rapid steps/magnitude/fractional scrollbar hover/boundary reversal/latest acknowledgement; empty cursor="+menu.getCarried().isEmpty());
+                if(!menu.getCarried().isEmpty())throw new IllegalStateException("Scrolling changed cursor inventory");
+            }
+        }
+        if(screen.smokeContentScrollPosition()!=wheelExpected)
+            throw new IllegalStateException("Real wheel lost increments: phase="+wheelPhase+" expected="+wheelExpected+" actual="+screen.smokeContentScrollPosition());
+        wheelPhase++;wheelWait=25;return wheelPhase>=8;
+    }
+
+    private static void wheel(ControllerScreen screen,ControllerScreen.UiRect rect,double amount) {
+        if(!screen.mouseScrolled(rect.centerX(),rect.centerY(),amount))throw new IllegalStateException("Real wheel gesture was not consumed");
     }
 
     /** Real grid gestures with authoritative round-trip checks; each scope restores the original fixture. */
@@ -603,17 +673,17 @@ public final class ClientSmokeTest {
                 assertTreeSelection(s,id,cell);assertContentState(menu,Items.IRON_INGOT,12345,0,0);
                 contentClick(screen,0,0);
             }
-            case 2 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);contentClick(screen,44,0);}
+            case 2 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);contentClick(screen,emptyContentIndex(screen,menu),0);}
             case 3 -> {assertContentState(menu,Items.IRON_INGOT,12345,0,0);contentClick(screen,0,1);}
-            case 4 -> {assertContentState(menu,Items.IRON_INGOT,12313,32,0);contentClick(screen,44,1);}
-            case 5 -> {assertContentState(menu,Items.IRON_INGOT,12314,31,0);contentClick(screen,44,0);}
+            case 4 -> {assertContentState(menu,Items.IRON_INGOT,12313,32,0);contentClick(screen,emptyContentIndex(screen,menu),1);}
+            case 5 -> {assertContentState(menu,Items.IRON_INGOT,12314,31,0);contentClick(screen,emptyContentIndex(screen,menu),0);}
             case 6 -> {assertContentState(menu,Items.IRON_INGOT,12345,0,0);screen.smokeContentClick(0,0,true);}
             case 7 -> {
                 assertContentState(menu,Items.IRON_INGOT,12281,0,64);
                 contentInventorySlot=findPlayerItemSlot(menu,Items.IRON_INGOT);
                 clickUi(screen,screen.smokeSlotRect(contentInventorySlot));
             }
-            case 8 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);screen.smokeContentClick(44,0,true);}
+            case 8 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);screen.smokeContentClick(emptyContentIndex(screen,menu),0,true);}
             case 9 -> {
                 assertContentState(menu,Items.IRON_INGOT,12345,0,0);
                 // No acknowledgement delay between presses: server must alternate extract/insert in arrival order.
@@ -675,6 +745,12 @@ public final class ClientSmokeTest {
         screen.mouseReleased(rect.centerX(),rect.centerY(),button);
     }
 
+    private static int emptyContentIndex(ControllerScreen screen,ControllerMenu menu) {
+        for(int index=menu.getSnapshot().contents().size();index<Snapshot.CONTENT_PAGE_SIZE;index++)
+            if(screen.smokeContentRect(index)!=null)return index;
+        throw new IllegalStateException("Selected sparse test scope has no visible empty content tile");
+    }
+
     private static boolean verifyExpandedContentTransfer(Minecraft mc,ControllerMenu menu) {
         if(expandedContentStep>=3)return true;
         if(expandedContentWait>0&&--expandedContentWait>0)return false;
@@ -685,7 +761,7 @@ public final class ClientSmokeTest {
             contentClick(screen,0,0);
         } else if(expandedContentStep==1) {
             assertContentState(menu,Items.COPPER_INGOT,98701,64,0);
-            contentClick(screen,44,0);
+            contentClick(screen,emptyContentIndex(screen,menu),0);
         } else {
             assertContentState(menu,Items.COPPER_INGOT,98765,0,0);
             if(!expandedContentCheckRequested) {
@@ -727,7 +803,7 @@ public final class ClientSmokeTest {
             }
             case 2 -> {
                 assertBucketState(menu,22456,Items.WATER_BUCKET,0,0);
-                captureExtra(mc,"smoke-water-bucket-filled.png",()->contentClick((ControllerScreen)mc.screen,44,1));
+                captureExtra(mc,"smoke-water-bucket-filled.png",()->contentClick((ControllerScreen)mc.screen,emptyContentIndex((ControllerScreen)mc.screen,menu),1));
             }
             case 3 -> {
                 assertBucketState(menu,23456,Items.BUCKET,0,0);
@@ -739,7 +815,7 @@ public final class ClientSmokeTest {
             }
             case 5 -> {
                 assertBucketState(menu,22456,Items.WATER_BUCKET,0,0);
-                contentClick(screen,44,1);
+                contentClick(screen,emptyContentIndex(screen,menu),1);
             }
             case 6 -> {
                 assertBucketState(menu,23456,Items.BUCKET,0,0);
@@ -957,14 +1033,18 @@ public final class ClientSmokeTest {
     }
 
     private static void verifyAutoRestore(Minecraft mc) {
+        clearCaptureHover(mc);
+        if(drainExtraCapture(mc))return;
         if (mc.options.guiScale().get() != 0) throw new IllegalStateException("Auto option changed during close/reopen");
         if (autoRestoreStage == 0) {
+            int beforeClose=mc.getWindow().calculateScale(0,mc.isEnforceUnicode());
+            if(mc.getWindow().getGuiScale()!=beforeClose)throw new IllegalStateException("Open controller changed native Auto scale before close");
             mc.player.closeContainer();
             int vanillaScale = mc.getWindow().calculateScale(0, mc.isEnforceUnicode());
             if (mc.getWindow().getGuiScale() != vanillaScale)
-                throw new IllegalStateException("Closing controller did not restore vanilla Auto scale: actual="
+                throw new IllegalStateException("Closing controller changed vanilla Auto scale: actual="
                         + mc.getWindow().getGuiScale() + " expected=" + vanillaScale);
-            System.out.println("ME_STORAGE_SMOKE_AUTO_RESTORE PASS closed controller restored Window scale=" + vanillaScale + "; option=0");
+            System.out.println("ME_STORAGE_SMOKE_AUTO_RESTORE PASS open/closed controller preserved native Window scale=" + vanillaScale + "; option=0");
             autoRestoreStage = 1;
             return;
         }
@@ -982,18 +1062,123 @@ public final class ClientSmokeTest {
         }
         if (autoRestoreStage == 2 && mc.screen instanceof ControllerScreen
                 && mc.player.containerMenu instanceof ControllerMenu menu && menu.getSnapshot().online()) {
-            if (mc.getWindow().getGuiScale() != 2)
-                throw new IllegalStateException("Reopened Auto controller did not reapply local scale limit");
-            System.out.println("ME_STORAGE_SMOKE_AUTO_REOPEN PASS local scale=2; option=0");
-            phase = 2;
+            int vanillaScale=mc.getWindow().calculateScale(0,mc.isEnforceUnicode());
+            if (mc.getWindow().getGuiScale() != vanillaScale)
+                throw new IllegalStateException("Reopened controller changed native Auto GUI scale");
+            System.out.println("ME_STORAGE_SMOKE_AUTO_REOPEN PASS native scale="+vanillaScale+"; option=0");
+            org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(),960,720);
+            autoRestoreStage=3;autoRestoreTicks=20;return;
         }
+        if(autoRestoreStage<3||!(mc.screen instanceof ControllerScreen screen)
+                ||!(mc.player.containerMenu instanceof ControllerMenu menu))return;
+        if(autoRestoreTicks>0&&--autoRestoreTicks>0)return;
+        if(mc.getWindow().getGuiScale()!=mc.getWindow().calculateScale(0,mc.isEnforceUnicode()))
+            throw new IllegalStateException("Native GUI scale changed during narrow-window tests");
+        var snapshot=menu.getSnapshot();int visibleSlot=expanded?9:0;
+        String device=treeDeviceId(snapshot,expanded?"expatternprovider:ex_drive":"ae2:drive");
+        switch(autoRestoreStage) {
+            case 3 -> {
+                if(mc.getWindow().getScreenWidth()!=960||mc.getWindow().getScreenHeight()!=720
+                        ||mc.getWindow().getGuiScaledWidth()!=320||mc.getWindow().getGuiScaledHeight()!=240)
+                    throw new IllegalStateException("Narrow test requires real 960x720 Auto=3 window");
+                verifyVisibleBounds(mc,screen,menu,true);
+                if(screen.smokeTreeViewport()!=null||screen.smokeContentScrollRect()==null)
+                    throw new IllegalStateException("Narrow terminal must initially show contents");
+                captureExtra(mc,"smoke-auto960-contents.png",()->dragScrollbar((ControllerScreen)mc.screen,true));
+            }
+            case 4 -> {
+                if(screen.smokeContentPending()||screen.smokeContentScrollPosition()!=screen.smokeContentScrollMax())
+                    throw new IllegalStateException("Real scrollbar drag did not reach acknowledged last content position");
+                dragScrollbar(screen,false);
+            }
+            case 5 -> {
+                if(screen.smokeContentPending()||screen.smokeContentScrollPosition()!=0)
+                    throw new IllegalStateException("Real scrollbar drag did not return to acknowledged top");
+                clickUi(screen,screen.smokeCollapseRect());screen.smokeRevealCell(device,expanded?19:0);
+            }
+            case 6 -> {
+                if(screen.smokeTreeViewport()==null||screen.smokeContentScrollRect()!=null)
+                    throw new IllegalStateException("Narrow tree toggle did not switch visible panes");
+                verifyVisibleBounds(mc,screen,menu,false);
+                clickUi(screen,screen.smokeCellRect(device,expanded?19:0));
+            }
+            case 7 -> {
+                assertTreeSelection(snapshot,device,expanded?19:0);
+                if(!menu.canSendClick(visibleSlot,ClickType.PICKUP))throw new IllegalStateException("Narrow tree remote cell is not editable");
+                verifyVisibleBounds(mc,screen,menu,false);
+                captureExtra(mc,"smoke-auto960-tree-cell.png",()->clickUi((ControllerScreen)mc.screen,((ControllerScreen)mc.screen).smokeSlotRect(visibleSlot)));
+            }
+            case 8 -> {
+                if(!menu.getCarried().is(AEItems.ITEM_CELL_64K.asItem())||!menu.getSlot(visibleSlot).getItem().isEmpty()||clientCellCount(menu)!=1)
+                    throw new IllegalStateException("Narrow tree real cell pickup did not conserve one cell");
+                clickUi(screen,screen.smokeSlotRect(visibleSlot));
+            }
+            case 9 -> {
+                var expected=AEItemKey.of(expanded?Items.COPPER_INGOT:Items.IRON_INGOT);long amount=expanded?98765:12345;
+                if(!menu.getCarried().isEmpty()||!menu.getSlot(visibleSlot).getItem().is(AEItems.ITEM_CELL_64K.asItem())||clientCellCount(menu)!=1
+                        ||snapshot.contents().stream().noneMatch(c->c.key().equals(expected)&&c.amount()==amount))
+                    throw new IllegalStateException("Narrow tree cell reinsertion lost cell or stored contents");
+                clickUi(screen,screen.smokeCollapseRect());clickUi(screen,screen.smokeContentSearchRect());
+                String query=expanded?"铜锭":"铁锭";for(char c:query.toCharArray())screen.charTyped(c,0);
+            }
+            case 10 -> {
+                String query=expanded?"铜锭":"铁锭";
+                if(!(screen.getFocused() instanceof net.minecraft.client.gui.components.EditBox field)
+                        ||!field.getValue().equals(query)||snapshot.contents().size()!=1)
+                    throw new IllegalStateException("Narrow search did not retain typed query/focus: "+searchFocusState(screen));
+                field.moveCursorTo(1);
+                String beforeResize=searchFocusState(screen);
+                screen.resize(mc,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight());
+                if(mc.screen!=screen||!(screen.getFocused() instanceof net.minecraft.client.gui.components.EditBox rebuilt)
+                        ||!rebuilt.isFocused()||!rebuilt.getValue().equals(query)||rebuilt.getCursorPosition()!=1)
+                    throw new IllegalStateException("Same-screen resize lost search text, focus or cursor position: expectedText="+query
+                            +" expectedCursor=1 sameScreen="+(mc.screen==screen)+" before={"+beforeResize+"} after={"+searchFocusState(screen)+"}");
+                assertTreeSelection(menu.getSnapshot(),device,expanded?19:0);
+                verifyVisibleBounds(mc,screen,menu,true);
+                captureExtra(mc,"smoke-auto960-search-rebuild.png");
+            }
+            case 11 -> {
+                assertTreeSelection(snapshot,device,expanded?19:0);
+                if(mc.options.guiScale().get()!=0||mc.getWindow().getGuiScale()!=3)
+                    throw new IllegalStateException("Narrow rebuild changed user GUI scale");
+                System.out.println("ME_STORAGE_SMOKE_NARROW PASS 960x720 Auto3=320x240; bounded panes, real scrollbar ends, tree cell pickup/reinsert and search query/focus/cursor/scope survive same-screen resize");
+                org.lwjgl.glfw.GLFW.glfwSetWindowSize(mc.getWindow().getWindow(),1280,720);
+            }
+            case 12 -> {
+                if(mc.getWindow().getScreenWidth()!=1280||mc.getWindow().getScreenHeight()!=720)
+                    throw new IllegalStateException("Narrow test did not restore 1280x720 capture window");
+                // Restore only the test query through actual edit-box input before ordinary capture flow resumes.
+                clickUi(screen,screen.smokeContentSearchRect());screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_HOME,0,0);
+                for(int i=0;i<64;i++)screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_DELETE,0,0);
+            }
+            case 13 -> {phase=2;return;}
+        }
+        autoRestoreStage++;autoRestoreTicks=25;
+    }
+
+    private static void dragScrollbar(ControllerScreen screen,boolean bottom) {
+        var track=screen.smokeScrollbarRect();if(track==null)throw new IllegalStateException("Scrollbar is not visible");
+        double x=track.centerX(),start=bottom?track.y()+1:track.y()+track.height()-1;
+        double end=bottom?track.y()+track.height()+8:track.y()-8;
+        if(!screen.mouseClicked(x,start,0)||!screen.mouseDragged(x,end,0,0,end-start))
+            throw new IllegalStateException("Real scrollbar drag was not consumed");
+        screen.mouseReleased(x,end,0);
+    }
+
+    private static String searchFocusState(ControllerScreen screen) {
+        var focused=screen.getFocused();
+        var fields=screen.children().stream().filter(child->child instanceof net.minecraft.client.gui.components.EditBox)
+                .map(child->{var field=(net.minecraft.client.gui.components.EditBox)child;
+                    return "[text="+field.getValue()+",cursor="+field.getCursorPosition()+",isFocused="+field.isFocused()
+                            +",currentFocus="+(focused==field)+",visible="+field.visible+"]";}).toList();
+        return "currentFocus="+(focused==null?"null":focused.getClass().getName())+" fields="+fields;
     }
 
     private static void verifyVisibleBounds(Minecraft mc, ControllerScreen screen, ControllerMenu menu, boolean inventory) {
         int width = mc.getWindow().getGuiScaledWidth(), height = mc.getWindow().getGuiScaledHeight();
         var panel = screen.smokePanelRect();
         checkBounds("panel", panel, width, height);
-        checkBounds("tree viewport", screen.smokeTreeViewport(), width, height);
+        if(screen.smokeTreeViewport()!=null)checkBounds("tree viewport", screen.smokeTreeViewport(), width, height);
         for (var child : screen.children()) {
             if (child instanceof net.minecraft.client.gui.components.AbstractWidget widget && widget.visible)
                 checkBounds("control " + widget.getMessage().getString(),
@@ -1009,10 +1194,18 @@ public final class ClientSmokeTest {
                     || rect.y() + rect.height() > panel.y() + panel.height())
                 throw new IllegalStateException("Slot clipped outside terminal panel: " + index);
         }
-        if (visibleSlots < 36) throw new IllegalStateException("Unified terminal hides the player inventory");
-        for(int index=0;index<Snapshot.CONTENT_PAGE_SIZE;index++)
-            checkBounds("content tile "+index,screen.smokeContentRect(index),width,height);
-        if(menu.getSnapshot().editableSlots()>0 && visibleSlots<36+menu.getSnapshot().editableSlots())
+        boolean contentsVisible=screen.smokeContentScrollRect()!=null;
+        if (contentsVisible&&visibleSlots < 36) throw new IllegalStateException("Visible content pane hides the player inventory");
+        int contentTiles=0;
+        for(int index=0;index<Snapshot.CONTENT_PAGE_SIZE;index++) {
+            var tile=screen.smokeContentRect(index);if(tile==null)continue;
+            checkBounds("content tile "+index,tile,width,height);contentTiles++;
+        }
+        if(contentsVisible&&contentTiles<36)throw new IllegalStateException("Native Auto terminal must expose at least four content rows");
+        int option=mc.options.guiScale().get();
+        if(mc.getWindow().getGuiScale()!=mc.getWindow().calculateScale(option,mc.isEnforceUnicode()))
+            throw new IllegalStateException("Controller changed actual GUI scale at option="+option);
+        if(screen.smokeTreeViewport()!=null&&menu.getSnapshot().editableSlots()>0 && visibleSlots<(contentsVisible?36:0)+menu.getSnapshot().editableSlots())
             throw new IllegalStateException("Unified terminal hides editable physical cells");
         System.out.println("ME_STORAGE_SMOKE_LAYOUT PASS " + NAMES[view] + " pixels=" + mc.getWindow().getWidth()
                 + "x" + mc.getWindow().getHeight() + " gui=" + width + "x" + height + " option="
@@ -1423,7 +1616,7 @@ public final class ClientSmokeTest {
                 return;
             }
             System.out.println("ME_STORAGE_SMOKE_BLOCK_STATUS PASS online/offline captures and restored online state");
-            finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 52+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; closing restores vanilla Auto and reopening reapplies the local limit without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+            finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
         }
     }
 

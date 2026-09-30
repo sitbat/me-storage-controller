@@ -1,4 +1,4 @@
-# 0.4.5 使用说明 / User guide
+# 0.4.6 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版增加已注册流体／化学品容器存取，并保留简洁提示框。网络协议仍为 6，可与 0.4.2／0.4.3 协议连接；完整容器行为要求两端升级至 0.4.4，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版修复滚轮响应并保留游戏原生界面比例，继续支持已注册流体／化学品容器存取与简洁提示框。网络协议仍为 6，可与 0.4.2 至 0.4.5 协议连接；完整分页响应要求两端升级至 0.4.6，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release adds registered fluid/chemical container interactions while retaining concise tooltips. Protocol 6 allows connections with 0.4.2/0.4.3; upgrade both sides to 0.4.4 for complete behavior. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+This release fixes wheel responsiveness and preserves native GUI scale, while retaining registered fluid/chemical container interactions and concise tooltips. Protocol 6 allows connections with 0.4.2 through 0.4.5; upgrade both sides to 0.4.6 for responsive paging. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -36,13 +36,17 @@ The left tree follows **ME Network → Dimension → Device → Cell**. Click ar
 
 Use the mouse wheel over the tree to scroll. Scrolling the selected cell out of view leaves its details selected. Back moves from cell to device, then to the network; All returns directly to the overview. Hover the title or path for full details.
 
-界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格支持物品存取及已注册的流体／化学品容器交互，选中条目后左侧显示精确数量。提示框保持简洁，不额外显示操作教程。
+界面采用最大 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列、最多 5 行的内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格支持物品存取及已注册的流体／化学品容器交互，选中条目后左侧显示精确数量。提示框保持简洁，不额外显示操作教程。
 
-The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. The grid supports item transfers and registered fluid/chemical containers, with exact selected quantities on the left. Tooltips remain concise, without additional instructions.
+The terminal uses up to 340×240 logical pixels, with the tree and cells on the left and a nine-column content grid with up to five rows plus player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. The grid supports item transfers and registered fluid/chemical containers, with exact selected quantities on the left. Tooltips remain concise, without additional instructions.
 
-GUI 缩放为 Auto 时，仅此控制器界面会临时限制实际渲染倍率，使面板能完整显示；不会修改游戏的 GUI 缩放选项。关闭界面后恢复游戏原本计算的倍率，重新打开时再适配。演示启动同样保留玩家原有 GUI 缩放设置。
+控制器保持 Minecraft 当前实际 GUI 比例，打开、关闭、调整大小均不会修改比例选项或窗口渲染倍率。界面根据当前逻辑空间自适应：空间足够时显示双栏，较矮时减少内容行数，窄屏通过目录图标切换文件树与内容区。窗口变化保留搜索、选择和折叠状态。
 
-With GUI Scale set to Auto, only this controller screen temporarily limits its rendering scale so the panel fits. The game option is unchanged. Closing restores the game's calculated scale, and reopening adapts again. Demo startup also preserves the player's GUI Scale setting.
+The controller keeps Minecraft's actual GUI scale. Opening, closing and resizing never change the scale option or the window rendering scale. It adapts to the logical viewport: both columns when space permits, fewer content rows in shorter viewports, and a tree/content toggle on narrow screens. Resizing preserves search, selection and folding.
+
+鼠标在右侧内容区、滑轨或上下箭头上时，滚轮均可滚动内容。快速滚动会累加目标位置，滚轮步长和触控板的小数增量不会被丢掉。背包和搜索框不用于内容滚动。
+
+Wheel input works over the content grid, scrollbar and arrow buttons. Rapid input accumulates the target position and retains both wheel magnitude and fractional trackpad input. Inventory and search fields do not scroll the content list.
 
 主容量条与树内元件条显示可获取的占用信息：低于 80% 使用当前主题强调色，80% 至 95% 使用琥珀色，95% 起使用红色。实际元件槽下方的细条始终使用主题强调色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
 
@@ -122,9 +126,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.4 保持协议 **6**，可与 0.4.2／0.4.3 协议连接，但完整行为要求两端升级到 0.4.4。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.6 保持协议 **6**，可与 0.4.2 至 0.4.5 协议连接，但完整行为要求两端升级到 0.4.6。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2/0.4.3, but both sides should upgrade to 0.4.4 for complete behavior.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2 through 0.4.5, but both sides should upgrade to 0.4.6 for complete behavior.
 
 ## 管理整个元件 / Move complete cells
 

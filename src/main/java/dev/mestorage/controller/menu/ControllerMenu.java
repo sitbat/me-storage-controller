@@ -69,6 +69,8 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private MEStorage observedCellStorage;
     private long contentActionTick=Long.MIN_VALUE;
     private int contentActionsThisTick;
+    private List<Snapshot.Content> scannedContents=List.of();
+    private IGrid scannedGrid;
 
     public ControllerMenu(int id,Inventory inventory,FriendlyByteBuf data) {
         this(id,inventory,inventory.player.level().getBlockEntity(data.readBlockPos()) instanceof ControllerBlockEntity be ? be : null);
@@ -112,6 +114,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
     }
     private void replaceSlot(int index,Slot slot) { slot.index=index; slots.set(index,slot); }
     public Snapshot getSnapshot() { return snapshot; }
+    public long getRequestedRevision() { return requestedRevision; }
     public void setSnapshot(Snapshot value) {
         if(value.revision()<snapshot.revision()) return;
         snapshot=value;
@@ -329,15 +332,22 @@ public final class ControllerMenu extends AbstractContainerMenu {
         if(!player.level().isClientSide) {
             long now=player.level().getGameTime();
             boolean navigating=pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell);
-            // Navigation is acknowledged on the next tick; only search typing is
-            // debounced. Slot edits and vanilla slot synchronization never wait.
-            if(pending!=null && now-lastRequest>=(navigating ? 1 : 5)) {
+            boolean paging=pending!=null && isContentPageRequest(pending);
+            // Navigation and pure pagination acknowledge next tick. Search/filter
+            // changes retain their debounce; vanilla slot synchronization never waits.
+            if(pending!=null && now-lastRequest>=(navigating || paging ? 1 : 5)) {
                 var request=pending; pending=null; lastRequest=now;
                 acknowledgedRevision=request.revision();
-                selectedId=request.deviceId(); selectedCell=Math.max(-1,request.cell());
-                devicePage=Math.max(0,request.devicePage()); contentPage=Math.max(0,request.contentPage());
-                deviceQuery=request.deviceQuery(); contentQuery=request.contentQuery(); sortByAmount=request.sortByAmount(); nextRefresh=0;
-                deviceMatches=Set.copyOf(request.deviceMatches()); contentMatches=Set.copyOf(request.contentMatches());
+                if(paging && canReuseContentScan(now)) {
+                    contentPage=Math.min(Math.max(0,request.contentPage()),pages(scannedContents.size(),Snapshot.CONTENT_PAGE_SIZE)-1);
+                    snapshot=contentPageSnapshot(); refreshed=true;
+                } else {
+                    clearContentScan();
+                    selectedId=request.deviceId(); selectedCell=Math.max(-1,request.cell());
+                    devicePage=Math.max(0,request.devicePage()); contentPage=Math.max(0,request.contentPage());
+                    deviceQuery=request.deviceQuery(); contentQuery=request.contentQuery(); sortByAmount=request.sortByAmount(); nextRefresh=0;
+                    deviceMatches=Set.copyOf(request.deviceMatches()); contentMatches=Set.copyOf(request.contentMatches());
+                }
             }
             if(now>=nextRefresh) { refresh(); lastRefresh=now; nextRefresh=now+20; refreshed=true; }
         }
@@ -346,7 +356,38 @@ public final class ControllerMenu extends AbstractContainerMenu {
         // client stays locked until both labels and their real cells are current.
         if(refreshed) send();
     }
+    private boolean isContentPageRequest(Network.Request request) {
+        return request.deviceId().equals(selectedId) && request.cell()==selectedCell && request.devicePage()==devicePage
+                && request.deviceQuery().equals(deviceQuery) && request.contentQuery().equals(contentQuery)
+                && request.sortByAmount()==sortByAmount && Set.copyOf(request.deviceMatches()).equals(deviceMatches)
+                && Set.copyOf(request.contentMatches()).equals(contentMatches);
+    }
+    private boolean canReuseContentScan(long now) {
+        // Pagination does not extend either the regular refresh deadline or a mutation's earlier deadline.
+        if(now>=nextRefresh || scannedGrid==null || scannedGrid!=grid() || !snapshot.online() || !stillValid(player)) return false;
+        if(selectedId.isEmpty()) return selectedCell<0;
+        if(!current()) return false;
+        if(selectedCell<0) return true;
+        try {
+            return selected.owner() instanceof IChestOrDrive host && selectedCell<StorageScanner.cellCount(selected)
+                    && host.getCellInventory(selectedCell)==observedCellStorage;
+        } catch(RuntimeException staleInventory) {
+            return false;
+        }
+    }
+    private Snapshot contentPageSnapshot() {
+        int from=contentPage*Snapshot.CONTENT_PAGE_SIZE;
+        int to=Math.min(from+Snapshot.CONTENT_PAGE_SIZE,scannedContents.size());
+        var previous=snapshot;
+        return new Snapshot(previous.online(),previous.error(),previous.selectedDevice(),previous.selectedCell(),
+                previous.devices(),previous.devicePage(),previous.devicePages(),previous.deviceCount(),previous.title(),previous.capacity(),
+                List.copyOf(scannedContents.subList(from,to)),contentPage,pages(scannedContents.size(),Snapshot.CONTENT_PAGE_SIZE),scannedContents.size(),
+                previous.cellSlots(),previous.editableSlots(),previous.cells(),previous.selectedInfo(),acknowledgedRevision,
+                previous.directory(),previous.directoryTotalDevices());
+    }
+    private void clearContentScan() { scannedContents=List.of(); scannedGrid=null; }
     private void refresh() {
+        clearContentScan();
         observedCellStorage=null;
         var grid=grid();
         if(grid==null || !stillValid(player)) {
@@ -443,6 +484,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
             List.copyOf(contents.subList(from,to)),contentPage,contentPages,contents.size(),
             selected!=null ? Math.max(0,StorageScanner.cellCount(selected)) : 0,
             canEdit() ? Math.max(0,Math.min(10,selected.cells().getSlots()-cellOffset())) : 0,previews,selectedInfo,acknowledgedRevision,directory,devices.size());
+        scannedContents=List.copyOf(contents); scannedGrid=grid;
     }
     /** Reuse reads already needed for detail/capacity. Other branches scan at most once per second. */
     private void refreshDirectory(List<Device> devices,Map<String,Snapshot.DeviceInfo> infos,

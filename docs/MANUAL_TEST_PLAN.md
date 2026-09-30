@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-0.4.4 验收状态另见 [当前测试记录](RELEASE_0.4.4.md)；这里保留完整的后续人工验收清单。
+0.4.6 验收状态另见 [当前测试记录](RELEASE_0.4.6.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -28,6 +28,15 @@ The following are **acceptance procedures to execute**, not passed test results.
 | 7 | 填入已知数量的两种物品、不同 NBT 的同名物品、流体 / Insert known counts, same-name NBT variants and fluids | 数量与 AE2 对照一致，类型不按名称错误合并 / Exact counts; NBT types remain distinct |
 | 8 | 搜索无结果、切换排序、多页翻页、切换设备 / Empty search, sort, page, switch devices | 无残留错误页码、内容或槽位 / No stale pages, contents or slots |
 | 9 | 使用铁砧命名设备（设备支持时）后搜索 / Rename device if supported and search | 显示与搜索当前自定义名称 / Custom name displayed/searchable |
+
+## 滚动与界面比例 / Scrolling and GUI scale
+
+- 在含多页内容的网络中快速连续滚动、立即反向、使用大幅度和小数滚轮增量；目标应连续累加，较早的服务端响应不能把滚动位置拉回。
+- 鼠标分别停在物品网格、滑轨和上下箭头上滚动，再拖动滑块到底部和顶部；均应能导航内容。搜索框和玩家背包上的滚轮不应滚动内容网格。
+- 使用固定比例和“自动”比例打开、关闭界面及调整窗口大小；界面比例选项与实际渲染倍率均保持原版值。检查 1920×1080、1280×720、960×720 的内容、目录、元件槽和背包边界；窄屏切换目录后仍可操作元件。
+- 输入搜索词、选中设备／元件并展开目录后调整窗口大小；查询、选择、目录状态和仍可见的搜索框焦点应保留。
+
+Test rapid/reversed, large and fractional wheel input across the grid, track and arrows, plus dragging to both limits. Keep inventory/search wheel input separate. Open, close and resize at fixed and Auto GUI scales without changing either the option or native window scale. Check the three resolutions above, narrow tree/cell access, and preservation of search, selection, tree state and visible search focus.
 
 ## 元件一致性 / Cell integrity
 
@@ -59,9 +68,9 @@ Test every scope and gesture with authoritative item totals, NBT-distinct and no
 - 在可选 `-PmekTest` 环境中，用 Applied Mekanistics 注册的化学品及兼容容器，执行左键填充、普通右键倒空、Shift 填充和满背包测试。逐项记录气体等实际测试的类型、容器及精确单位，不由一个类型通过推断所有类型兼容。
 - 每次转移量应对照容器原生速率，而非总容量；Mekanism 基础化学品储罐的预期为每次 1000 单位，不是一次 16000。逐项验证 gas、infuse、pigment 和 slurry，不将尚未执行的类型记为通过。 / Compare each transfer with native rate, not total capacity: expect 1000 units per operation for a Mekanism basic chemical tank, not 16000. Validate gas, infuse, pigment and slurry separately; leave unexecuted types pending.
 - 使用没有注册 `ContainerItemStrategies` 的自定义资源，确认仍可浏览且拒绝不支持的容器交互；快速连续操作、另一玩家取走资源或替换元件时不得复制、丢失或跨范围转移。
-- 悬停流体、化学品与元件时保持一份简洁提示框，不重新出现操作教学文字。升级两端至 0.4.4 后验证完整行为；协议6可连接旧版本不等于旧客户端具备新点击行为。
+- 悬停流体、化学品与元件时保持一份简洁提示框，不重新出现操作教学文字。升级两端至 0.4.6 后验证完整行为；协议6可连接旧版本不等于旧客户端具备新点击行为。
 
-Repeat fill/empty operations on resource and empty tiles in network, device and cell scopes, tracking stored resources, container contents and every physical item. Test single-container Shift-fill with empty, partially available and full inventories; a result that cannot fit must remain on the cursor. Separately test stacked containers: additional strategy-produced items may drop, so include world entities in conservation checks. Test borrowed water/lava buckets with and without a bucket in the selected scope, including failed filling and a bucket available only elsewhere. Check partial capacity, insufficient resources, incompatible contents, power loss, filters and access modes; refusal must not store the entire container instead. With `-PmekTest`, record each actual chemical type, container and unit tested through Applied Mekanistics. Check unregistered resource types, rapid clicks, concurrent players and replaced cells. Confirm concise single tooltips and upgrade both sides to 0.4.4 for complete behavior.
+Repeat fill/empty operations on resource and empty tiles in network, device and cell scopes, tracking stored resources, container contents and every physical item. Test single-container Shift-fill with empty, partially available and full inventories; a result that cannot fit must remain on the cursor. Separately test stacked containers: additional strategy-produced items may drop, so include world entities in conservation checks. Test borrowed water/lava buckets with and without a bucket in the selected scope, including failed filling and a bucket available only elsewhere. Check partial capacity, insufficient resources, incompatible contents, power loss, filters and access modes; refusal must not store the entire container instead. With `-PmekTest`, record each actual chemical type, container and unit tested through Applied Mekanistics. Check unregistered resource types, rapid clicks, concurrent players and replaced cells. Confirm concise single tooltips and upgrade both sides to 0.4.6 for complete behavior.
 
 ## 容量与外部存储 / Capacity and external storage
 

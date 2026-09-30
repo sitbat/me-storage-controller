@@ -33,6 +33,12 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private Button theme,root,back,sort,collapse,locate,contentPrevious,contentNext,cellsPrevious,cellsNext;
     private boolean collapsed,treeOnly,narrow,treeVisible,mainVisible,sortByAmount=true,treeSearchOpen;
     private int mainX=142,visibleRows=5,gridRowOffset,cellY,inventoryY,hotbarY,treeHeight,controlPressButton=-1;
+    private int targetPage;
+    private double contentWheelRemainder;
+    private boolean scrollbarDragging;
+    private double scrollbarGrabOffset;
+    private String requestedDevice="";
+    private int requestedCell=-1;
     private long searchDue,lastFrame;
     private float delta=.016F,themeMix=ClientAppearance.isDark()?1:0;
     private DashboardPalette p=DashboardPalette.blend(themeMix);
@@ -45,14 +51,22 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private Boolean smokeShiftOverride;
     public ControllerScreen(ControllerMenu menu,Inventory inventory,Component title){super(menu,inventory,title);}
     static Component tr(String key,Object... args){return Component.translatable("gui.me_storage_controller."+key,args);}
+    @Override protected void rebuildWidgets(){
+        // Screen clears the old focus before calling init, so capture it outside that lifecycle.
+        boolean restoreContent=contentSearch!=null&&contentSearch.isFocused(),restoreTree=treeSearch!=null&&treeSearch.isFocused();
+        super.rebuildWidgets();
+        EditBox restore=restoreContent?contentSearch:restoreTree?treeSearch:null;
+        if(restore!=null&&restore.visible){setFocused(restore);restore.setFocused(true);}
+    }
     @Override protected void init(){
-        var window=minecraft.getWindow();int preferred=window.calculateScale(minecraft.options.guiScale().get(),minecraft.isEnforceUnicode());
-        int limit=Math.max(1,Math.min(window.getWidth()/494,window.getHeight()/324));window.setGuiScale(Math.min(preferred,limit));
-        width=window.getGuiScaledWidth();height=window.getGuiScaledHeight();narrow=width<352;
+        // Screen dimensions already reflect the user's GUI scale. Never change Window or Options.
+        narrow=width<352;
         treeVisible=narrow?treeOnly:!collapsed;mainVisible=!narrow||!treeOnly;mainX=treeVisible&&!narrow?142:18;
-        imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(2,Math.min(5,(height-150)/18));imageHeight=150+visibleRows*18;
+        imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(1,Math.min(5,(height-162)/18));imageHeight=150+visibleRows*18;
         cellY=imageHeight-49;inventoryY=imageHeight-94;hotbarY=imageHeight-36;treeHeight=imageHeight-134;gridRowOffset=Math.min(gridRowOffset,5-visibleRows);
-        String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();
+        boolean contentFocused=contentSearch!=null&&contentSearch.isFocused(),treeFocused=treeSearch!=null&&treeSearch.isFocused();
+        int contentCursor=contentSearch==null?0:contentSearch.getCursorPosition(),treeCursor=treeSearch==null?0:treeSearch.getCursorPosition();
+        String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();
         sort=icon(0,24,18,20,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         ((IconButton)sort).sx=sortByAmount?16:0;
         root=icon(0,46,18,20,160,16,tr("network_root"),b->select("",-1));
@@ -63,20 +77,35 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         locate=icon(117,imageHeight-85,16,16,64,240,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});
         cellsPrevious=icon(108,imageHeight-69,12,12,48,48,tr("cells_previous"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),Math.max(0,offset(s)-10));});
         cellsNext=icon(123,imageHeight-69,12,12,32,48,tr("cells_next"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),offset(s)+10);});
-        contentPrevious=icon(mainX+173,24,12,12,0,48,tr("previous_page"),b->request(menu.getSnapshot().contentPage()-1));
-        contentNext=icon(mainX+173,23+visibleRows*18-12,12,12,16,48,tr("next_page"),b->request(menu.getSnapshot().contentPage()+1));
+        int arrowHeight=visibleRows==1?8:12;
+        contentPrevious=icon(mainX+173,24,12,arrowHeight,0,48,tr("previous_page"),b->request(targetPage-1));
+        contentNext=icon(mainX+173,23+visibleRows*18-arrowHeight,12,arrowHeight,16,48,tr("next_page"),b->request(targetPage+1));
         contentSearch=search(mainX+82,12,85,cq,"content_search_readonly",v->searchDue=System.currentTimeMillis()+250);
         treeSearch=search(25,12,110,tq,"tree_search",tree::setQuery);
+        // moveCursorTo calls the text responder; restoring a caret must not schedule a new search/page reset.
+        contentSearch.setCursorPosition(contentCursor);contentSearch.setHighlightPos(contentCursor);
+        treeSearch.setCursorPosition(treeCursor);treeSearch.setHighlightPos(treeCursor);
         menu.layoutSlots(26,cellY,5,mainX+8,inventoryY,hotbarY,treeVisible,mainVisible);updateWidgets();
+        if(contentFocused&&contentSearch.visible){setFocused(contentSearch);contentSearch.setFocused(true);}else if(treeFocused&&treeSearch.visible){setFocused(treeSearch);treeSearch.setFocused(true);}
     }
-    @Override public void removed(){super.removed();var w=minecraft.getWindow();w.setGuiScale(w.calculateScale(minecraft.options.guiScale().get(),minecraft.isEnforceUnicode()));}
     private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){return addRenderableWidget(new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action));}
     private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> response){var b=new EditBox(font,leftPos+x,topPos+y,w,10,tr(hint));b.setBordered(false);b.setMaxLength(64);b.setValue(value);b.setResponder(response);return addRenderableWidget(b);}
     private static int offset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
-    private void select(String device,int cell){searchDue=0;focusedKey=null;gridRowOffset=0;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
-    private void request(int page){var s=menu.getSnapshot();searchDue=0;focusedKey=null;gridRowOffset=0;menu.request(s.selectedDevice(),s.selectedCell(),s.devicePage(),Math.max(0,page),"",contentSearch.getValue(),sortByAmount);}
-    @Override protected void containerTick(){super.containerTick();contentSearch.tick();treeSearch.tick();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}updateWidgets();}
-    private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=s.contentPage()>0;contentNext.active=s.contentPage()+1<s.contentPages();}
+    private void select(String device,int cell){searchDue=0;focusedKey=null;targetPage=0;gridRowOffset=0;contentWheelRemainder=0;requestedDevice=device;requestedCell=cell;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
+    private void request(int page){contentWheelRemainder=0;moveContent(Math.max(0,Math.min(page,maxPage())),0,true);}
+    private int maxPage(){return Math.max(0,menu.getSnapshot().contentPages()-1);}
+    private int rowPositions(){return 6-visibleRows;}
+    private int scrollPosition(){return targetPage*rowPositions()+gridRowOffset;}
+    private int maxScrollPosition(){int lastRows=Math.max(1,(Math.max(0,menu.getSnapshot().contentCount()-maxPage()*45)+8)/9);return maxPage()*rowPositions()+Math.max(0,Math.min(5,lastRows)-visibleRows);}
+    private void moveContent(int page,int row,boolean force){
+        boolean pageChanged=page!=targetPage;targetPage=page;gridRowOffset=row;focusedKey=null;
+        if(pageChanged||force){searchDue=0;menu.request(requestedDevice,requestedCell,menu.getSnapshot().devicePage(),targetPage,"",contentSearch.getValue(),sortByAmount);}
+        updateWidgets();
+    }
+    private void moveContentPosition(int position){int clamped=Math.max(0,Math.min(position,maxScrollPosition()));moveContent(clamped/rowPositions(),clamped%rowPositions(),false);}
+    private void syncContentTarget(){var s=menu.getSnapshot();if(s.revision()==menu.getRequestedRevision()){targetPage=s.contentPage();requestedDevice=s.selectedDevice();requestedCell=s.selectedCell();gridRowOffset=Math.max(0,Math.min(gridRowOffset,maxScrollPosition()-targetPage*rowPositions()));}}
+    @Override protected void containerTick(){super.containerTick();contentSearch.tick();treeSearch.tick();syncContentTarget();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}updateWidgets();}
+    private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=targetPage>0;contentNext.active=targetPage<maxPage();}
     private void nativeTint(GuiGraphics g){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,1);}
     private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xffffffff,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
     @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
@@ -89,7 +118,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void field(GuiGraphics g,EditBox box,int x,int y,int w,String hint){g.fill(x,y,x+w,y+12,p.slot());g.fill(x,y,x+w,y+1,p.border());g.fill(x,y+11,x+w,y+12,DashboardPalette.mix(0xffffffff,0xff85859a,themeMix));box.setTextColor(p.text());if(box.getValue().isEmpty()&&!box.isFocused())clipped(g,tr(hint),box.getX(),box.getY(),box.getWidth(),p.muted());}
     private void renderGrid(GuiGraphics g,Snapshot s,int mx,int my){for(int r=0;r<visibleRows;r++)for(int col=0;col<9;col++){int i=(gridRowOffset+r)*9+col;if(i>=s.contents().size())continue;var c=s.contents().get(i);int x=leftPos+mainX+8+col*18,y=topPos+24+r*18;boolean over=hit(mx,my,x,y,16,16);hover[i]=animate(hover[i],over?1:0,18);if(hover[i]>.01F)g.fill(x,y,x+16,y+16,((int)(hover[i]*90)<<24)|0xffffff);drawKey(g,c.key(),x,y);drawAmount(g,c,x,y);if(focused(s)!=null&&focused(s).key().equals(c.key())){g.fill(x,y,x+16,y+1,0xbbffffff);g.fill(x,y+15,x+16,y+16,0xbbffffff);}}
         if(!s.error().isEmpty()||s.contents().isEmpty()){Component msg=s.error().isEmpty()?tr("no_contents"):Component.translatable(s.error());clipped(g,msg,leftPos+mainX+8,topPos+28,162,s.error().isEmpty()?p.text():p.danger());}
-        int trackY=topPos+39,trackHeight=visibleRows*18-30;g.fill(leftPos+mainX+176,trackY,leftPos+mainX+182,trackY+trackHeight,p.border());int thumb=Math.max(8,trackHeight/Math.max(1,s.contentPages()));int thumbY=trackY+(trackHeight-thumb)*s.contentPage()/Math.max(1,s.contentPages()-1);g.fill(leftPos+mainX+176,thumbY,leftPos+mainX+182,thumbY+thumb,p.panel());g.fill(leftPos+mainX+176,thumbY,leftPos+mainX+182,thumbY+1,0xffeeeeee);
+        var track=scrollbarRect();if(track!=null){int thumb=scrollbarThumbHeight(track),thumbY=scrollbarThumbY(track);g.fill(track.x(),track.y(),track.x()+track.width(),track.y()+track.height(),p.border());g.fill(track.x(),thumbY,track.x()+track.width(),thumbY+thumb,p.panel());g.fill(track.x(),thumbY,track.x()+track.width(),thumbY+1,0xffeeeeee);}
     }
     private void drawAmount(GuiGraphics g,Snapshot.Content c,int x,int y){String v=abbreviate(c.amount());float scale=.65F;g.pose().pushPose();g.pose().translate(x+16-font.width(v)*scale,y+10,200);g.pose().scale(scale,scale,1);g.drawString(font,v,0,0,0xffffffff,true);g.pose().popPose();}
     private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
@@ -173,15 +202,21 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         g.renderTooltip(font,lines,stack.isEmpty()?Optional.empty():stack.getTooltipImage(),stack,mx,my);
     }
     private int contentIndex(double mx,double my){if(!mainVisible)return -1;double x=mx-leftPos-mainX-7,y=my-topPos-23;if(x<0||x>=162||y<0||y>=visibleRows*18)return -1;return (gridRowOffset+(int)y/18)*9+(int)x/18;}
+    private boolean contentScrollArea(double mx,double my){return mainVisible&&hit(mx,my,leftPos+mainX+7,topPos+23,180,visibleRows*18);}
+    private UiRect scrollbarRect(){int arrow=visibleRows==1?8:12,start=26+arrow,end=21+visibleRows*18-arrow;return mainVisible&&end-start>=4?new UiRect(leftPos+mainX+174,topPos+start,10,end-start):null;}
+    private int scrollbarThumbHeight(UiRect track){return Math.min(track.height(),Math.max(8,track.height()/Math.max(1,maxScrollPosition()+1)));}
+    private int scrollbarThumbY(UiRect track){return track.y()+(int)Math.round((track.height()-scrollbarThumbHeight(track))*Math.min(scrollPosition(),maxScrollPosition())/(double)Math.max(1,maxScrollPosition()));}
+    private void dragScrollbar(double my){var track=scrollbarRect();if(track==null)return;double available=track.height()-scrollbarThumbHeight(track);if(available<=0)return;moveContentPosition((int)Math.round((my-track.y()-scrollbarGrabOffset)/available*maxScrollPosition()));}
     private int remoteIndex(double mx,double my){if(!treeVisible)return -1;double x=mx-leftPos-25,y=my-topPos-cellY+1;if(x<0||x>=90||y<0||y>=36)return -1;return (int)y/18*5+(int)x/18;}
-    @Override public boolean mouseClicked(double mx,double my,int button){if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
+    @Override public boolean mouseClicked(double mx,double my,int button){syncContentTarget();var track=scrollbarRect();if(track!=null&&hit(mx,my,track.x(),track.y(),track.width(),track.height())){controlPressButton=button;if(button==0){scrollbarDragging=true;contentWheelRemainder=0;int thumbY=scrollbarThumbY(track),thumbHeight=scrollbarThumbHeight(track);scrollbarGrabOffset=my>=thumbY&&my<thumbY+thumbHeight?my-thumbY:thumbHeight/2.0;dragScrollbar(my);}return true;}if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
             var contents=menu.getSnapshot().contents();AEKey key=i<contents.size()?contents.get(i).key():null;if(key!=null)focusedKey=key;
             if((button==0||button==1)&&(!menu.getCarried().isEmpty()||key!=null))menu.requestContent(i,button,smokeShiftOverride!=null?smokeShiftOverride:hasShiftDown());
             controlPressButton=button;return true;}
         int remote=remoteIndex(mx,my);var snapshot=menu.getSnapshot();if(remote>=snapshot.editableSlots()&&remote>=0&&offset(snapshot)+remote<snapshot.cellSlots()){if(button==0)select(snapshot.selectedDevice(),offset(snapshot)+remote);controlPressButton=button;return true;}
         boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&hit(mx,my,w.getX(),w.getY(),w.getWidth(),w.getHeight()));boolean handled=super.mouseClicked(mx,my,button);if(widget){controlPressButton=button;return true;}return handled;}
-    @Override public boolean mouseReleased(double mx,double my,int button){if(controlPressButton==button){controlPressButton=-1;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
-    @Override public boolean mouseScrolled(double mx,double my,double amount){if(treeVisible&&tree.wheel(mx,my,amount))return true;if(contentIndex(mx,my)>=0){int row=gridRowOffset+(amount<0?1:-1);if(row>=0&&row<=5-visibleRows){gridRowOffset=row;return true;}var s=menu.getSnapshot();int page=s.contentPage()+(amount<0?1:-1);if(page>=0&&page<s.contentPages())request(page);return true;}return super.mouseScrolled(mx,my,amount);}
+    @Override public boolean mouseReleased(double mx,double my,int button){if(controlPressButton==button){controlPressButton=-1;scrollbarDragging=false;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
+    @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy){if(scrollbarDragging&&button==0){dragScrollbar(my);return true;}return super.mouseDragged(mx,my,button,dx,dy);}
+    @Override public boolean mouseScrolled(double mx,double my,double amount){if(treeVisible&&tree.wheel(mx,my,amount))return true;if(contentScrollArea(mx,my)){syncContentTarget();if(Double.isFinite(amount)){contentWheelRemainder-=amount;int steps=(int)contentWheelRemainder;if(steps!=0){contentWheelRemainder-=steps;moveContentPosition((int)Math.max(0,Math.min((long)maxScrollPosition(),(long)scrollPosition()+steps)));}if(scrollPosition()==0&&contentWheelRemainder<0||scrollPosition()==maxScrollPosition()&&contentWheelRemainder>0)contentWheelRemainder=0;}return true;}return super.mouseScrolled(mx,my,amount);}
     @Override public boolean keyPressed(int key,int scan,int mods){if(key!=256&&(treeSearch.isFocused()&&treeSearch.visible||contentSearch.isFocused()&&contentSearch.visible)){(treeSearch.isFocused()&&treeSearch.visible?treeSearch:contentSearch).keyPressed(key,scan,mods);return true;}return super.keyPressed(key,scan,mods);}
     @Override protected void slotClicked(Slot slot,int id,int button,ClickType type){if(menu.canSendClick(id,type))super.slotClicked(slot,id,button,type);}
     private float animate(float value,float target,float speed){return value+(target-value)*(1-(float)Math.exp(-delta*speed));}
@@ -198,6 +233,12 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     UiRect smokeThemeRect(){return rect(theme);}UiRect smokeRootRect(){return rect(root);}UiRect smokeBackRect(){return rect(back);}UiRect smokeSortRect(){return rect(sort);}UiRect smokeCollapseRect(){return rect(collapse);}UiRect smokeContentPreviousRect(){return rect(contentPrevious);}UiRect smokeContentNextRect(){return rect(contentNext);}
     UiRect smokePanelRect(){return new UiRect(leftPos,topPos,imageWidth,imageHeight);}UiRect smokeSlotRect(int i){if(i<0||i>=menu.slots.size()||!menu.getSlot(i).isActive())return null;var s=menu.getSlot(i);return new UiRect(leftPos+s.x,topPos+s.y,16,16);}
     UiRect smokeContentRect(int i){int row=i/9-gridRowOffset;if(!mainVisible||i<0||i>=45||row<0||row>=visibleRows)return null;return new UiRect(leftPos+mainX+8+i%9*18,topPos+24+row*18,16,16);}
+    UiRect smokeContentScrollRect(){return mainVisible?new UiRect(leftPos+mainX+7,topPos+23,180,visibleRows*18):null;}
+    UiRect smokeScrollbarRect(){return scrollbarRect();}
+    int smokeContentScrollPosition(){return scrollPosition();}int smokeContentScrollMax(){return maxScrollPosition();}
+    int smokeContentTargetPage(){return targetPage;}int smokeContentAcknowledgedPage(){return menu.getSnapshot().contentPage();}
+    int smokeContentRowOffset(){return gridRowOffset;}int smokeContentVisibleRows(){return visibleRows;}
+    boolean smokeContentPending(){return menu.getSnapshot().revision()!=menu.getRequestedRevision();}
     AEKey smokeFocusedKey(){var c=focused(menu.getSnapshot());return c==null?null:c.key();}
     int smokeTooltipRenderCount(){return tooltipRenderCount;}String smokeTooltipKind(){return tooltipKind;}List<String> smokeTooltipText(){return tooltipLines.stream().map(Component::getString).toList();}
     String smokeRootLabel(){return root.getMessage().getString();}
