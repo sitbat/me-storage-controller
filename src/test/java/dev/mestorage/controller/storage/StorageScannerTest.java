@@ -17,6 +17,26 @@ import org.junit.jupiter.api.Test;
 
 class StorageScannerTest {
     @Test
+    void unlimitedCapacitySurvivesFiniteAndUnknownMembers() {
+        assertEquals(StorageScanner.Capacity.UNLIMITED, StorageScanner.sumLimits(1024, StorageScanner.Capacity.UNLIMITED));
+        assertEquals(StorageScanner.Capacity.UNLIMITED, StorageScanner.sumLimits(StorageScanner.Capacity.UNLIMITED, -1));
+        assertEquals(StorageScanner.Capacity.UNLIMITED, StorageScanner.sumLimits(-1, StorageScanner.Capacity.UNLIMITED));
+        assertEquals(-1, StorageScanner.sumLimits(1024, -1));
+        assertEquals(5120, StorageScanner.sumLimits(1024, 4096));
+    }
+
+    @Test
+    void unknownUsageDoesNotCorruptUnlimitedTotalsOrOverflowNegative() {
+        assertEquals(-1, StorageScanner.sumUsed(128, -1));
+        assertEquals(-1, StorageScanner.sumUsed(-1, 128));
+        assertEquals(Long.MAX_VALUE, StorageScanner.sumUsed(Long.MAX_VALUE - 2, 4));
+        assertTrue(new StorageScanner.Capacity(1024, StorageScanner.Capacity.UNLIMITED,
+                3, StorageScanner.Capacity.UNLIMITED, false, 0).known());
+        assertFalse(new StorageScanner.Capacity(-1, StorageScanner.Capacity.UNLIMITED,
+                3, StorageScanner.Capacity.UNLIMITED, true, 1).known());
+    }
+
+    @Test
     void nodesSharingProviderAndRepeatedMountsDoNotDuplicateContents() {
         var reads = new AtomicInteger();
         var mounts = new AtomicInteger();

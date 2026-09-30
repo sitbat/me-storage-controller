@@ -436,8 +436,9 @@ public final class ControllerMenu extends AbstractContainerMenu {
                     cap=StorageScanner.aggregateCapacity(cells);
                 }
                 unknown+=cap.unknownCells();
-                if(cap.known()) { used=StorageScanner.saturatedAdd(used,cap.usedBytes()); total=StorageScanner.saturatedAdd(total,cap.totalBytes());
-                    types=StorageScanner.saturatedAdd(types,cap.usedTypes()); typeTotal=StorageScanner.saturatedAdd(typeTotal,cap.totalTypes()); }
+                if(cap.totalBytes()>=0 || cap.totalBytes()==StorageScanner.Capacity.UNLIMITED) {
+                    used=StorageScanner.saturatedAdd(used,cap.usedBytes()); total=StorageScanner.sumLimits(total,cap.totalBytes());
+                    types=StorageScanner.saturatedAdd(types,cap.usedTypes()); typeTotal=StorageScanner.sumLimits(typeTotal,cap.totalTypes()); }
             }
             capacity=new Snapshot.Capacity(used,total,types,typeTotal,unknown);
         } else {

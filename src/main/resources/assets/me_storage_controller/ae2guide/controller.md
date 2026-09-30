@@ -40,6 +40,14 @@ Item icons show abbreviated quantities; select or hover an entry for its exact a
 
 For external containers, occupied slots count nonempty slots, including partial stacks. Tank capacity measures fluid volume. These are physical container measurements; storage-bus filters may make less of the contents accessible. **Unknown** means the device does not expose a usable value, not zero or unlimited capacity.
 
+## AE2 Omni Cells
+
+With AE2 Omni Cells 1.20.1-forge 1.1.6, browse Omni, Complex Omni and Quantum cells from 1k to 256M, as well as creative Long/BigInteger cells, through the same device tree. Mixed items, fluids and supported chemicals use the same scope and container controls.
+
+OmniCells has no extra per-type byte overhead. Quantum cells have unlimited types, but their ordinary byte capacity remains finite. **∞** marks a known unlimited bound; **unknown** means a reliable value is unavailable.
+
+Extremely large BigInteger amounts can exceed what the ME network reports. If a resource reaches that reporting limit, its displayed amount may be capped and used bytes remain unknown; the known unlimited bound still shows ∞. Do not treat those capped amounts as exact totals.
+
 ## Move ordinary items
 
 These actions use the right-hand content grid, within your selected scope.

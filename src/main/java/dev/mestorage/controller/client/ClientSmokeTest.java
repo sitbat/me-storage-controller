@@ -1759,9 +1759,88 @@ public final class ClientSmokeTest {
                 highlightFrameBaseline=highlightDrawCount();
                 moveHighlightCamera(mc,true);blockCaptureStage=4;blockCaptureTicks=0;capturing=false;captureDone=false;return;
             }
+            if(!verifyOmniClient(mc))return;
             System.out.println("ME_STORAGE_SMOKE_HIGHLIGHT_CAPTURED first-person front and moved oblique view of the same target; screenshots require alignment review");
             finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
         }
+    }
+
+    private static int omniStage,omniWait;
+    private static volatile boolean omniSetupDone;
+    private static boolean omniRequested;
+
+    /** Final optional fixture checks the real packet, formatting and native Auto layout. */
+    private static boolean verifyOmniClient(Minecraft mc) {
+        if(!net.minecraftforge.fml.ModList.get().isLoaded("ae2omnicells"))return true;
+        if(drainExtraCapture(mc))return false;
+        if(omniWait>0){omniWait--;return false;}
+        var pos=controllerPos.south(12);
+        if(omniStage==0) {
+            omniStage=1;omniWait=80;var uuid=mc.player.getUUID();
+            mc.getSingleplayerServer().execute(()->{
+                try {
+                    var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);var level=player.serverLevel();
+                    player.closeContainer();player.teleportTo(pos.getX()+.5,pos.getY(),pos.getZ()+2.5);
+                    for(var p:java.util.List.of(pos,pos.east(),pos.below()))level.setBlockAndUpdate(p,Blocks.AIR.defaultBlockState());
+                    level.setBlockAndUpdate(pos.below(),AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+                    level.setBlockAndUpdate(pos,MEStorageController.CONTROLLER.get().defaultBlockState());
+                    level.setBlockAndUpdate(pos.east(),AEBlocks.DRIVE.block().defaultBlockState());
+                    var drive=(DriveBlockEntity)level.getBlockEntity(pos.east());
+                    var ids=new String[]{"complex_omni_cell_256m","quantum_omni_cell_1k","creative_ae_cell_biginteger"};
+                    for(int i=0;i<ids.length;i++) {
+                        var item=ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2omnicells",ids[i]));
+                        if(item==null||item==Items.AIR)throw new IllegalStateException("Missing Omni fixture cell "+ids[i]);
+                        drive.getInternalInventory().setItemDirect(i,new ItemStack(item));
+                    }
+                    omniSetupDone=true;
+                }catch(Throwable error){failure=error.toString();}
+            });return false;
+        }
+        if(omniStage==1) {
+            if(!omniSetupDone)return false;
+            omniStage=2;omniWait=30;var uuid=mc.player.getUUID();
+            mc.getSingleplayerServer().execute(()->{
+                try {
+                    var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);var level=player.serverLevel();
+                    var drive=(DriveBlockEntity)level.getBlockEntity(pos.east());
+                    long[] iron={123456789,128,8192},water={123456,23456,8000};
+                    for(int i=0;i<3;i++) {
+                        var storage=drive.getCellInventory(i);
+                        if(storage==null||storage.insert(AEItemKey.of(Items.IRON_INGOT),iron[i],Actionable.MODULATE,IActionSource.empty())!=iron[i]
+                                ||storage.insert(AEFluidKey.of(Fluids.WATER),water[i],Actionable.MODULATE,IActionSource.empty())!=water[i])
+                            throw new IllegalStateException("Omni mixed fixture rejected contents "+i);
+                    }
+                    NetworkHooks.openScreen(player,(ControllerBlockEntity)level.getBlockEntity(pos),pos);
+                }catch(Throwable error){failure=error.toString();}
+            });return false;
+        }
+        if(!(mc.player.containerMenu instanceof ControllerMenu menu)||!(mc.screen instanceof ControllerScreen screen))return false;
+        var snapshot=menu.getSnapshot();if(!snapshot.online())return false;
+        if(omniStage>=6){System.out.println("ME_STORAGE_SMOKE_OMNI PASS actual network packets: complex256M, quantum unlimited types, BigInteger unlimited bytes/types, mixed item/fluid entries and native Auto screenshots");return true;}
+        int cell=omniStage==2?-1:omniStage-3;
+        String device=cell<0?"":snapshot.directory().stream().map(Snapshot.DirectoryEntry::device)
+                .filter(d->d.pos().equals(pos.east())).findFirst().orElseThrow().id();
+        if(!omniRequested) {
+            if(cell>=0)screen.smokeRevealCell(device,cell);
+            screen.setDarkThemeForTest(false);menu.request(device,cell,0,0,"","",true);
+            omniRequested=true;omniWait=20;return false;
+        }
+        if(!snapshot.selectedDevice().equals(device)||snapshot.selectedCell()!=cell)return false;
+        var cap=snapshot.capacity();
+        long expectedTotal=cell==0?268435456:cell==1?1024:Snapshot.Capacity.UNLIMITED;
+        long expectedTypes=cell==0?6400:Snapshot.Capacity.UNLIMITED;
+        if(cap.totalBytes()!=expectedTotal||cap.totalTypes()!=expectedTypes||cap.usedBytes()<0||cap.unknownCells()!=0)
+            throw new IllegalStateException("Omni client capacity mismatch cell="+cell+" "+cap);
+        if(snapshot.contents().stream().noneMatch(c->c.key() instanceof AEItemKey)
+                ||snapshot.contents().stream().noneMatch(c->c.key() instanceof AEFluidKey))
+            throw new IllegalStateException("Omni client mixed contents missing");
+        if(mc.options.guiScale().get()!=0||mc.getWindow().getGuiScale()!=mc.getWindow().calculateScale(0,mc.isEnforceUnicode()))
+            throw new IllegalStateException("Omni fixture changed native Auto scale");
+        if(!ControllerScreen.number(Snapshot.Capacity.UNLIMITED).equals("∞"))throw new IllegalStateException("Unlimited formatting is not distinct from unknown");
+        clearCaptureHover(mc);
+        String name=switch(cell){case 0->"complex256m";case 1->"quantum";case 2->"biginteger";default->"network";};
+        captureExtra(mc,"smoke-omni-"+name+".png");omniStage++;omniRequested=false;omniWait=20;
+        return false;
     }
 
     private static void moveHighlightCamera(Minecraft mc,boolean oblique) {

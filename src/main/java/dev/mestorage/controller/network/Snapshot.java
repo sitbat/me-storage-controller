@@ -31,6 +31,8 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
     public record CellPreview(int slot, ItemStack icon, long usedBytes, long totalBytes, boolean readable) {}
     public record Capacity(long usedBytes, long totalBytes, long usedTypes, long totalTypes, int unknownCells,
                            long occupiedSlots, long totalSlots, long fluidAmount, long fluidCapacity) {
+        /** Protocol 7: -2 is an unlimited maximum; -1 still means unknown. */
+        public static final long UNLIMITED = -2;
         public Capacity(long usedBytes,long totalBytes,long usedTypes,long totalTypes,int unknownCells) {
             this(usedBytes,totalBytes,usedTypes,totalTypes,unknownCells,-1,-1,-1,-1);
         }

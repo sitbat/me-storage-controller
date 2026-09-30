@@ -158,10 +158,11 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         for(int i=0;i<10;i++){int absolute=offset(s)+i,sx=leftPos+26+(i%5)*18,sy=y+cellY+(i/5)*18;nativeTint(g);g.blit(iconTexture,sx-1,sy-1,192,192,18,18);g.setColor(1,1,1,1);var preview=s.cells().stream().filter(v->v.slot()==absolute).findFirst().orElse(null);if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,sy);}
     }
     private void renderCapacity(GuiGraphics g,Snapshot s,int x,int y){var c=s.capacity();long used=c.usedBytes(),total=c.totalBytes();Component label;
-        if(total>=0)label=Component.literal(bytesSummary(used)+" / "+bytesSummary(total));else if(c.totalSlots()>=0){used=c.occupiedSlots();total=c.totalSlots();label=tr("slots",number(used),number(total));}else if(c.fluidCapacity()>=0){used=c.fluidAmount();total=c.fluidCapacity();label=Component.literal(number(used)+" / "+number(total)+" mB");}else label=tr("capacity_unknown");
+        if(total>=0||total==Snapshot.Capacity.UNLIMITED)label=Component.literal(bytesSummary(used)+" / "+bytesSummary(total));else if(c.totalSlots()>=0){used=c.occupiedSlots();total=c.totalSlots();label=tr("slots",number(used),number(total));}else if(c.fluidCapacity()>=0){used=c.fluidAmount();total=c.fluidCapacity();label=Component.literal(number(used)+" / "+number(total)+" mB");}else label=tr("capacity_unknown");
         String types=c.usedTypes()>=0?tr("types_inline",number(c.usedTypes()),number(c.totalTypes())).getString():"";int tw=Math.min(76,font.width(types));fit(g,label,x,y,162-(types.isEmpty()?0:tw+5),p.text());if(!types.isEmpty())fit(g,Component.literal(types),x+162-tw,y,tw,p.text());g.fill(x,y+10,x+160,y+12,p.slot());if(total>0&&used>0){float ratio=Math.min(1,used/(float)total);g.fill(x,y+10,x+Math.max(1,Math.round(160*ratio)),y+12,ratio>=.95F?p.danger():ratio>=.8F?p.warning():p.accent());}
     }
     private static String bytesSummary(long bytes){
+        if(bytes==Snapshot.Capacity.UNLIMITED)return "∞";
         if(bytes<0)return tr("unknown").getString();
         if(bytes<1024)return bytes+" B";
         double amount=bytes;int unit=0;
@@ -248,7 +249,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     @Override public boolean keyPressed(int key,int scan,int mods){if(key!=256&&(treeSearch.isFocused()&&treeSearch.visible||contentSearch.isFocused()&&contentSearch.visible)){(treeSearch.isFocused()&&treeSearch.visible?treeSearch:contentSearch).keyPressed(key,scan,mods);return true;}return super.keyPressed(key,scan,mods);}
     @Override protected void slotClicked(Slot slot,int id,int button,ClickType type){if(menu.canSendClick(id,type))super.slotClicked(slot,id,button,type);}
     private float animate(float value,float target,float speed){return value+(target-value)*(1-(float)Math.exp(-delta*speed));}
-    static String number(long n){return n<0?tr("unknown").getString():NumberFormat.getIntegerInstance().format(n);}
+    static String number(long n){return n==Snapshot.Capacity.UNLIMITED?"∞":n<0?tr("unknown").getString():NumberFormat.getIntegerInstance().format(n);}
     static String exactAmount(Snapshot.Content c){var key=c.key();if(key instanceof AEFluidKey)return number(c.amount())+" mB";int unit=Math.max(1,key.getAmountPerUnit());String u=key.getUnitSymbol(),suffix=u==null||u.isBlank()?"":" "+u;if(unit==1)return number(c.amount())+suffix;try{return BigDecimal.valueOf(c.amount()).divide(BigDecimal.valueOf(unit)).stripTrailingZeros().toPlainString()+suffix;}catch(ArithmeticException e){return number(c.amount())+"/"+number(unit)+suffix;}}
     private Component displayName(AEKey key){try{return AEKeyRendering.getDisplayName(key);}catch(RuntimeException e){return key.getDisplayName();}}
     private void drawKey(GuiGraphics g,AEKey key,int x,int y){try{AEKeyRendering.drawInGui(minecraft,g,x,y,key);}catch(RuntimeException e){g.drawString(font,"?",x+4,y+4,p.text(),false);}}

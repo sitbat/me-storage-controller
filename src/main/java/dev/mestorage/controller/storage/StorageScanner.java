@@ -23,6 +23,7 @@ import appeng.blockentity.storage.ChestBlockEntity;
 import appeng.blockentity.storage.DriveBlockEntity;
 import appeng.capabilities.Capabilities;
 import appeng.me.cells.BasicCellInventory;
+import dev.mestorage.controller.storage.compat.OmniCellCapacity;
 import appeng.parts.AEBasePart;
 import dev.mestorage.controller.storage.compat.StorageCompatibility;
 import net.minecraft.core.Direction;
@@ -51,11 +52,12 @@ public final class StorageScanner {
                          @Nullable IItemHandler cells, boolean active,
                          IGridNode node, Object owner) {}
 
-    /** -1 is explicitly unknown, never zero. partial marks an incomplete sum. */
+    /** -1 is unknown; UNLIMITED is an explicitly unbounded upper limit. */
     public record Capacity(long usedBytes, long totalBytes, long usedTypes, long totalTypes,
                            boolean partial, int unknownCells) {
+        public static final long UNLIMITED = -2;
         public static final Capacity UNKNOWN = new Capacity(-1, -1, -1, -1, true, 1);
-        public boolean known() { return usedBytes >= 0 && totalBytes >= 0; }
+        public boolean known() { return usedBytes >= 0 && (totalBytes >= 0 || totalBytes == UNLIMITED); }
     }
 
     public record CellInfo(int slot, ItemStack stack, @Nullable MEStorage storage,
@@ -204,7 +206,7 @@ public final class StorageScanner {
                 Capacity capacity = stack.isEmpty() ? new Capacity(0, 0, 0, 0, false, 0)
                         : original instanceof BasicCellInventory basic
                         ? new Capacity(basic.getUsedBytes(), basic.getTotalBytes(), basic.getStoredItemTypes(),
-                        basic.getTotalItemTypes(), false, 0) : Capacity.UNKNOWN;
+                        basic.getTotalItemTypes(), false, 0) : OmniCellCapacity.read(original, stack.getItem());
                 cells.add(new CellInfo(slot, stack,
                         inventory == null ? null : readOnly(stack.getHoverName(), List.of(inventory)),
                         capacity, host.getCellStatus(slot), inventory != null));
@@ -248,16 +250,35 @@ public final class StorageScanner {
         for (var cell : cells) {
             if (cell.stack().isEmpty() && cell.capacity().unknownCells() == 0) continue;
             var capacity = cell.capacity();
-            if (!capacity.known()) { partial = true; unknown++; continue; }
+            // Entirely unknown addons stay outside the known sum. A partially known
+            // capacity still contributes its limits, including explicit infinity.
+            if (capacity.totalBytes() == -1 && capacity.totalTypes() == -1
+                    && capacity.usedBytes() == -1 && capacity.usedTypes() == -1) {
+                partial = true;
+                unknown += Math.max(1, capacity.unknownCells());
+                continue;
+            }
             known = true;
-            used = saturatedAdd(used, capacity.usedBytes());
-            total = saturatedAdd(total, capacity.totalBytes());
-            types = saturatedAdd(types, capacity.usedTypes());
-            maxTypes = saturatedAdd(maxTypes, capacity.totalTypes());
+            used = sumUsed(used, capacity.usedBytes());
+            total = sumLimits(total, capacity.totalBytes());
+            types = sumUsed(types, capacity.usedTypes());
+            maxTypes = sumLimits(maxTypes, capacity.totalTypes());
             partial |= capacity.partial();
+            unknown += capacity.unknownCells();
         }
         return known || unknown == 0 ? new Capacity(used, total, types, maxTypes, partial, unknown)
                 : new Capacity(-1, -1, -1, -1, true, unknown);
+    }
+
+    /** Unknown usage propagates; it must not turn into a small negative subtraction. */
+    public static long sumUsed(long left, long right) {
+        return left < 0 || right < 0 ? -1 : saturatedAdd(left, right);
+    }
+
+    /** An unlimited member guarantees an unlimited sum, even with unknown members. */
+    public static long sumLimits(long left, long right) {
+        if (left == Capacity.UNLIMITED || right == Capacity.UNLIMITED) return Capacity.UNLIMITED;
+        return sumUsed(left, right);
     }
 
     public static KeyCounter contents(@Nullable MEStorage storage) {

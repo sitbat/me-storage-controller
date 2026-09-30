@@ -1,4 +1,4 @@
-# 0.4.11 使用说明 / User guide
+# 0.4.12 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-0.4.11 仅将侧栏第3、5、7个图标改为用户参考图中的原生符号，其余4个保持不变。各按钮功能仍在原位置；排序图标固定，但名称／数量排序仍可切换，悬停提示显示当前排序状态。存储树、背景、边框、间距、指南与原生 GUI 比例均不变。网络协议仍为 **6**，可与 0.4.2 至 0.4.10 协议连接，建议使用一致版本；不能与 0.4.1 或更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
+0.4.12 新增 AE2 Omni Cells 1.20.1-forge 1.1.6 的容量与类型上限适配，保留既有界面与操作。已知无限上限显示 **∞**，未知数值仍显示未知。网络协议升级至 **7**，客户端和服务器必须同步更新，不能与协议6版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-Version 0.4.11 replaces only sidebar icons 3, 5 and 7 with native symbols from the supplied reference; the other four remain unchanged. Each button retains its existing function and position. The sort icon stays fixed, while name/quantity modes still toggle and the tooltip shows the current state. The storage tree, backgrounds, borders, spacing, guide and native GUI scale are unchanged. Protocol remains **6**, compatible at the protocol level with 0.4.2 through 0.4.10; matching versions are recommended. Version 0.4.1 and earlier is incompatible. The runtime remains **Minecraft 1.20.1 Forge**.
+Version 0.4.12 adds capacity and type-limit support for AE2 Omni Cells 1.20.1-forge 1.1.6, retaining existing controls and behavior. Known unlimited bounds display **∞**; unavailable values remain unknown. Protocol is now **7**: update client and server together; protocol-6 versions cannot connect. The runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 游戏内指南 / In-game guide
 
@@ -136,9 +136,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.7 保持协议 **6**，可与 0.4.2 至 0.4.8 协议连接，但完整行为要求两端升级到 0.4.7。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.12 使用协议 **7**，必须同步更新客户端与服务器。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2 through 0.4.8, but both sides should upgrade to 0.4.7 for complete behavior.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.12 uses protocol **7** and requires updating client and server together.
 
 ## 管理整个元件 / Move complete cells
 
@@ -167,6 +167,20 @@ Cell moves affect the actual device. Removing a cell normally removes its conten
 控制器方块使用官方 AE2 1.21.1 机器表面、显示器面板及终端遮罩，组合为适配 Forge 1.20.1 的自定义模型。福鲁伊克斯色显示层反映真实联网状态：在线时全亮并缓慢脉动，离线时降低亮度。实时容量仍需在界面中查看。美术来源、改编方式及 CC BY-NC-SA 3.0 许可见 [视觉资源说明](ASSETS.md)。
 
 The block combines official AE2 1.21.1 machine surfaces, monitor artwork and terminal masks in a custom model adapted for Forge 1.20.1. Fluix-colored display layers follow the actual node state: full-bright with a slow pulse online, dimmed offline. Read live capacity in the GUI. See [asset provenance](ASSETS.md) for sources, adaptations and CC BY-NC-SA 3.0 licensing.
+
+## AE2 Omni Cells
+
+适配版本为 **1.20.1-forge 1.1.6**，涵盖 Omni、Complex Omni、Quantum 三系 1k～256M 和创造 Long／BigInteger 元件。按原有目录选择设备或元件即可查看；内容仍来自当前联网元件的实时存储接口，混合物品、流体及已注册化学品的取放继续遵循当前范围与容器规则。具体实测项目见 [0.4.12记录](RELEASE_0.4.12.md)，未完成的项目不视为已验证。
+
+The target is **1.20.1-forge 1.1.6**, covering Omni, Complex Omni and Quantum tiers from 1k to 256M plus creative Long/BigInteger cells. Select a device or cell through the existing tree. Contents come from the mounted cell's live storage, with the same scope and container rules for mixed items, fluids and registered chemicals. See the [0.4.12 record](RELEASE_0.4.12.md) for actual validation; pending cases are not verified.
+
+OmniCells 不收取额外类型字节开销。Quantum 的类型上限无限，但普通 Quantum 元件的字节容量仍有限。**∞** 表示已知无限上限；**未知**表示无法可靠取得数值，两者不等同。
+
+OmniCells has no extra per-type byte overhead. Quantum cells have unlimited types, while ordinary Quantum byte capacity remains finite. **∞** means a known unlimited bound; **unknown** means no reliable value is available.
+
+BigInteger 元件中，单条资源达到 AE2公开计数上限 `Long.MAX_VALUE`（9,223,372,036,854,775,807）时可能已被截断。此时不能据此算出精确占用，已用字节显示未知，无限上限仍显示∞；界面不保证显示超出这个范围的精确数量。
+
+A BigInteger cell's per-resource amount may be saturated at AE2's public `Long.MAX_VALUE` counter (9,223,372,036,854,775,807). Exact usage cannot then be derived: used bytes remain unknown and the unlimited bound stays ∞. Exact amounts beyond that range are not guaranteed.
 
 ## 定位 / Locate
 

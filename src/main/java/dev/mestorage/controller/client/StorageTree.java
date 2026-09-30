@@ -132,7 +132,7 @@ final class StorageTree {
             var result=new ArrayList<Component>();result.add(row.label);
             if(!row.device.isEmpty())snapshot.directory().stream().filter(e->e.device().id().equals(row.device)).findFirst().ifPresent(e->{
                 if(row.slot<0){var d=e.device();result.add(Component.literal(d.dimension()+" · "+d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()));if(e.truncated())result.add(tr("directory_limited"));}
-                else e.cells().stream().filter(c->c.slot()==row.slot).findFirst().ifPresent(c->result.add(tr("bytes",c.usedBytes()<0?tr("unknown"):ControllerScreen.number(c.usedBytes()),c.totalBytes()<0?tr("unknown"):ControllerScreen.number(c.totalBytes()))));
+                else e.cells().stream().filter(c->c.slot()==row.slot).findFirst().ifPresent(c->result.add(tr("bytes",ControllerScreen.number(c.usedBytes()),ControllerScreen.number(c.totalBytes()))));
             });return result;
         }return List.of();
     }
