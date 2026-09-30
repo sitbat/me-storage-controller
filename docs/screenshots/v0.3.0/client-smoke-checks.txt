@@ -1,0 +1,22 @@
+ME_STORAGE_SMOKE_DROP_BASELINE PASS removedOldFixtureItems=4; dropped64k=0 before opening the menu or sending any mouse events
+ME_STORAGE_SMOKE_NAVIGATION PASS rapid A-B-A locks until latest acknowledgement and then unlocks
+ME_STORAGE_SMOKE_RAPID_PAIR 1/6 visible=0 actual=0 durationMs=2 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 2/6 visible=0 actual=0 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 3/6 visible=0 actual=0 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 4/6 visible=0 actual=0 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 5/6 visible=0 actual=0 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 6/6 visible=0 actual=0 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_HELD_TOOLBAR PASS normal sidebar release and outside drag-release preserve carried cell; reinserted visible=0
+ME_STORAGE_SMOKE_RAPID_LEFT_CLICK PASS 6 pairs / 12 screen press-release events; visible=0 actual=0; client/server agree one cell and 12345 minecraft:iron_ingot
+ME_STORAGE_SMOKE_TRANSFERS PASS visible slot 0; pickup, reinsert, shift-extract, shift-reinsert; one cell and exactly 12345 minecraft:iron_ingot preserved
+ME_STORAGE_SMOKE_RAPID_PAIR 1/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 2/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 3/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 4/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 5/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_RAPID_PAIR 6/6 visible=9 actual=19 durationMs=0 cursorEmpty=true
+ME_STORAGE_SMOKE_HELD_TOOLBAR PASS normal sidebar release and outside drag-release preserve carried cell; reinserted visible=9
+ME_STORAGE_SMOKE_RAPID_LEFT_CLICK PASS 6 pairs / 12 screen press-release events; visible=9 actual=19; client/server agree one cell and 98765 minecraft:copper_ingot
+ME_STORAGE_SMOKE_TRANSFERS PASS visible slot 9; pickup, reinsert, shift-extract, shift-reinsert; one cell and exactly 98765 minecraft:copper_ingot preserved
+ME_STORAGE_SMOKE_LOCALIZED_SEARCH PASS ͭ�� = 98765; clearing restored contents
+ME_STORAGE_SMOKE_RESULT PASS: real client theme/compact captures, exact counts, normal/Shift packet transfers, and twelve rapid real left-click GUI events per tested drive preserved one cell and all contents. ExtendedAE page-two and localized copper search: PASS

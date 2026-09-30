@@ -3,6 +3,7 @@ package dev.mestorage.controller.menu;
 import appeng.api.networking.IGrid;
 import appeng.api.implementations.blockentities.IChestOrDrive;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.storage.StorageCells;
 import dev.mestorage.controller.MEStorageController;
 import dev.mestorage.controller.block.ControllerBlockEntity;
 import dev.mestorage.controller.network.Network;
@@ -45,7 +46,8 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private String selectedId="",deviceQuery="",contentQuery="";
     private int selectedCell=-1,devicePage=0,contentPage=0;
     private boolean sortByAmount=true;
-    private long nextRefresh=0,lastRequest=-100;
+    private static final int MUTATION_REFRESH_INTERVAL=5;
+    private long nextRefresh=0,lastRequest=-100,lastRefresh=-100;
     private Network.Request pending;
     private Set<ResourceLocation> deviceMatches=Set.of(),contentMatches=Set.of();
     private final Map<String,List<ResourceLocation>> localizedSearchCache=new HashMap<>();
@@ -129,16 +131,31 @@ public final class ControllerMenu extends AbstractContainerMenu {
         return !MinecraftForge.EVENT_BUS.post(event) && event.getUseBlock()!=Event.Result.DENY;
     }
     @Override public void clicked(int slot,int button,ClickType type,Player p) {
+        // Vanilla turns the second rapid left-click into PICKUP_ALL on release.
+        // Cells are individual containers, so this gesture means placing the
+        // carried cell back, not collecting a stack of identical containers.
+        if(type==ClickType.PICKUP_ALL && (slot>=0 && slot<10 || StorageCells.isCellHandled(getCarried()))) type=ClickType.PICKUP;
         boolean usesRemote=slot>=0 && slot<10 || type==ClickType.QUICK_MOVE && slot>=10;
         if(p.level().isClientSide) { if(!canSendClick(slot,type)) return; super.clicked(slot,button,type,p); return; }
         if(!stillValid(p)) return;
-        if(type==ClickType.QUICK_CRAFT || type==ClickType.PICKUP_ALL) { broadcastFullState(); return; }
+        if(type==ClickType.QUICK_CRAFT) { broadcastFullState(); return; }
         if(usesRemote && (pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell) || !protectionAllows())) { broadcastFullState(); return; }
-        super.clicked(slot,button,type,p); nextRefresh=0;
+        super.clicked(slot,button,type,p);
+        if(usesRemote) scheduleMutationRefresh();
     }
     public boolean canSendClick(int slot,ClickType type) {
-        if(type==ClickType.QUICK_CRAFT || type==ClickType.PICKUP_ALL) return false;
+        if(type==ClickType.QUICK_CRAFT) return false;
         return !selectionPending || !(slot>=0 && slot<10 || type==ClickType.QUICK_MOVE && slot>=10);
+    }
+    @Override public boolean canTakeItemForPickAll(ItemStack stack,Slot slot) {
+        // AbstractContainerScreen uses EMPTY only to test double-click eligibility.
+        // The actual inventory gather loop passes a nonempty stack and must never
+        // silently collect cells from a remote drive through a backpack click.
+        return stack.isEmpty() || slot.index>=10;
+    }
+    private void scheduleMutationRefresh() {
+        long now=player.level().getGameTime();
+        nextRefresh=Math.min(nextRefresh,Math.max(now+1,lastRefresh+MUTATION_REFRESH_INTERVAL));
     }
     @Override public ItemStack quickMoveStack(Player p,int index) {
         if(index<0 || index>=slots.size() || !canEdit()) return ItemStack.EMPTY;
@@ -149,13 +166,16 @@ public final class ControllerMenu extends AbstractContainerMenu {
             if(!moveItemStackTo(source,10,46,true)) return ItemStack.EMPTY;
         } else if(!moveItemStackTo(source,0,10,false)) return ItemStack.EMPTY;
         slot.set(source.isEmpty() ? ItemStack.EMPTY : source);
-        slot.onTake(p,source); nextRefresh=0;
+        slot.onTake(p,source); scheduleMutationRefresh();
         return copy;
     }
     @Override public void broadcastChanges() {
         if(!player.level().isClientSide) {
             long now=player.level().getGameTime();
-            if(pending!=null && now-lastRequest>=5) {
+            boolean navigating=pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell);
+            // Navigation is acknowledged on the next tick; only search typing is
+            // debounced. Slot edits and vanilla slot synchronization never wait.
+            if(pending!=null && now-lastRequest>=(navigating ? 1 : 5)) {
                 var request=pending; pending=null; lastRequest=now;
                 acknowledgedRevision=request.revision();
                 selectedId=request.deviceId(); selectedCell=Math.max(-1,request.cell());
@@ -163,7 +183,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
                 deviceQuery=request.deviceQuery(); contentQuery=request.contentQuery(); sortByAmount=request.sortByAmount(); nextRefresh=0;
                 deviceMatches=Set.copyOf(request.deviceMatches()); contentMatches=Set.copyOf(request.contentMatches());
             }
-            if(now>=nextRefresh) { refresh(); nextRefresh=now+20; }
+            if(now>=nextRefresh) { refresh(); lastRefresh=now; nextRefresh=now+20; }
         }
         super.broadcastChanges();
     }
@@ -213,11 +233,13 @@ public final class ControllerMenu extends AbstractContainerMenu {
             }
             capacity=new Snapshot.Capacity(used,total,types,typeTotal,unknown);
         } else {
-            title=selectedInfo.name(); var cap=StorageScanner.capacity(selected);
-            keys=selected.active() ? StorageScanner.contents(selected.storage()) : new KeyCounter();
+            title=selectedInfo.name();
             var cells=StorageScanner.readCells(selected);
             selectedCells=cells;
+            var cap=selected.owner() instanceof IChestOrDrive && !StorageScanner.isDegraded(selected)
+                ? StorageScanner.aggregateCapacity(cells) : StorageScanner.Capacity.UNKNOWN;
             if(selectedCell>=cells.size()) selectedCell=-1;
+            keys=new KeyCounter();
             if(selectedCell>=0) {
                 var cell=cells.get(selectedCell); cap=cell.capacity();
                 keys=StorageScanner.contents(cell.storage());
@@ -225,7 +247,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
                 if(cell.stack().isEmpty() && cell.storage()==null) {
                     cap=new StorageScanner.Capacity(0,0,0,0,false,0); error="gui.me_storage_controller.empty";
                 } else if(!cell.readable() || StorageScanner.hasReadError(cell.storage())) error="gui.me_storage_controller.unreadable";
-            }
+            } else if(selected.active()) keys=StorageScanner.contents(selected.storage());
             var external=StorageScanner.externalCapacity(selected);
             capacity=new Snapshot.Capacity(cap.usedBytes(),cap.totalBytes(),cap.usedTypes(),cap.totalTypes(),cap.unknownCells(),
                 external.occupiedSlots(),external.totalSlots(),external.fluidAmount(),external.fluidCapacity());

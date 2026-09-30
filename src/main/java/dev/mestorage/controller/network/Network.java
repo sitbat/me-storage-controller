@@ -14,7 +14,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    private static final String VERSION="2";
+    // Click interpretation changed in 0.3; both sides must agree on inventory behavior.
+    private static final String VERSION="3";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
     public record Request(int containerId,String deviceId,int cell,int devicePage,int contentPage,String deviceQuery,String contentQuery,boolean sortByAmount,

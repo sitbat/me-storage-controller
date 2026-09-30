@@ -39,6 +39,8 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.storage.LevelResource;
+import dev.mestorage.controller.storage.StorageScanner;
 
 /** Opt-in development-only integration capture. Run exclusively in a disposable smoke-test world. */
 @Mod.EventBusSubscriber(modid = MEStorageController.ID, value = Dist.CLIENT)
@@ -63,6 +65,12 @@ public final class ClientSmokeTest {
     private static int searchPhase;
     private static int searchTicks;
     private static int navigationRaceTicks = -1;
+    private static int rapidPairs;
+    private static int rapidSettleTicks;
+    private static boolean rapidVerificationRequested;
+    private static volatile boolean rapidServerVerified;
+    private static boolean rapidComplete;
+    private static int heldToolbarPhase;
     private static final String[] NAMES = { "dark-network", "dark-drive", "dark-cell", "dark-expanded-cell20",
             "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "compact-light", "compact-dark" };
 
@@ -81,6 +89,13 @@ public final class ClientSmokeTest {
                 return;
             }
             if (phase == 0) {
+                var worldFolder = mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT)
+                        .toAbsolutePath().normalize().getFileName().toString();
+                if (!worldFolder.equals("SmokeTest")) {
+                    phase = 9;
+                    System.err.println("ME_STORAGE_SMOKE_REFUSED: destructive test fixture requires the SmokeTest world; current world=" + worldFolder);
+                    return;
+                }
                 mc.options.guiScale().set(2);
                 mc.getTutorial().setStep(TutorialSteps.NONE);
                 mc.resizeDisplay();
@@ -201,6 +216,25 @@ public final class ClientSmokeTest {
                     Actionable.MODULATE, source);
             if (inserted != 98765) throw new IllegalStateException("Expanded-drive fixture did not accept exact copper amount");
         }
+        // AE2 ejects old cells when setup replaces copied fixture blocks with AIR.
+        // Remove only pre-interaction item entities in this disposable fixture;
+        // the strict post-gesture zero-drop assertion below remains unchanged.
+        var worldFolder = player.serverLevel().getServer().getWorldPath(LevelResource.ROOT)
+                .toAbsolutePath().normalize().getFileName().toString();
+        if (!worldFolder.equals("SmokeTest")) throw new IllegalStateException("Refusing fixture item cleanup outside SmokeTest");
+        var fixtureBounds = new net.minecraft.world.phys.AABB(controllerPos).inflate(8);
+        var oldDrops = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, fixtureBounds);
+        for (var entity : oldDrops) {
+            System.out.println("ME_STORAGE_SMOKE_FIXTURE_OLD_ITEM uuid=" + entity.getUUID()
+                    + " item=" + ForgeRegistries.ITEMS.getKey(entity.getItem().getItem())
+                    + " count=" + entity.getItem().getCount());
+            entity.discard();
+        }
+        var baseline = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, fixtureBounds,
+                entity -> entity.isAlive() && entity.getItem().is(AEItems.ITEM_CELL_64K.asItem()));
+        if (!baseline.isEmpty()) throw new IllegalStateException("Disposable fixture did not reach zero dropped-cell baseline");
+        System.out.println("ME_STORAGE_SMOKE_DROP_BASELINE PASS removedOldFixtureItems=" + oldDrops.size()
+                + "; dropped64k=0 before opening the menu or sending any mouse events");
         NetworkHooks.openScreen(player, controller, controllerPos);
     }
 
@@ -218,8 +252,14 @@ public final class ClientSmokeTest {
             searchTicks = 0;
             awaitingPage = -1;
             searchedPages = 0;
+            rapidPairs = 0;
+            rapidSettleTicks = 0;
+            rapidVerificationRequested = false;
+            rapidServerVerified = false;
+            rapidComplete = false;
+            heldToolbarPhase = 0;
             if (++view == NAMES.length) {
-                finish(mc, "PASS: real client dark/light dashboard and compact captures; exact item/fluid counts; vanilla packet pickup/reinsert/Shift transfers preserved one cell and all contents. ExtendedAE page-two and localized copper search: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+                finish(mc, "PASS: real client theme/compact captures, exact counts, normal/Shift packet transfers, and twelve rapid real left-click GUI events per tested drive preserved one cell and all contents. ExtendedAE page-two and localized copper search: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
                 return;
             }
         }
@@ -262,20 +302,22 @@ public final class ClientSmokeTest {
             }
             if (--navigationRaceTicks > 0) return;
             if (!menu.canSendClick(0, ClickType.PICKUP)) throw new IllegalStateException("A-B-A navigation left remote slots locked");
-            if (menu.canSendClick(0, ClickType.QUICK_CRAFT) || menu.canSendClick(0, ClickType.PICKUP_ALL))
-                throw new IllegalStateException("Unsupported predicted clicks were not gated");
+            if (menu.canSendClick(0, ClickType.QUICK_CRAFT))
+                throw new IllegalStateException("Unsupported drag distribution was not gated");
             navigationRaceTicks = -2;
             System.out.println("ME_STORAGE_SMOKE_NAVIGATION PASS rapid A-B-A locks until latest acknowledgement and then unlocks");
         }
         if (view == 1 && !menu.getSlot(0).getItem().is(AEItems.ITEM_CELL_64K.asItem())) {
             throw new IllegalStateException("Client remote cell slot did not synchronize");
         }
+        if (view == 2 && !verifyRapidMouseClicks(mc, menu, 0, 0, Items.IRON_INGOT, 12345)) return;
         if (view == 2 && s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.IRON_INGOT)) && c.amount() == 12345)) {
             if (transferPhase == 0 || transferPhase >= 5) throw new IllegalStateException("Cell detail lost exact iron count");
         }
         if (view == 2 && !verifyTransfers(mc, menu, 0, Items.IRON_INGOT, 12345)) return;
         if (view == 3) {
             if (s.cellSlots() != 20 || s.editableSlots() != 10) throw new IllegalStateException("Expanded page-two slot counts incorrect");
+            if (!verifyRapidMouseClicks(mc, menu, 9, 19, Items.COPPER_INGOT, 98765)) return;
             if (!verifyTransfers(mc, menu, 9, Items.COPPER_INGOT, 98765)) return;
             if (!verifyLocalizedSearch(menu)) return;
         }
@@ -333,6 +375,129 @@ public final class ClientSmokeTest {
         transferPhase++;
         transferTicks = 30;
         return transferPhase >= 5;
+    }
+
+    /** Exercise the real screen's double-click state, rather than sending handcrafted pickup packets. */
+    private static boolean verifyRapidMouseClicks(Minecraft mc, ControllerMenu menu, int visibleSlot, int actualSlot,
+                                                  net.minecraft.world.item.Item contentItem, long expectedAmount) {
+        if (rapidComplete) return true;
+        if (rapidPairs < 6) {
+            if (!menu.canSendClick(visibleSlot, ClickType.PICKUP))
+                throw new IllegalStateException("Rapid left-click fixture is not editable after selection acknowledgement");
+            var screen = (ControllerScreen) mc.screen;
+            var slot = menu.getSlot(visibleSlot);
+            double mouseX = screen.getGuiLeft() + slot.x + 8;
+            double mouseY = screen.getGuiTop() + slot.y + 8;
+            long started = System.nanoTime();
+            // No Shift, intervening navigation request, or packet-level click bypass.
+            for (int click = 0; click < 2; click++) {
+                boolean pressed = screen.mouseClicked(mouseX, mouseY, 0);
+                boolean released = screen.mouseReleased(mouseX, mouseY, 0);
+                boolean shouldCarry = click == 0;
+                boolean carriesCell = menu.getCarried().is(AEItems.ITEM_CELL_64K.asItem());
+                boolean slotHasCell = menu.getSlot(visibleSlot).getItem().is(AEItems.ITEM_CELL_64K.asItem());
+                int count = clientCellCount(menu);
+                if (carriesCell != shouldCarry || slotHasCell == shouldCarry || count != 1) {
+                    throw new IllegalStateException("Rapid real left click ignored or corrupted state: pair=" + rapidPairs
+                            + " click=" + click + " visibleSlot=" + visibleSlot + " actualSlot=" + actualSlot
+                            + " pressed=" + pressed + " released=" + released + " cursor=" + menu.getCarried()
+                            + " slot=" + menu.getSlot(visibleSlot).getItem() + " total64k=" + count);
+                }
+            }
+            long pairMillis = (System.nanoTime() - started) / 1_000_000;
+            if (pairMillis >= 250) throw new IllegalStateException("Rapid mouse pair exceeded double-click interval: " + pairMillis + "ms");
+            System.out.println("ME_STORAGE_SMOKE_RAPID_PAIR " + (rapidPairs + 1) + "/6 visible=" + visibleSlot
+                    + " actual=" + actualSlot + " durationMs=" + pairMillis + " cursorEmpty=" + menu.getCarried().isEmpty());
+            rapidPairs++;
+            rapidSettleTicks = 30;
+            return false;
+        }
+        if (heldToolbarPhase < 4) {
+            var screen = (ControllerScreen) mc.screen;
+            var slot = menu.getSlot(visibleSlot);
+            double slotX = screen.getGuiLeft() + slot.x + 8;
+            double slotY = screen.getGuiTop() + slot.y + 8;
+            double themeX = screen.getGuiLeft() - 21 + 9;
+            double themeY = screen.getGuiTop() + 47 + 9;
+            if (heldToolbarPhase == 0 || heldToolbarPhase == 3) {
+                screen.mouseClicked(slotX, slotY, 0);
+                screen.mouseReleased(slotX, slotY, 0);
+            } else {
+                boolean wasDark = ClientAppearance.isDark();
+                screen.mouseClicked(themeX, themeY, 0);
+                // Second toolbar gesture deliberately releases outside the entire menu.
+                screen.mouseReleased(heldToolbarPhase == 1 ? themeX : 0,
+                        heldToolbarPhase == 1 ? themeY : 0, 0);
+                if (ClientAppearance.isDark() == wasDark)
+                    throw new IllegalStateException("Held-cell regression did not activate the actual theme button");
+            }
+            boolean shouldCarry = heldToolbarPhase < 3;
+            if (menu.getCarried().is(AEItems.ITEM_CELL_64K.asItem()) != shouldCarry
+                    || menu.getSlot(visibleSlot).hasItem() == shouldCarry || clientCellCount(menu) != 1)
+                throw new IllegalStateException("Held-cell toolbar gesture dropped or changed the cell: phase="
+                        + heldToolbarPhase + " slot=" + visibleSlot + " cursor=" + menu.getCarried()
+                        + " cellCount=" + clientCellCount(menu));
+            heldToolbarPhase++;
+            rapidSettleTicks = 30;
+            if (heldToolbarPhase == 4) System.out.println("ME_STORAGE_SMOKE_HELD_TOOLBAR PASS normal sidebar release and outside drag-release preserve carried cell; reinserted visible=" + visibleSlot);
+            return false;
+        }
+        if (rapidSettleTicks > 0 && --rapidSettleTicks > 0) return false;
+        if (!rapidVerificationRequested) {
+            rapidVerificationRequested = true;
+            var playerId = mc.player.getUUID();
+            mc.getSingleplayerServer().execute(() -> {
+                try {
+                    var player = mc.getSingleplayerServer().getPlayerList().getPlayer(playerId);
+                    if (player == null || !(player.containerMenu instanceof ControllerMenu serverMenu))
+                        throw new IllegalStateException("Rapid-click server menu closed before integrity verification");
+                    var drivePos = actualSlot == 19 ? controllerPos.above() : controllerPos.east();
+                    var drive = (DriveBlockEntity) player.serverLevel().getBlockEntity(drivePos);
+                    if (drive == null || !drive.getInternalInventory().getStackInSlot(actualSlot).is(AEItems.ITEM_CELL_64K.asItem()))
+                        throw new IllegalStateException("Rapid left clicks did not reinsert into actual slot " + actualSlot);
+                    int count = 0;
+                    for (int slot = 0; slot < drive.getInternalInventory().size(); slot++) {
+                        var stack = drive.getInternalInventory().getStackInSlot(slot);
+                        if (stack.is(AEItems.ITEM_CELL_64K.asItem())) count += stack.getCount();
+                    }
+                    for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+                        var stack = player.getInventory().getItem(slot);
+                        if (stack.is(AEItems.ITEM_CELL_64K.asItem())) count += stack.getCount();
+                    }
+                    if (serverMenu.getCarried().is(AEItems.ITEM_CELL_64K.asItem())) count += serverMenu.getCarried().getCount();
+                    if (count != 1 || !serverMenu.getCarried().isEmpty())
+                        throw new IllegalStateException("Rapid-click server cell count/cursor mismatch: count=" + count);
+                    var drops = player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(controllerPos).inflate(8),
+                            entity -> entity.getItem().is(AEItems.ITEM_CELL_64K.asItem()));
+                    if (!drops.isEmpty()) throw new IllegalStateException("Held-cell toolbar gestures spawned dropped storage cells: " + drops.size());
+                    long amount = StorageScanner.contents(drive.getCellInventory(actualSlot)).get(AEItemKey.of(contentItem));
+                    if (amount != expectedAmount) throw new IllegalStateException("Rapid-click server contents changed: " + amount);
+                    rapidServerVerified = true;
+                } catch (Throwable problem) { failure = problem.toString(); }
+            });
+            return false;
+        }
+        if (!rapidServerVerified) return false;
+        if (clientCellCount(menu) != 1 || !menu.getCarried().isEmpty()
+                || !menu.getSlot(visibleSlot).getItem().is(AEItems.ITEM_CELL_64K.asItem()))
+            throw new IllegalStateException("Rapid-click client inventory diverged after server synchronization");
+        if (menu.getSnapshot().contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(contentItem)) && c.amount() == expectedAmount))
+            throw new IllegalStateException("Rapid-click client contents diverged after server synchronization");
+        System.out.println("ME_STORAGE_SMOKE_RAPID_LEFT_CLICK PASS 6 pairs / 12 screen press-release events; visible="
+                + visibleSlot + " actual=" + actualSlot + "; client/server agree one cell and " + expectedAmount
+                + " " + ForgeRegistries.ITEMS.getKey(contentItem));
+        rapidComplete = true;
+        return true;
+    }
+
+    private static int clientCellCount(ControllerMenu menu) {
+        int count = menu.getCarried().is(AEItems.ITEM_CELL_64K.asItem()) ? menu.getCarried().getCount() : 0;
+        for (int slot = 0; slot < 46; slot++) {
+            var stack = menu.getSlot(slot).getItem();
+            if (stack.is(AEItems.ITEM_CELL_64K.asItem())) count += stack.getCount();
+        }
+        return count;
     }
 
     private static boolean verifyLocalizedSearch(ControllerMenu menu) {

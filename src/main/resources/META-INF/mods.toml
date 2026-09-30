@@ -3,7 +3,7 @@ loaderVersion="[47,)"
 license="MIT"
 [[mods]]
 modId="me_storage_controller"
-version="0.2.0"
+version="0.3.0"
 displayName="ME Storage Controller"
 authors="ME Storage Controller contributors"
 description='''A hierarchical AE2 storage dashboard with remote storage-cell management.'''

@@ -28,7 +28,7 @@ public final class ClientAppearance {
     private static boolean load() {
         var values = new Properties();
         try (var reader = Files.newBufferedReader(path(), StandardCharsets.UTF_8)) { values.load(reader); }
-        catch (java.io.IOException | IllegalArgumentException ignored) { return true; }
-        return !"light".equalsIgnoreCase(values.getProperty("theme", "dark"));
+        catch (java.io.IOException | IllegalArgumentException ignored) { return false; }
+        return "dark".equalsIgnoreCase(values.getProperty("theme", "light"));
     }
 }

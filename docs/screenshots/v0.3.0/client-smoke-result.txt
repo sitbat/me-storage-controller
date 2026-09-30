@@ -1,0 +1,1 @@
+PASS: real client theme/compact captures, exact counts, normal/Shift packet transfers, and twelve rapid real left-click GUI events per tested drive preserved one cell and all contents. ExtendedAE page-two and localized copper search: PASS

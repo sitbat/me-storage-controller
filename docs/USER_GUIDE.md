@@ -1,4 +1,4 @@
-# 0.2.0 使用说明 / User guide
+# 0.3.0 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -7,6 +7,10 @@
 3. 右键打开。若显示“网络离线”，检查能源、线缆、频道及网络是否分裂。
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
+
+本版更新了网络协议，升级时请同时替换客户端和服务器上的旧版 JAR。外观参考新版 AE2 终端，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+
+This release updates the network protocol; replace the old JAR on both client and server. The appearance references a newer AE2 terminal, but the game version remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -20,15 +24,15 @@ Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the 
 
 Use JDK 17 and an existing `run/saves/ME-Controller-Demo` world. Run the command above from the project root; add `-PcompatModsDir=C:/path/to/compat-jars` if the ExtendedAE/Glodium JARs are outside the configured default directory. Demo mode opens the controller without running automated tests or exiting automatically. After pressing Esc, right-click the controller at **8, 100, 8** to reopen it. These are launch instructions, not confirmation that an instance has started.
 
-## 仪表盘外观 / Dashboard appearance
+## 终端外观 / Terminal appearance
 
-右上角的“深色／浅色”按钮切换主题。主题偏好保存在当前客户端的 `config/me-storage-controller-client.properties`，不需要服务器设置，也不改变网络中的存储内容。界面根据窗口和 GUI 缩放调整布局；空间较小时会精简辅助标签，关键控件、元件槽位和玩家物品栏继续保留。
+界面采用灰色斜面边框与凹陷槽位，侧边工具栏提供返回、定位、主题和排序按钮；悬停查看用途。默认使用浅色，已有深色偏好仍保留。主题设置保存在当前客户端的 `config/me-storage-controller-client.properties`，不需要服务器设置，也不改变存储内容。窗口和 GUI 缩放会影响可用显示空间。
 
-Use the Dark/Light button at the top right to switch appearance. The preference is saved locally in `config/me-storage-controller-client.properties`; it does not require a server setting or alter stored contents. The layout adjusts to the window and GUI scale, reducing secondary labels when space is limited while retaining controls, cell slots and player inventory.
+The interface uses gray beveled borders and recessed slots. The side toolbar provides Back, Locate, Theme and Sort controls; hover for tooltips. Light is the default, while existing dark preferences are preserved. Appearance is saved locally in `config/me-storage-controller-client.properties`, independent of server settings and stored contents. Window size and GUI scale affect available display space.
 
-主容量条与元件下方的小容量条显示可获取的占用信息：低于 80% 使用青绿色，80% 至 95% 使用琥珀色，95% 起使用红色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
+主容量条与元件下方的小容量条显示可获取的占用信息：低于 80% 使用蓝灰色，80% 至 95% 使用琥珀色，95% 起使用红色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
 
-The main capacity bar and small cell bars show available occupancy information: teal below 80%, amber from 80% to below 95%, and red from 95%. Unknown capacity does not receive an invented percentage. Read the text and tooltips for exact values.
+The main capacity bar and small cell bars show available occupancy information: blue-gray below 80%, amber from 80% to below 95%, and red from 95%. Unknown capacity does not receive an invented percentage. Read the text and tooltips for exact values.
 
 ## 逐级浏览 / Drill down
 
