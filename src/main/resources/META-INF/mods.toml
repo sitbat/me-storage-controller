@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="me_storage_controller"
+version="0.1.0"
+displayName="ME Storage Controller"
+authors="ME Storage Controller contributors"
+description='''A hierarchical AE2 storage dashboard with remote storage-cell management.'''
+[[dependencies.me_storage_controller]]
+modId="forge"
+mandatory=true
+versionRange="[47.4.0,)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.me_storage_controller]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="BOTH"
+[[dependencies.me_storage_controller]]
+modId="ae2"
+mandatory=true
+versionRange="[15.4.10,16.0.0)"
+ordering="AFTER"
+side="BOTH"

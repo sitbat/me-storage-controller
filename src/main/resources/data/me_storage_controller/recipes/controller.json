@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "redstone",
+  "pattern": ["QEQ", "TCT", "PEP"],
+  "key": {
+    "Q": {"item": "ae2:quartz_glass"},
+    "E": {"item": "ae2:engineering_processor"},
+    "T": {"item": "ae2:terminal"},
+    "C": {"item": "ae2:controller"},
+    "P": {"item": "ae2:fluix_pearl"}
+  },
+  "result": {"item": "me_storage_controller:controller", "count": 1}
+}

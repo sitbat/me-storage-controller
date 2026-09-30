@@ -1,0 +1,52 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '6.0.54'
+}
+version = '0.1.0'
+group = 'dev.mestorage'
+base { archivesName = 'me-storage-controller-forge-1.20.1' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.withSourcesJar()
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            // Remap AE2/GuideME dependency mixins in the named development environment.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            mods { me_storage_controller { source sourceSets.main } }
+        }
+        client {
+            if (project.hasProperty('smokeTest')) {
+                property 'mestorage.clientSmokeTest', 'true'
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke').absolutePath
+                args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
+            }
+        }
+        server { args '--nogui' }
+        gameTestServer { property 'forge.enabledGameTestNamespaces', 'me_storage_controller' }
+    }
+}
+repositories {
+    maven { url 'https://modmaven.dev' }
+    maven { url 'https://maven.guideme.appliedenergistics.org' }
+    mavenCentral()
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.0'
+    implementation fg.deobf('appeng:appliedenergistics2-forge:15.4.10')
+    runtimeOnly fg.deobf('org.appliedenergistics:guideme:20.1.7')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('test') { useJUnitPlatform() }
+tasks.named('jar') {
+    exclude 'dev/mestorage/controller/test/**'
+    exclude 'dev/mestorage/controller/client/ClientSmokeTest*'
+    exclude 'data/me_storage_controller/structures/empty.nbt'
+    manifest { attributes 'Implementation-Version': project.version }
+    finalizedBy 'reobfJar'
+}

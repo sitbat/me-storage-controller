@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": {"model": "me_storage_controller:block/controller"},
+    "facing=east": {"model": "me_storage_controller:block/controller", "y": 90},
+    "facing=south": {"model": "me_storage_controller:block/controller", "y": 180},
+    "facing=west": {"model": "me_storage_controller:block/controller", "y": 270}
+  }
+}
