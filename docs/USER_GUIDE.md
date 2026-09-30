@@ -1,4 +1,4 @@
-# 0.4.7 使用说明 / User guide
+# 0.4.8 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,19 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版统一 AE 材质细节并修复定位高亮，保留滚轮响应和游戏原生界面比例，继续支持已注册流体／化学品容器存取与简洁提示框。网络协议仍为 6，可与 0.4.2 至 0.4.6 协议连接；建议客户端和服务器统一升级至 0.4.7，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版调整侧栏排版并新增原生游戏内指南，保留滚轮响应和游戏原生界面比例，继续支持已注册流体／化学品容器存取与简洁提示框。网络协议仍为 6，可与 0.4.2 至 0.4.7 协议连接；建议客户端和服务器统一升级至 0.4.8，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release refines AE texture details and fixes locator highlighting while retaining responsive scrolling, native GUI scale, registered fluid/chemical container interactions and concise tooltips. Protocol 6 allows connections with 0.4.2 through 0.4.6; using matching 0.4.7 versions is recommended. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+This release refines the sidebar layout and adds the native in-game guide while retaining responsive scrolling, native GUI scale, registered fluid/chemical container interactions and concise tooltips. Protocol 6 allows connections with 0.4.2 through 0.4.7; using matching 0.4.8 versions is recommended. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+
+## 游戏内指南 / In-game guide
+
+将鼠标悬停在ME存储控制器物品上，长按 AE2／GuideME 的指南快捷键（默认 **G**），即可打开对应页面。控制器侧栏顶部的 **?** 按钮也会打开同一页。关闭指南后返回原界面。若改过指南按键，使用游戏按键设置中的实际绑定。
+
+Hover the ME Storage Controller item and hold the existing AE2/GuideME guide key (**G** by default). The top **?** sidebar button opens the same page; closing the guide returns to the previous screen. Use your configured guide binding if you changed it.
+
+指南提供简体中文和英文内容，介绍连接、存储范围、容量与实际数量、物品和容器存取、元件管理、搜索滚动、外观和定位。
+
+The guide is available in Simplified Chinese and English, covering connections, scopes, capacity and amounts, item/container transfers, whole-cell management, browsing, appearance and locating devices.
 
 ## 本地演示启动 / Local demo
 
@@ -126,9 +136,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.7 保持协议 **6**，可与 0.4.2 至 0.4.6 协议连接，但完整行为要求两端升级到 0.4.7。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.7 保持协议 **6**，可与 0.4.2 至 0.4.7 协议连接，但完整行为要求两端升级到 0.4.7。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2 through 0.4.6, but both sides should upgrade to 0.4.7 for complete behavior.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2 through 0.4.7, but both sides should upgrade to 0.4.7 for complete behavior.
 
 ## 管理整个元件 / Move complete cells
 

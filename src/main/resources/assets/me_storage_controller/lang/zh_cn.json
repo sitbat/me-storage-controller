@@ -3,6 +3,7 @@
   "itemGroup.me_storage_controller": "ME存储控制器",
   "gui.me_storage_controller.network": "全网概况",
   "gui.me_storage_controller.back": "返回",
+  "gui.me_storage_controller.guide": "使用指南",
   "gui.me_storage_controller.locate": "定位",
   "gui.me_storage_controller.kind.drive": "ME驱动器",
   "gui.me_storage_controller.kind.chest": "ME箱子",

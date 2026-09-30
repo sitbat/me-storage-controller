@@ -3,6 +3,7 @@
   "itemGroup.me_storage_controller": "ME Storage Controller",
   "gui.me_storage_controller.network": "Network overview",
   "gui.me_storage_controller.back": "Back",
+  "gui.me_storage_controller.guide": "Guide",
   "gui.me_storage_controller.locate": "Find",
   "gui.me_storage_controller.kind.drive": "ME Drive",
   "gui.me_storage_controller.kind.chest": "ME Chest",

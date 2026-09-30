@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.4.7'
+version = '0.4.8'
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -25,7 +25,7 @@ minecraft {
             }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v047').absolutePath
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v048').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }
@@ -44,7 +44,7 @@ repositories {
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.0'
     implementation fg.deobf('appeng:appliedenergistics2-forge:15.4.10')
-    runtimeOnly fg.deobf('org.appliedenergistics:guideme:20.1.7')
+    implementation fg.deobf('org.appliedenergistics:guideme:20.1.7')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     if (project.hasProperty('eaeTest')) {

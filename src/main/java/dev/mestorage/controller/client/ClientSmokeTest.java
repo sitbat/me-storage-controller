@@ -131,6 +131,12 @@ public final class ClientSmokeTest {
     private static int bucketInventorySlot;
     private static boolean bucketServerRequested;
     private static volatile boolean bucketServerDone;
+    private static boolean guideVerified;
+    private static int guideStep,guideWait,guideTooltipTries,guideDiamondSlot;
+    private static ControllerScreen guideReturnScreen;
+    private static ControllerMenu guideReturnMenu;
+    private static String guideScopeDevice;
+    private static int guideScopeCell;
     private record PendingExtraCapture(String name, int readyTick, Runnable afterCapture) {}
     private static final String[] NAMES = { "dark-network", "dark-drive", "dark-cell", "dark-expanded-cell20",
             "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "scale2-grid-light", "scale2-grid-dark",
@@ -160,6 +166,7 @@ public final class ClientSmokeTest {
                 verifyAutoRestore(mc);
                 return;
             }
+            if(phase==5){verifyInGameGuide(mc);return;}
             if (phase == 0) {
                 var worldFolder = mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT)
                         .toAbsolutePath().normalize().getFileName().toString();
@@ -363,6 +370,11 @@ public final class ClientSmokeTest {
         if (drainExtraCapture(mc)) return;
         Snapshot s = menu.getSnapshot();
         if (!treeVerified && !verifyStorageTree(mc, menu)) return;
+        if(!guideVerified) {
+            guideReturnScreen=(ControllerScreen)mc.screen;guideReturnMenu=menu;
+            guideScopeDevice=menu.getSnapshot().selectedDevice();guideScopeCell=menu.getSnapshot().selectedCell();
+            phase=5;return;
+        }
         if(view==0 && !verifyNavigationSync(menu))return;
         if(view==0 && !verifyContentGrid(mc,menu)) return;
         if(view==0 && !verifyContentWheel(mc,menu)) return;
@@ -1050,6 +1062,94 @@ public final class ClientSmokeTest {
             throw new IllegalStateException("Capture cursor did not reach the safe window position");
     }
 
+    /** Native GuideME indexing/tooltip plus actual guide-button navigation while carrying a real stack. */
+    private static void verifyInGameGuide(Minecraft mc) {
+        clearCaptureHover(mc);if(drainExtraCapture(mc))return;
+        if(guideWait>0&&--guideWait>0)return;
+        if(mc.player.containerMenu!=guideReturnMenu)throw new IllegalStateException("Opening the guide replaced the live controller menu");
+        var menu=guideReturnMenu;
+        switch(guideStep) {
+            case 0 -> {
+                var guide=guideme.Guides.getById(ControllerGuide.GUIDE_ID);
+                if(guide==null)throw new IllegalStateException("AE2 guide is not registered");
+                var anchor=guide.getIndex(guideme.indices.ItemIndex.class).get(ForgeRegistries.ITEMS.getKey(MEStorageController.CONTROLLER_ITEM.get()));
+                if(anchor==null||!anchor.pageId().equals(ControllerGuide.PAGE_ID))throw new IllegalStateException("GuideME item index does not resolve the controller article");
+                var parsed=guide.getParsedPage(ControllerGuide.PAGE_ID);var page=guide.getPage(ControllerGuide.PAGE_ID);
+                if(parsed==null||!"zh_cn".equals(parsed.getLanguage())||page==null||page.document()==null||page.document().getChildren().isEmpty())
+                    throw new IllegalStateException("Simplified Chinese guide page did not parse and compile: language="+(parsed==null?"missing":parsed.getLanguage()));
+                String body=page.document().getTextContent();
+                if(!body.contains("ME存储控制器")||!body.contains("1000")||!body.contains("256"))
+                    throw new IllegalStateException("Compiled controller guide is missing its title or later instructions");
+                String expected=guideme.internal.GuidebookText.HoldToShow.text(guideme.internal.hotkey.OpenGuideHotkey.getHotkey().getTranslatedKeyMessage()).getString();
+                var tooltip=new ItemStack(MEStorageController.CONTROLLER_ITEM.get()).getTooltipLines(mc.player,net.minecraft.world.item.TooltipFlag.Default.NORMAL);
+                if(tooltip.stream().map(net.minecraft.network.chat.Component::getString).noneMatch(line->line.contains(expected))) {
+                    if(++guideTooltipTries<20)return;
+                    throw new IllegalStateException("Native GuideME hold-key tooltip missing: expected="+expected+" actual="+tooltip);
+                }
+                System.out.println("ME_STORAGE_SMOKE_GUIDE_INDEX PASS native item index, parsed zh_cn and compiled document; native tooltip="+expected+" (physical G key not injected)");
+                verifySidebarBounds(guideReturnScreen);
+                guideDiamondSlot=findPlayerItemSlot(menu,Items.DIAMOND);
+                if(menu.getSlot(guideDiamondSlot).getItem().getCount()!=32||!menu.getCarried().isEmpty())throw new IllegalStateException("Guide round trip requires original 32-diamond fixture");
+                clickUi(guideReturnScreen,guideReturnScreen.smokeSlotRect(guideDiamondSlot));
+            }
+            case 1 -> {
+                if(!menu.getCarried().is(Items.DIAMOND)||menu.getCarried().getCount()!=32||menu.getSlot(guideDiamondSlot).hasItem())
+                    throw new IllegalStateException("Guide test did not pick up the real 32-diamond stack");
+                clickUi(guideReturnScreen,guideReturnScreen.smokeGuideRect());
+            }
+            case 2 -> {
+                requireGuideScreen(mc);captureExtra(mc,"smoke-guide-zh_cn.png");
+            }
+            case 3 -> {
+                var screen=requireGuideScreen(mc);
+                if(!screen.mouseScrolled(mc.getWindow().getGuiScaledWidth()*.65,mc.getWindow().getGuiScaledHeight()*.5,-12))
+                    throw new IllegalStateException("Guide article did not accept actual wheel input");
+            }
+            case 4 -> {
+                requireGuideScreen(mc);
+                captureExtra(mc,"smoke-guide-zh_cn-scrolled.png",()->{
+                    var screen=requireGuideScreen(mc);
+                    if(!screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE,0,0))throw new IllegalStateException("Guide did not accept Escape");
+                });
+            }
+            case 5 -> {
+                if(mc.screen!=guideReturnScreen)throw new IllegalStateException("Escape did not restore the original controller screen");
+                assertTreeSelection(menu.getSnapshot(),guideScopeDevice,guideScopeCell);
+                if(!menu.getCarried().is(Items.DIAMOND)||menu.getCarried().getCount()!=32)throw new IllegalStateException("Guide return changed the carried diamond stack");
+                clickUi(guideReturnScreen,guideReturnScreen.smokeSlotRect(guideDiamondSlot));
+            }
+            case 6 -> {
+                var stack=menu.getSlot(guideDiamondSlot).getItem();
+                if(!menu.getCarried().isEmpty()||!stack.is(Items.DIAMOND)||stack.getCount()!=32||playerAmount(mc.player,Items.DIAMOND)!=32)
+                    throw new IllegalStateException("Guide round trip did not restore exactly 32 diamonds to the original inventory slot");
+                assertTreeSelection(menu.getSnapshot(),guideScopeDevice,guideScopeCell);
+                System.out.println("ME_STORAGE_SMOKE_GUIDE_RETURN PASS actual guide-button/Escape round trip preserves original screen, menu, scope and 32 carried diamonds; two real article screenshots");
+                guideVerified=true;phase=2;return;
+            }
+        }
+        guideStep++;guideWait=20;
+    }
+
+    private static guideme.internal.screen.GuideScreen requireGuideScreen(Minecraft mc) {
+        if(!(mc.screen instanceof guideme.internal.screen.GuideScreen screen)
+                ||!ControllerGuide.PAGE_ID.equals(screen.getCurrentPageId())||screen.getReturnToOnClose()!=guideReturnScreen)
+            throw new IllegalStateException("Guide button opened the wrong page or lost its return screen");
+        if(mc.player.containerMenu!=guideReturnMenu||!guideReturnMenu.getCarried().is(Items.DIAMOND)||guideReturnMenu.getCarried().getCount()!=32)
+            throw new IllegalStateException("Guide screen changed the active menu or carried stack");
+        return screen;
+    }
+
+    private static void verifySidebarBounds(ControllerScreen screen) {
+        var controls=screen.smokeSidebarRects();var panel=screen.smokePanelRect();
+        if(controls.size()!=7)throw new IllegalStateException("Controller sidebar must contain seven controls");
+        for(int i=0;i<controls.size();i++) {
+            var rect=controls.get(i);
+            if(rect.width()!=16||rect.height()!=16||rect.x()!=panel.x()+3||rect.y()!=panel.y()+8+20*i
+                    ||rect.x()<panel.x()||rect.y()<panel.y()||rect.x()+16>panel.x()+panel.width()||rect.y()+16>panel.y()+panel.height())
+                throw new IllegalStateException("Sidebar control spacing or panel bounds incorrect at "+i+": "+rect);
+        }
+    }
+
     private static void verifyAutoRestore(Minecraft mc) {
         clearCaptureHover(mc);
         if(drainExtraCapture(mc))return;
@@ -1195,6 +1295,7 @@ public final class ClientSmokeTest {
     private static void verifyVisibleBounds(Minecraft mc, ControllerScreen screen, ControllerMenu menu, boolean inventory) {
         int width = mc.getWindow().getGuiScaledWidth(), height = mc.getWindow().getGuiScaledHeight();
         var panel = screen.smokePanelRect();
+        verifySidebarBounds(screen);
         checkBounds("panel", panel, width, height);
         if(screen.smokeTreeViewport()!=null)checkBounds("tree viewport", screen.smokeTreeViewport(), width, height);
         for (var child : screen.children()) {

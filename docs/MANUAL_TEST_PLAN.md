@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-0.4.7 验收状态另见 [当前测试记录](RELEASE_0.4.7.md)；这里保留完整的后续人工验收清单。
+0.4.8 验收状态另见 [当前测试记录](RELEASE_0.4.8.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -84,6 +84,10 @@ Repeat fill/empty operations on resource and empty tiles in network, device and 
 Compare standard item/fluid-cell capacity with AE2 tooltips. Test storage-bus filters and access modes, duplicate paths to a container, a subnet exposed through an interface, and third-party high-capacity/unknown/creative/void cells. Verify no recursive device enumeration, no forced chunk loading and no numeric overflow. Record each addon and custom storage type separately.
 
 ## 客户端与定位 / Client and highlighting
+
+- 核对侧栏七个按钮顺序、16×16尺寸和4像素间隔，图标不得被挤压；浅深主题下目录背景与边线清晰，窄屏按钮不越界。
+- 悬停控制器物品并长按当前指南键（默认G），确认进入对应简中／英文页面；再改绑指南键检查使用新绑定。点击侧栏?应打开同一页。
+- 手持物品点击?、浏览后按Esc返回，核对原菜单、范围和持物；下一次槽位点击仍正常，物品不能掉落或复制。
 
 - 分别使用简体中文和英文、GUI 缩放 1–4、常见窗口尺寸。检查长设备名、物品名、维度名和大数量不遮挡关键控件。
 - 点击同维度 256 格内已加载设备的定位，关闭界面查看高亮；确认约 15 秒后消失。

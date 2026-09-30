@@ -31,7 +31,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
     private final StorageTree tree=new StorageTree(this::select);
     private EditBox contentSearch,treeSearch;
-    private Button theme,root,back,sort,collapse,locate,contentPrevious,contentNext,cellsPrevious,cellsNext;
+    private Button guide,theme,root,back,sort,collapse,locate,contentPrevious,contentNext,cellsPrevious,cellsNext;
     private boolean collapsed,treeOnly,narrow,treeVisible,mainVisible,sortByAmount=true,treeSearchOpen;
     private int mainX=142,visibleRows=5,gridRowOffset,cellY,inventoryY,hotbarY,treeHeight,controlPressButton=-1;
     private int targetPage;
@@ -61,6 +61,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     @Override protected void init(){
         // Screen dimensions already reflect the user's GUI scale. Never change Window or Options.
+        controlPressButton=-1;scrollbarDragging=false;scrollbarGrabOffset=0;setDragging(false);
         terminalTexture=packTexture("terminal");iconTexture=packTexture("states");fieldTexture=packTexture("text_field");
         narrow=width<352;
         treeVisible=narrow?treeOnly:!collapsed;mainVisible=!narrow||!treeOnly;mainX=treeVisible&&!narrow?142:18;
@@ -69,13 +70,14 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         boolean contentFocused=contentSearch!=null&&contentSearch.isFocused(),treeFocused=treeSearch!=null&&treeSearch.isFocused();
         int contentCursor=contentSearch==null?0:contentSearch.getCursorPosition(),treeCursor=treeSearch==null?0:treeSearch.getCursorPosition();
         String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();
-        sort=icon(0,24,18,20,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
+        guide=sidebar(8,176,0,tr("guide"),b->ControllerGuide.open());
+        sort=sidebar(48,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         ((IconButton)sort).sx=sortByAmount?16:0;
-        root=icon(0,46,18,20,160,16,tr("network_root"),b->select("",-1));
-        back=icon(0,68,18,20,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
-        collapse=icon(0,90,18,20,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
-        theme=icon(0,112,18,20,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
-        icon(0,134,18,20,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
+        root=sidebar(68,160,16,tr("network_root"),b->select("",-1));
+        back=sidebar(88,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
+        collapse=sidebar(128,16,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
+        theme=sidebar(108,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
+        sidebar(28,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
         locate=icon(117,imageHeight-85,16,16,64,240,tr("locate"),b->{var d=menu.getSnapshot().selectedInfo();if(d!=null)DeviceHighlight.show(d.dimension(),d.pos());});
         cellsPrevious=icon(108,imageHeight-69,12,12,48,48,tr("cells_previous"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),Math.max(0,offset(s)-10));});
         cellsNext=icon(123,imageHeight-69,12,12,32,48,tr("cells_next"),b->{var s=menu.getSnapshot();select(s.selectedDevice(),offset(s)+10);});
@@ -91,6 +93,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         if(contentFocused&&contentSearch.visible){setFocused(contentSearch);contentSearch.setFocused(true);}else if(treeFocused&&treeSearch.visible){setFocused(treeSearch);treeSearch.setFocused(true);}
     }
     private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){return addRenderableWidget(new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action));}
+    private Button sidebar(int y,int sx,int sy,Component tooltip,Button.OnPress action){var b=new IconButton(leftPos+3,topPos+y,16,16,sx,sy,tooltip,action);b.sidebar=true;return addRenderableWidget(b);}
     private ResourceLocation packTexture(String name){
         var resource=new ResourceLocation("ae2","textures/guis/"+name+".png");
         // File packs can override the verified 1.20 atlas regions. AE2's older bundled art must
@@ -117,8 +120,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void nativeTint(GuiGraphics g){nativeTint(g,1);}
     private void nativeTint(GuiGraphics g,float alpha){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,alpha);}
     private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xfff2f2f2,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
+    private void treeFrame(GuiGraphics g){int x=leftPos+18,y=topPos+6,w=124,h=imageHeight-16;g.fill(x+2,y+2,x+w+2,y+h+2,0x65000000);frame(g,x,y,w,h);g.fill(x+1,y+h-2,x+w-1,y+h-1,p.inset());g.fill(x+w-2,y+1,x+w-1,y+h-1,p.inset());g.fill(leftPos+21,topPos+25,leftPos+139,topPos+27+treeHeight,p.inset());g.fill(leftPos+22,topPos+26,leftPos+138,topPos+26+treeHeight,p.treeBackground());}
     @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
-        if(treeVisible){frame(g,leftPos+18,topPos+6,124,imageHeight-16);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
+        g.fill(leftPos+1,topPos+6,leftPos+18,topPos+146,0x38000000);
+        if(treeVisible){treeFrame(g);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
         if(mainVisible){int x=leftPos+mainX,y=topPos;nativeTint(g);g.blit(terminalTexture,x,y+6,0,0,195,17);for(int r=0;r<visibleRows;r++)g.blit(terminalTexture,x,y+23+r*18,0,r==0?17:r==visibleRows-1?53:35,195,18);g.setColor(1,1,1,1);
             int capY=23+visibleRows*18;frame(g,x,y+capY,195,18);nativeTint(g);g.blit(terminalTexture,x,y+capY+18,0,71,195,99);g.setColor(1,1,1,1);
             clipped(g,tr("terminal_title"),x+8,y+12,69,p.text());field(g,contentSearch,x+80,y+10,89,"search_short");renderGrid(g,s,mx,my);renderCapacity(g,s,x+8,y+capY+3);clipped(g,tr("inventory_short"),x+8,y+inventoryY-9,162,p.text());
@@ -240,6 +245,8 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     public void setDarkThemeForTest(boolean dark){if(ClientAppearance.isDark()!=dark)ClientAppearance.setDark(dark);}
     private UiRect rect(AbstractWidget w){return w==null||!w.visible?null:new UiRect(w.getX(),w.getY(),w.getWidth(),w.getHeight());}
     UiRect smokeThemeRect(){return rect(theme);}UiRect smokeRootRect(){return rect(root);}UiRect smokeBackRect(){return rect(back);}UiRect smokeSortRect(){return rect(sort);}UiRect smokeCollapseRect(){return rect(collapse);}UiRect smokeContentPreviousRect(){return rect(contentPrevious);}UiRect smokeContentNextRect(){return rect(contentNext);}
+    UiRect smokeGuideRect(){return rect(guide);}
+    List<UiRect> smokeSidebarRects(){return children().stream().filter(c->c instanceof IconButton b&&b.sidebar&&b.visible).map(c->rect((AbstractWidget)c)).sorted(Comparator.comparingInt(UiRect::y)).toList();}
     UiRect smokePanelRect(){return new UiRect(leftPos,topPos,imageWidth,imageHeight);}UiRect smokeSlotRect(int i){if(i<0||i>=menu.slots.size()||!menu.getSlot(i).isActive())return null;var s=menu.getSlot(i);return new UiRect(leftPos+s.x,topPos+s.y,16,16);}
     UiRect smokeContentRect(int i){int row=i/9-gridRowOffset;if(!mainVisible||i<0||i>=45||row<0||row>=visibleRows)return null;return new UiRect(leftPos+mainX+8+i%9*18,topPos+24+row*18,16,16);}
     UiRect smokeContentScrollRect(){return mainVisible?new UiRect(leftPos+mainX+7,topPos+23,180,visibleRows*18):null;}
@@ -261,12 +268,19 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     UiRect smokeTreeViewport(){return treeVisible?new UiRect(leftPos+22,topPos+26,116,treeHeight):null;}UiRect smokeDeviceRect(String id,boolean chevron){return treeVisible?tree.rect("dev:"+id,chevron):null;}UiRect smokeCellRect(String id,int cell){return treeVisible?tree.rect("cell:"+id+":"+cell,false):null;}
     void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
     UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}
-    private final class IconButton extends Button {int sx,sy;float over;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
+    private final class IconButton extends Button {int sx,sy;float over;boolean sidebar;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
         @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){
-            over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);
+            over=animate(over,isHoveredOrFocused()&&active?1:0,20);
+            if(sidebar){renderSidebar(g);return;}nativeTint(g);
             g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);
             if(over>.01F){com.mojang.blaze3d.systems.RenderSystem.enableBlend();nativeTint(g,over);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),isHovered()?212:194,128,18,20,256,256);}
             int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));int iconY=getHeight()==20&&getWidth()==18?1:(getHeight()-size)/2;
             g.setColor(1,1,1,active?1:.4F);g.blit(iconTexture,getX()+(getWidth()-size)/2,getY()+iconY,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);
+        }
+        private void renderSidebar(GuiGraphics g){int x=getX(),y=getY();g.fill(x-1,y+1,x+16,y+18,0x60000000);
+            if(!iconTexture.equals(STATES)){nativeTint(g);g.blit(iconTexture,x,y,240,240,16,16);g.setColor(1,1,1,1);}
+            else {g.fill(x,y,x+16,y+16,p.border());g.fill(x+1,y+1,x+15,y+15,DashboardPalette.mix(0xffadb0c4,0xff626778,themeMix));g.fill(x+2,y+2,x+14,y+14,p.inset());}
+            if(over>.01F){int color=DashboardPalette.mix(p.inset(),DashboardPalette.mix(0xff9cd3ff,0xff596f8a,themeMix),over);g.fill(x+2,y+2,x+14,y+14,color);}
+            g.setColor(1,1,1,active?1:.4F);g.blit(iconTexture,x,y,sx,sy,16,16);g.setColor(1,1,1,1);
         }}
 }
