@@ -166,7 +166,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private int remoteIndex(double mx,double my){if(!treeVisible)return -1;double x=mx-leftPos-25,y=my-topPos-cellY+1;if(x<0||x>=90||y<0||y>=36)return -1;return (int)y/18*5+(int)x/18;}
     @Override public boolean mouseClicked(double mx,double my,int button){if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
             var contents=menu.getSnapshot().contents();AEKey key=i<contents.size()?contents.get(i).key():null;if(key!=null)focusedKey=key;
-            if((button==0||button==1)&&(!menu.getCarried().isEmpty()||key instanceof AEItemKey))menu.requestContent(i,button,smokeShiftOverride!=null?smokeShiftOverride:hasShiftDown());
+            if((button==0||button==1)&&(!menu.getCarried().isEmpty()||key!=null))menu.requestContent(i,button,smokeShiftOverride!=null?smokeShiftOverride:hasShiftDown());
             controlPressButton=button;return true;}
         int remote=remoteIndex(mx,my);var snapshot=menu.getSnapshot();if(remote>=snapshot.editableSlots()&&remote>=0&&offset(snapshot)+remote<snapshot.cellSlots()){if(button==0)select(snapshot.selectedDevice(),offset(snapshot)+remote);controlPressButton=button;return true;}
         boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&hit(mx,my,w.getX(),w.getY(),w.getWidth(),w.getHeight()));boolean handled=super.mouseClicked(mx,my,button);if(widget){controlPressButton=button;return true;}return handled;}

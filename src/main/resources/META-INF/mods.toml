@@ -3,7 +3,7 @@ loaderVersion="[47,)"
 license="MIT (code); CC BY-NC-SA 3.0 (AE2-derived visual assets)"
 [[mods]]
 modId="me_storage_controller"
-version="0.4.3"
+version="0.4.4"
 displayName="ME Storage Controller"
 authors="ME Storage Controller contributors"
 description='''An AE2 storage terminal with hierarchical browsing and remote storage-cell management.'''

@@ -15,6 +15,7 @@ import dev.mestorage.controller.network.Network;
 import dev.mestorage.controller.network.Snapshot;
 import dev.mestorage.controller.storage.StorageScanner;
 import dev.mestorage.controller.storage.ContentAccess;
+import dev.mestorage.controller.storage.ContainerTransfers;
 import dev.mestorage.controller.storage.StorageScanner.Device;
 import java.util.*;
 import net.minecraft.core.BlockPos;
@@ -143,6 +144,15 @@ public final class ControllerMenu extends AbstractContainerMenu {
             var storage=contentStorage(grid);
             if(storage==null) return;
             var source=IActionSource.ofPlayer(player,()->controller.getMainNode().getNode());
+            // A client key is only a reference to a displayed entry, never an arbitrary extraction request.
+            boolean visibleKey=action.key()!=null && snapshot.contents().stream().anyMatch(entry->entry.key().equals(action.key()));
+            if(action.key()!=null && !(action.key() instanceof AEItemKey) && !visibleKey) return;
+            var containerResult=ContainerTransfers.handle(this,player,storage,grid.getEnergyService(),source,
+                    visibleKey ? action.key() : null,action.button(),action.shift());
+            if(containerResult!=ContainerTransfers.Result.UNHANDLED) {
+                if(containerResult==ContainerTransfers.Result.CHANGED) scheduleMutationRefresh();
+                return;
+            }
             var carried=getCarried();
             if(!carried.isEmpty()) {
                 var key=AEItemKey.of(carried);

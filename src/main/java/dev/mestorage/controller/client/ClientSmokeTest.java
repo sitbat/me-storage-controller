@@ -119,6 +119,11 @@ public final class ClientSmokeTest {
     private static int expandedContentWait;
     private static boolean expandedContentCheckRequested;
     private static volatile boolean expandedContentCheckDone;
+    private static int bucketStep;
+    private static int bucketWait;
+    private static int bucketInventorySlot;
+    private static boolean bucketServerRequested;
+    private static volatile boolean bucketServerDone;
     private record PendingExtraCapture(String name, int readyTick, Runnable afterCapture) {}
     private static final String[] NAMES = { "dark-network", "dark-drive", "dark-cell", "dark-expanded-cell20",
             "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "scale2-grid-light", "scale2-grid-dark",
@@ -318,11 +323,13 @@ public final class ClientSmokeTest {
         player.containerMenu.setCarried(ItemStack.EMPTY);
         player.getInventory().add(AEItems.ITEM_CELL_1K.stack());
         player.getInventory().add(new ItemStack(Items.DIAMOND,32));
+        player.getInventory().add(new ItemStack(Items.BUCKET));
         if(playerAmount(player,AEItems.ITEM_CELL_64K.asItem())!=0
                 ||playerAmount(player,AEItems.ITEM_CELL_1K.asItem())!=1||playerAmount(player,Items.DIAMOND)!=32
+                ||playerAmount(player,Items.BUCKET)!=1
                 ||!player.containerMenu.getCarried().isEmpty())
             throw new IllegalStateException("Pre-open disposable player inventory baseline is invalid");
-        System.out.println("ME_STORAGE_SMOKE_PLAYER_BASELINE PASS extra64k=0, cell1k=1, diamonds=32, cursor empty before any interaction");
+        System.out.println("ME_STORAGE_SMOKE_PLAYER_BASELINE PASS extra64k=0, cell1k=1, diamonds=32, bucket=1, cursor empty before any interaction");
         System.out.println("ME_STORAGE_SMOKE_DROP_BASELINE PASS removedOldFixtureItems=" + oldDrops.size()
                 + "; dropped64k=0 before opening the menu or sending any mouse events");
         NetworkHooks.openScreen(player, controller, controllerPos);
@@ -486,8 +493,9 @@ public final class ClientSmokeTest {
         if (expandedView && transferPhase == 0 && s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.COPPER_INGOT)) && c.amount() == 98765))
             throw new IllegalStateException("Expanded slot20 lost exact copper count");
         if (view == 4 && s.contents().stream().noneMatch(c -> c.key().equals(AEFluidKey.of(Fluids.WATER)) && c.amount() == 23456)) {
-            throw new IllegalStateException("Cell detail lost exact water amount");
+            if(bucketStep==0||bucketStep>=8)throw new IllegalStateException("Cell detail lost exact water amount");
         }
+        if(view==4&&!verifyBucketClient(mc,menu))return;
         if(view==4&&!fluidTooltipCaptured) {
             hoverCaptureRect=((ControllerScreen)mc.screen).smokeSlotRect(0);
             if(hoverCaptureRect==null)throw new IllegalStateException("Fluid tooltip fixture slot is not visible");
@@ -697,6 +705,82 @@ public final class ClientSmokeTest {
             System.out.println("ME_STORAGE_SMOKE_EAE_CONTENT PASS actual19 copper98765 -> cursor64 -> actual19 copper98765 via real content-grid clicks");
         }
         expandedContentStep++;expandedContentWait=25;return expandedContentStep>=3;
+    }
+
+    /** Use the actual carried vanilla bucket capability through real content-grid clicks. */
+    private static boolean verifyBucketClient(Minecraft mc,ControllerMenu menu) {
+        if(bucketStep>=8)return true;
+        if(bucketWait>0&&--bucketWait>0)return false;
+        var screen=(ControllerScreen)mc.screen;var snapshot=menu.getSnapshot();
+        int waterIndex=-1;
+        for(int i=0;i<snapshot.contents().size();i++)if(snapshot.contents().get(i).key().equals(AEFluidKey.of(Fluids.WATER)))waterIndex=i;
+        if(waterIndex<0)throw new IllegalStateException("Water bucket smoke requires visible water in selected fluid cell");
+        switch(bucketStep) {
+            case 0 -> {
+                assertBucketState(menu,23456,null,1,0);
+                bucketInventorySlot=findPlayerItemSlot(menu,Items.BUCKET);
+                clickUi(screen,screen.smokeSlotRect(bucketInventorySlot));
+            }
+            case 1 -> {
+                assertBucketState(menu,23456,Items.BUCKET,0,0);
+                contentClick(screen,waterIndex,0);
+            }
+            case 2 -> {
+                assertBucketState(menu,22456,Items.WATER_BUCKET,0,0);
+                captureExtra(mc,"smoke-water-bucket-filled.png",()->contentClick((ControllerScreen)mc.screen,44,1));
+            }
+            case 3 -> {
+                assertBucketState(menu,23456,Items.BUCKET,0,0);
+                screen.smokeContentClick(waterIndex,0,true);
+            }
+            case 4 -> {
+                assertBucketState(menu,22456,null,0,1);
+                clickUi(screen,screen.smokeSlotRect(findPlayerItemSlot(menu,Items.WATER_BUCKET)));
+            }
+            case 5 -> {
+                assertBucketState(menu,22456,Items.WATER_BUCKET,0,0);
+                contentClick(screen,44,1);
+            }
+            case 6 -> {
+                assertBucketState(menu,23456,Items.BUCKET,0,0);
+                clickUi(screen,screen.smokeSlotRect(bucketInventorySlot));
+            }
+            case 7 -> {
+                assertBucketState(menu,23456,null,1,0);
+                if(!bucketServerRequested) {
+                    bucketServerRequested=true;var id=mc.player.getUUID();
+                    mc.getSingleplayerServer().execute(()->{
+                        try {
+                            var player=mc.getSingleplayerServer().getPlayerList().getPlayer(id);
+                            var chest=(ChestBlockEntity)player.serverLevel().getBlockEntity(controllerPos.west());
+                            var contents=StorageScanner.contents(chest.getCellInventory(0));
+                            if(contents.get(AEFluidKey.of(Fluids.WATER))!=23456||contents.get(AEFluidKey.of(Fluids.LAVA))!=777000
+                                    ||playerAmount(player,Items.BUCKET)!=1||playerAmount(player,Items.WATER_BUCKET)!=0
+                                    ||!player.containerMenu.getCarried().isEmpty())
+                                throw new IllegalStateException("Authoritative fluid-cell bucket round trip did not conserve contents/containers");
+                            var drops=player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                                    new net.minecraft.world.phys.AABB(controllerPos).inflate(8),e->e.getItem().is(Items.BUCKET)||e.getItem().is(Items.WATER_BUCKET));
+                            if(!drops.isEmpty())throw new IllegalStateException("Bucket interactions dropped a container");
+                            bucketServerDone=true;
+                        }catch(Throwable problem){failure=problem.toString();}
+                    });
+                }
+                if(!bucketServerDone)return false;
+                System.out.println("ME_STORAGE_SMOKE_BUCKET PASS real left fill/right empty/Shift-left backpack, water23456/lava777000 and exactly one empty bucket restored");
+            }
+            default -> throw new IllegalStateException("Unknown bucket smoke step");
+        }
+        bucketStep++;bucketWait=25;return bucketStep>=8;
+    }
+
+    private static void assertBucketState(ControllerMenu menu,long water,net.minecraft.world.item.Item carried,long emptyBuckets,long fullBuckets) {
+        long actual=menu.getSnapshot().contents().stream().filter(c->c.key().equals(AEFluidKey.of(Fluids.WATER)))
+                .mapToLong(Snapshot.Content::amount).sum();
+        var cursor=menu.getCarried();
+        boolean validCursor=carried==null?cursor.isEmpty():cursor.is(carried)&&cursor.getCount()==1;
+        var player=Minecraft.getInstance().player;
+        if(actual!=water||!validCursor||playerAmount(player,Items.BUCKET)!=emptyBuckets||playerAmount(player,Items.WATER_BUCKET)!=fullBuckets)
+            throw new IllegalStateException("Bucket transfer mismatch step="+bucketStep+" water="+actual+" cursor="+cursor);
     }
 
     private static int findPlayerItemSlot(ControllerMenu menu,net.minecraft.world.item.Item item) {

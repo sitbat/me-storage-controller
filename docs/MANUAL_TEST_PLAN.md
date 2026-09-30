@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-本次实际完成的自动化与客户端检查另见 [0.4.3 测试记录](RELEASE_0.4.3.md)；这里保留完整的后续人工验收清单。
+0.4.4 验收状态另见 [当前测试记录](RELEASE_0.4.4.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -11,6 +11,7 @@ The following are **acceptance procedures to execute**, not passed test results.
 | 环境 / Environment | 基线 / Baseline | 结果 / Result |
 |---|---|---|
 | 单人开发环境 / Development single-player | Java 17, Forge 47.4.0, AE2 15.4.10, GuideME 20.1.7 | 待测 / Pending |
+| 化学品附属 / Chemical addons | Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3, `-PmekTest` | 待测 / Pending |
 | 专用服务器及两个客户端 / Dedicated server and two clients | 同上 / Same baseline | 待测 / Pending |
 | 整合包 / Modpack | 记录所有 AE2 附属和保护模组版本 / Record addon and protection versions | 待测 / Pending |
 
@@ -48,6 +49,19 @@ Repeat these scenarios for both drives and ME Chests: empty/full cells, full pla
 - 悬停物品和流体元件、普通背包物品及工具栏，确认只出现一个清晰提示框；拿着物品时不遮挡操作位置。
 
 Test every scope and gesture with authoritative item totals, NBT-distinct and nonstandard stack-size items, concurrent players, replacement/disconnection, full inventories/cells, power loss and bus restrictions. Check single, readable tooltips for item/fluid cells, backpack items and controls.
+
+## 容器交互 / Container interactions
+
+- 在 ME网络、单设备和单元件范围，持空桶／部分填充容器左键流体条目；普通右键向资源格及空白格倒入。核对存储量、容器内容、容器数量、背包和鼠标，确认总量守恒。
+- Shift 左键填充单个容器，分别测试背包空、仅剩部分堆叠空间和完全满；放不下的单容器结果应保留鼠标。另测堆叠容器，由原生策略处理的额外产物可能掉落，应将掉落实体计入总量，不能复制或丢失。
+- 空手点击水或熔岩，测试当前范围有／无空桶；选择流体元件且桶仅在另一个物品元件时，不得跨范围借桶。借桶后填充失败，应退还原范围或保留鼠标。
+- 倒空时使用不满一桶的存储剩余空间，填充时资源少于容器所需量；测试不同流体混装拒绝、无电、满元件、只读／只写总线与过滤拒绝，核对容器及资源不丢失，也不改存整个容器。
+- 在可选 `-PmekTest` 环境中，用 Applied Mekanistics 注册的化学品及兼容容器，执行左键填充、普通右键倒空、Shift 填充和满背包测试。逐项记录气体等实际测试的类型、容器及精确单位，不由一个类型通过推断所有类型兼容。
+- 每次转移量应对照容器原生速率，而非总容量；Mekanism 基础化学品储罐的预期为每次 1000 单位，不是一次 16000。逐项验证 gas、infuse、pigment 和 slurry，不将尚未执行的类型记为通过。 / Compare each transfer with native rate, not total capacity: expect 1000 units per operation for a Mekanism basic chemical tank, not 16000. Validate gas, infuse, pigment and slurry separately; leave unexecuted types pending.
+- 使用没有注册 `ContainerItemStrategies` 的自定义资源，确认仍可浏览且拒绝不支持的容器交互；快速连续操作、另一玩家取走资源或替换元件时不得复制、丢失或跨范围转移。
+- 悬停流体、化学品与元件时保持一份简洁提示框，不重新出现操作教学文字。升级两端至 0.4.4 后验证完整行为；协议6可连接旧版本不等于旧客户端具备新点击行为。
+
+Repeat fill/empty operations on resource and empty tiles in network, device and cell scopes, tracking stored resources, container contents and every physical item. Test single-container Shift-fill with empty, partially available and full inventories; a result that cannot fit must remain on the cursor. Separately test stacked containers: additional strategy-produced items may drop, so include world entities in conservation checks. Test borrowed water/lava buckets with and without a bucket in the selected scope, including failed filling and a bucket available only elsewhere. Check partial capacity, insufficient resources, incompatible contents, power loss, filters and access modes; refusal must not store the entire container instead. With `-PmekTest`, record each actual chemical type, container and unit tested through Applied Mekanistics. Check unregistered resource types, rapid clicks, concurrent players and replaced cells. Confirm concise single tooltips and upgrade both sides to 0.4.4 for complete behavior.
 
 ## 容量与外部存储 / Capacity and external storage
 

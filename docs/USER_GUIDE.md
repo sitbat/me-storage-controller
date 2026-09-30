@@ -1,4 +1,4 @@
-# 0.4.3 使用说明 / User guide
+# 0.4.4 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版精简提示框并校正图标对齐，存取方式保持不变。网络协议仍为 6，与 0.4.2 协议兼容；多人游戏建议两端使用相同版本；不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版增加已注册流体／化学品容器存取，并保留简洁提示框。网络协议仍为 6，可与 0.4.2／0.4.3 协议连接；完整容器行为要求两端升级至 0.4.4，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release simplifies tooltips and corrects icon alignment without changing transfers. Protocol 6 is retained and remains compatible with 0.4.2. Matching client and server releases are recommended; version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+This release adds registered fluid/chemical container interactions while retaining concise tooltips. Protocol 6 allows connections with 0.4.2/0.4.3; upgrade both sides to 0.4.4 for complete behavior. Version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -36,9 +36,9 @@ The left tree follows **ME Network → Dimension → Device → Cell**. Click ar
 
 Use the mouse wheel over the tree to scroll. Scrolling the selected cell out of view leaves its details selected. Back moves from cell to device, then to the network; All returns directly to the overview. Hover the title or path for full details.
 
-界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格支持物品存取，选中物品后左侧仍显示精确数量；流体条目保留查看功能。
+界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格支持物品存取及已注册的流体／化学品容器交互，选中条目后左侧显示精确数量。提示框保持简洁，不额外显示操作教程。
 
-The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. Content-grid items can be inserted and extracted, with exact selected quantities shown on the left. Fluid entries remain inspectable.
+The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. The grid supports item transfers and registered fluid/chemical containers, with exact selected quantities on the left. Tooltips remain concise, without additional instructions.
 
 GUI 缩放为 Auto 时，仅此控制器界面会临时限制实际渲染倍率，使面板能完整显示；不会修改游戏的 GUI 缩放选项。关闭界面后恢复游戏原本计算的倍率，重新打开时再适配。演示启动同样保留玩家原有 GUI 缩放设置。
 
@@ -76,6 +76,10 @@ Search, sort by name or quantity, and page through contents. Item entries show a
 
 The content grid operates on the selected scope. **ME Network** uses normal network routing; a device or cell selection only accesses that device or cell and never falls back to another destination. Empty tiles also accept the carried item.
 
+以下表格描述普通物品取放；可填充或倒空的容器按下一节规则处理。
+
+The table describes ordinary item transfers; fillable or drainable containers follow the next section.
+
 | 操作 / Action | 鼠标未持物 / Empty cursor | 鼠标持物 / Carrying an item |
 |---|---|---|
 | 左键 / Left-click | 取出最多一组 / Extract up to one stack | 存入持有的全部物品 / Insert the carried stack |
@@ -90,9 +94,33 @@ Shift-click a regular backpack item to insert it into the selected scope. When e
 
 Transfers run on the server through AE2 storage interfaces with the player action source and energy costs. Storage-bus filters, access modes and cell restrictions remain effective. Scoped transfers also check device and external-container interaction protection and require an accessible target in the same dimension. Power, capacity and access failures cannot create items.
 
-空手点击流体与第三方非物品条目只显示内容和精确数量，不会直接变成鼠标物品。持有物品时，点击这些格子仍会尝试向当前范围存入该物品。
+## 流体与化学品容器 / Fluid and chemical containers
 
-Empty-cursor clicks on fluids and third-party non-item keys inspect their contents and exact amounts without converting them into cursor items. A carried item can still be inserted into the selected scope by clicking these tiles.
+本版使用 AE2 `ContainerItemStrategies` 注册的容器能力。原版流体由 AE2 提供策略；化学品等附属类型必须由相应附属注册策略，并提供能处理该资源的容器。显示内容或容量不等于一定支持取出；未注册的自定义资源仍可查看，不保证可装入任意容器。
+
+Container interactions use AE2's registered `ContainerItemStrategies`. AE2 supplies fluid support; chemical and other addon types need an addon-registered strategy and a compatible container. Visible contents or capacity do not guarantee extraction support. Unregistered custom resources remain inspectable and cannot be assumed to fit arbitrary containers.
+
+单次转移量遵循容器的原生能力及速率，并非一次填满其全部容量。例如 Mekanism 基础化学品储罐每次可转移 1000 单位，而不是一次填满 64000 单位；AE2 标准终端同样遵循此限制。
+
+Each transfer follows the container's native capability and rate rather than filling its total capacity in one click. For example, a Mekanism basic chemical tank transfers 1000 units per operation, rather than filling all 64000 units at once; AE2's standard terminal follows the same limit.
+
+| 操作 / Action | 行为 / Behavior |
+|---|---|
+| 持对应容器左键点击资源条目 / Left-click a resource with a matching container | 从当前选择范围填充容器 / Fill from the selected scope |
+| 持含资源容器普通右键（不按 Shift） / Right-click a filled container without Shift | 向当前范围倒入内容；点击空白格也可 / Empty its contents into the selected scope, including on an empty tile |
+| Shift 左键点击资源条目 / Shift-left-click a resource | 填充后尝试放入玩家背包；单容器结果放不下时保留鼠标 / Fill, then try to move the result into the backpack; retain a single-container result on the cursor if it cannot fit |
+
+单个容器填充后的背包转移失败时，结果保留在鼠标上。持有一叠容器时，处理一个容器产生的额外物品由 AE2／附属容器策略安排，背包满时可能掉落；不要将单容器保证理解为所有堆叠容器都不会掉落。
+
+If moving a filled single container into the backpack fails, it remains on the cursor. When holding stacked containers, additional items produced while processing one container are handled by the AE2/addon strategy and may drop if the inventory is full. The single-container guarantee does not cover every stacked-container overflow.
+
+空手点击原版可装桶流体时，会尝试从**当前选择范围**取一个空桶并填充；Shift 左键可将结果放入背包。当前范围没有空桶时不会向其他设备或全网借桶。填充失败时尝试将借出的空桶还回原范围，未能还回的桶保留在鼠标上，不丢弃。其他资源没有通用的“自动找容器”保证，通常需自行持有对应容器。
+
+An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
+
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.4 保持协议 **6**，可与 0.4.2／0.4.3 协议连接，但完整行为要求两端升级到 0.4.4。
+
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Protocol remains **6**, allowing connections with 0.4.2/0.4.3, but both sides should upgrade to 0.4.4 for complete behavior.
 
 ## 管理整个元件 / Move complete cells
 

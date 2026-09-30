@@ -1,14 +1,14 @@
 # ME Storage Controller / ME 存储控制器
 
-**0.4.3 · Concise tooltips and native icon alignment / 精简悬停说明与原生图标对齐**
+**0.4.4 · Fluid and chemical containers / 流体与化学品容器交互**
 
 Minecraft **1.20.1 Forge** 的 AE2 附属模组。通过一个联网方块，逐级查看全网、存储设备和存储元件的占用及实际内容，直接存取右侧物品，并在设备详情中管理整个存储元件。
 
 An AE2 addon for **Minecraft 1.20.1 Forge**. Browse network, device and cell storage details, inspect exact contents, transfer items and move complete storage cells through a connected controller.
 
-本版移除额外操作教学提示，仅保留原生物品信息、精确数量与元件槽位，并校正侧边栏图标相对 AE 原版偏低 1 像素的问题。界面保留官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列 × 5 行内容网格、侧边图标栏、文件树，以及同屏可操作的元件槽与玩家背包。约 340×240 逻辑像素的界面会适配 Auto 缩放。运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.3 记录](docs/RELEASE_0.4.3.md)；[0.4.2](docs/RELEASE_0.4.2.md)、[0.4.1](docs/RELEASE_0.4.1.md)、[0.4.0](docs/RELEASE_0.4.0.md)、[0.3.0](docs/RELEASE_0.3.0.md)、[0.2.0](docs/RELEASE_0.2.0.md) 与 [0.1.0](docs/TEST_REPORT.md) 历史记录单独保留。
+本版通过 AE2 `ContainerItemStrategies` 支持流体及附属模组注册的化学品容器存取，保留简洁提示框，不新增操作教学文字。界面继续使用官方 AE2 1.21.1 的 13 张原始 PNG 与确认的终端布局：9 列 × 5 行内容网格、侧边图标栏、文件树，以及同屏元件槽与玩家背包。约 340×240 逻辑像素的界面适配 Auto 缩放，运行版本仍为 Minecraft 1.20.1 Forge。新版验收状态见 [0.4.4 记录](docs/RELEASE_0.4.4.md)；[0.4.3](docs/RELEASE_0.4.3.md) 及更早记录单独保留。
 
-This update removes instructional tooltip text while retaining native item information, exact amounts and cell-slot numbers, and corrects the sidebar icons being one pixel below AE’s native position. It retains thirteen original PNGs from official AE2 1.21.1. The approved layout combines a 9-by-5 content grid, an icon toolbar, a storage tree, cell slots and the player inventory on one screen. The approximately 340×240 logical-pixel interface adapts to Auto scaling. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.3 record](docs/RELEASE_0.4.3.md); historical [0.4.2](docs/RELEASE_0.4.2.md), [0.4.1](docs/RELEASE_0.4.1.md), [0.4.0](docs/RELEASE_0.4.0.md), [0.3.0](docs/RELEASE_0.3.0.md), [0.2.0](docs/RELEASE_0.2.0.md) and [0.1.0](docs/TEST_REPORT.md) records remain separate.
+This update supports fluid and addon-registered chemical containers through AE2's `ContainerItemStrategies`, retaining concise tooltips without new instructions. The approved terminal layout retains thirteen original AE2 1.21.1 PNGs, a 9-by-5 content grid, icon toolbar, storage tree, cell slots and player inventory. Its approximately 340×240 logical-pixel interface adapts to Auto scaling. The runtime remains Minecraft 1.20.1 Forge. See the [0.4.4 record](docs/RELEASE_0.4.4.md); [0.4.3](docs/RELEASE_0.4.3.md) and earlier records remain separate.
 
 ## 安装 / Installation
 
@@ -22,24 +22,25 @@ The development baseline is **Java 17, Forge 47.4.0, AE2 15.4.10 and GuideME 20.
 
 Install matching versions of this mod and its dependencies on **both client and server**. Place the controller and connect it using ME cable; it needs power and **one channel**. It does not provide channels or replace AE2's ME Controller. Right-click it to browse devices and cells.
 
-0.4.3 保持网络协议 **6**，与 0.4.2 协议兼容。多人游戏建议两端使用相同版本；不能与 0.4.1 或更早版本混用。
+0.4.4 保持网络协议 **6**，可与 0.4.2／0.4.3 协议连接，但应将客户端与服务器一起升级到 **0.4.4** 才能获得完整容器交互。不能与 0.4.1 或更早版本混用。
 
-Version 0.4.3 retains protocol **6** and is protocol-compatible with 0.4.2. Matching client and server releases are recommended; versions 0.4.1 and earlier are incompatible.
+Version 0.4.4 retains protocol **6**, allowing protocol connections with 0.4.2/0.4.3. Upgrade both client and server to **0.4.4** for all container interactions; versions 0.4.1 and earlier are incompatible.
 
 ## 功能与边界 / Features and scope
 
 - 文件树式设备与元件管理，支持多个设备展开、滚动和层级路径；提供原生风格图标控件、悬停说明、深浅主题、搜索、排序及中英文。 / Tree-based device/cell management with multiple expanded branches, scrolling and hierarchical navigation, plus native-style icon controls, tooltips, themes, search, sorting and both languages.
 - 显示可获取的字节占用、类型槽位和进度条，内容清单展示精确数量。流体与其他存储类型按其实际单位显示。 / Available byte/type capacity information, progress bars, and exact content quantities with type-appropriate units.
-- 右侧物品支持左键取一组／放入全部、右键取半组／放入一个、空手 Shift 左键取到背包。操作按当前 ME网络、设备或元件范围执行；流体仍用于查看。左侧槽位继续管理**整个存储元件**。 / Transfer items in the selected network, device or cell scope: left-click a stack/all, right-click half/one, or Shift-left-click with an empty cursor into the backpack. Fluids remain inspectable; left-side slots still move **complete cells**.
+- 右侧普通物品支持左键取一组／放入全部、右键取半组／放入一个、空手 Shift 左键取到背包。操作按当前 ME网络、设备或元件范围执行，左侧槽位管理**整个存储元件**。 / Transfer ordinary items within the selected network, device or cell scope: left-click a stack/all, right-click half/one, or Shift-left-click with an empty cursor into the backpack. Left-side slots move **complete cells**.
+- 持对应容器左键点击流体／化学品条目以填充，普通右键倒入当前范围（空格也可）；Shift 左键填充后放入背包，单容器结果放不下时保留鼠标持物。支持取决于 AE2 或附属注册的容器策略，不保证所有自定义资源均可取出。 / Left-click a fluid/chemical entry with a matching container to fill it; ordinary right-click empties it into the selected scope, including on empty tiles. Shift-left fills into the backpack, retaining a single-container result on the cursor when space is unavailable. Support requires an AE2 or addon-registered container strategy; arbitrary custom resources are not guaranteed.
 - 名称、维度、坐标与临时定位高亮。高亮仅适用于同维度、客户端已加载且不超过 256 格的设备，持续 15 秒。 / Names, dimensions, coordinates and a 15-second highlight for loaded devices within 256 blocks in the same dimension.
 - “ME网络”是控制器所在 AE2 网络及其可见存储，不递归扫描独立子网络，也不强制加载区块。 / The overview covers the controller's current AE2 grid and its visible storage; it does not recursively scan independent subnets or force-load chunks.
 - 优先使用 AE2 的存储接口。第三方存储元件能提供内容并不代表能提供容量；缺失的容量显示“未知”。创造模式、无限容量、虚空元件及自定义存储类型尤其需要逐项验证。 / Uses AE2 storage interfaces where possible. Third-party cells may expose contents without usable capacity information; missing capacity is shown as unknown. Creative, infinite, void and custom storage types require individual verification.
 - 外部存储受存储总线的可见性与过滤规则影响；不会把字节、槽位和流体体积合成同一个占用百分比。 / External storage follows what the storage bus exposes; byte, slot and fluid capacities are not mixed into one occupancy percentage.
 - 服务端验证远程元件操作。AE2 15.x 本身未提供旧版安全终端接口；不能声称本模组接入旧版安全终端或所有领地保护系统。使用领地保护模组时，请执行手动权限测试。 / Remote cell operations are server-validated. AE2 15.x does not provide the older security-terminal API; integration with older AE2 security terminals or every claim-protection mod is not claimed. Test your protection mod explicitly.
 
-这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.3 的构建与界面检查记录见 [当前测试记录](docs/RELEASE_0.4.3.md)。大型整合包、双客户端并发和保护模组仍需实测。
+这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.4.4 的验收状态见 [当前测试记录](docs/RELEASE_0.4.4.md)。大型整合包、双客户端并发和保护模组仍需实测。
 
-See the [current report](docs/RELEASE_0.4.3.md) for regression tests and in-game validation of the new terminal. Broader modpacks, concurrent clients and protection mods remain unverified.
+See the [current report](docs/RELEASE_0.4.4.md) for validation status. Broader modpacks, concurrent clients and protection mods remain unverified.
 
 远程元件操作仅限同维度；跨维度设备仍可浏览。第三方设备只有在能可靠识别物理元件槽时才允许取放，否则只读。注册为全局存储提供者且没有节点／位置的来源，包含在全网内容中，但可能无法逐设备定位。总览的字节容量仅汇总能识别的存储元件，不代表外部容器的总容量。
 
@@ -88,12 +89,17 @@ Install **JDK 17**, point `JAVA_HOME` to it, and allow Gradle to download depend
 
 Build artifacts are in `build/libs/`. Install the JAR without the `-sources` suffix. Use `gradlew runServer` for a development dedicated server; read and accept the Minecraft EULA yourself if you choose to run it.
 
+可选化学品兼容测试使用 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**；将对应 Forge JAR 放入 `../../work/vendor`（或指定 `-PcompatModsDir`），使用 `-PmekTest` 加载，例如 `./gradlew runClient -PmekTest`。这些附属不是本模组的必装依赖。
+
+Optional chemical compatibility tests use **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**. Place their Forge JARs in `../../work/vendor` (or set `-PcompatModsDir`) and enable `-PmekTest`, for example `./gradlew runClient -PmekTest`. These addons are optional dependencies.
+
 ## 项目文件 / Project files
 
 - [使用说明 / User guide](docs/USER_GUIDE.md)
 - [模型与纹理来源 / Visual asset provenance](docs/ASSETS.md)
 - [手动测试计划 / Manual test plan](docs/MANUAL_TEST_PLAN.md)
-- [0.4.3 测试记录 / Current test report](docs/RELEASE_0.4.3.md)
+- [0.4.4 测试记录 / Current test report](docs/RELEASE_0.4.4.md)
+- [0.4.3 历史测试记录 / Historical test report](docs/RELEASE_0.4.3.md)
 - [0.4.2 历史测试记录 / Historical test report](docs/RELEASE_0.4.2.md)
 - [0.4.1 历史测试记录 / Historical test report](docs/RELEASE_0.4.1.md)
 - [0.4.0 历史测试记录 / Historical test report](docs/RELEASE_0.4.0.md)
