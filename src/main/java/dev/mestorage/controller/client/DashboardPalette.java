@@ -18,8 +18,6 @@ record DashboardPalette(int background, int panel, int inset, int border, int te
                 mix(LIGHT.danger, DARK.danger, dark), mix(LIGHT.warning, DARK.warning, dark));
     }
 
-    int treeBackground() { return mix(panel, inset, .16F); }
-
     static int mix(int from, int to, float progress) {
         float t = Math.max(0, Math.min(1, progress));
         int result = 0;

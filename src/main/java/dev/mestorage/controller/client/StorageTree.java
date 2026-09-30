@@ -90,7 +90,7 @@ final class StorageTree {
             boolean over=mouseX>=x&&mouseX<x+width-5&&mouseY>=top&&mouseY<top+rh&&mouseY>=y&&mouseY<y+height;
             float hoverValue=hover.getOrDefault(row.key,0F);hoverValue+=(over?1-hoverValue:-hoverValue)*(1-(float)Math.exp(-dt*18));hover.put(row.key,hoverValue);
             boolean selected=row.key.equals("root")?data.selectedDevice().isEmpty():!row.device.isEmpty()&&row.device.equals(data.selectedDevice())&&row.slot==data.selectedCell();
-            int bg=selected?p.selected():DashboardPalette.mix(p.treeBackground(),p.hover(),hoverValue);
+            int bg=selected?p.selected():DashboardPalette.mix(p.panel(),p.hover(),hoverValue);
             ControllerScreen.rounded(g,x+1,top,width-7,Math.max(1,rh-1),3,bg);
             if(selected)g.fill(x+1,top+3,x+3,top+rh-4,p.accent());
             for(int depth=1;depth<row.depth;depth++)g.fill(x+9+depth*6,top,x+10+depth*6,top+rh,p.border());

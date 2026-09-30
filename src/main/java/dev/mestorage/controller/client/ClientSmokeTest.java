@@ -353,7 +353,7 @@ public final class ClientSmokeTest {
     private static void driveCapture(Minecraft mc, ControllerMenu menu) {
         if(!textureSourcesChecked&&mc.screen instanceof ControllerScreen screen) {
             var actual=screen.smokeGuiTextureSources();
-            for(String name:new String[]{"terminal","states","text_field"}) {
+            for(String name:new String[]{"terminal","states","text_field","background"}) {
                 var location=new ResourceLocation("ae2","textures/guis/"+name+".png");
                 var source=mc.getResourceManager().getResource(location).map(r->r.sourcePackId()).orElse("");
                 String chosen=actual.get(name.equals("states")?"icons":name);

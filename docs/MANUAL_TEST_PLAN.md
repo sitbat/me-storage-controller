@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-0.4.8 验收状态另见 [当前测试记录](RELEASE_0.4.8.md)；这里保留完整的后续人工验收清单。
+0.4.9 验收状态另见 [当前测试记录](RELEASE_0.4.9.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 

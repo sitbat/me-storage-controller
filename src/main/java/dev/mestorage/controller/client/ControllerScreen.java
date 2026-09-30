@@ -26,7 +26,7 @@ import net.minecraft.world.item.ItemStack;
 public final class ControllerScreen extends AbstractContainerScreen<ControllerMenu> {
     private static final String[] BYTE_UNITS={"B","KB","MB","GB","TB","PB","EB"};
     private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states"),TEXT_FIELD=texture("text_field");
-    private ResourceLocation terminalTexture=TERMINAL,iconTexture=STATES,fieldTexture=TEXT_FIELD;
+    private ResourceLocation terminalTexture=TERMINAL,iconTexture=STATES,fieldTexture=TEXT_FIELD,panelTexture=texture("background");
     private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
     private final StorageTree tree=new StorageTree(this::select);
@@ -62,7 +62,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     @Override protected void init(){
         // Screen dimensions already reflect the user's GUI scale. Never change Window or Options.
         controlPressButton=-1;scrollbarDragging=false;scrollbarGrabOffset=0;setDragging(false);
-        terminalTexture=packTexture("terminal");iconTexture=packTexture("states");fieldTexture=packTexture("text_field");
+        terminalTexture=packTexture("terminal");iconTexture=packTexture("states");fieldTexture=packTexture("text_field");panelTexture=packTexture("background");
         narrow=width<352;
         treeVisible=narrow?treeOnly:!collapsed;mainVisible=!narrow||!treeOnly;mainX=treeVisible&&!narrow?142:18;
         imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(1,Math.min(5,(height-162)/18));imageHeight=150+visibleRows*18;
@@ -120,7 +120,22 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void nativeTint(GuiGraphics g){nativeTint(g,1);}
     private void nativeTint(GuiGraphics g,float alpha){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,alpha);}
     private void frame(GuiGraphics g,int x,int y,int w,int h){g.fill(x,y,x+w,y+h,p.border());g.fill(x+1,y+1,x+w-1,y+h-1,DashboardPalette.mix(0xfff2f2f2,0xff606579,themeMix));g.fill(x+2,y+2,x+w-2,y+h-2,p.panel());}
-    private void treeFrame(GuiGraphics g){int x=leftPos+18,y=topPos+6,w=124,h=imageHeight-16;g.fill(x+2,y+2,x+w+2,y+h+2,0x65000000);frame(g,x,y,w,h);g.fill(x+1,y+h-2,x+w-1,y+h-1,p.inset());g.fill(x+w-2,y+1,x+w-1,y+h-1,p.inset());g.fill(leftPos+21,topPos+25,leftPos+139,topPos+27+treeHeight,p.inset());g.fill(leftPos+22,topPos+26,leftPos+138,topPos+26+treeHeight,p.treeBackground());}
+    private void treeFrame(GuiGraphics g){
+        int x=leftPos+18,y=topPos+6,w=124,h=imageHeight-16;
+        // AE's panel has 2px top/side borders and a 4px bottom bevel. Keep all edges
+        // unscaled, including the two grey bottom rows used by the adjacent terminal.
+        nativeTint(g);
+        g.blit(panelTexture,x,y,0,0,2,2);
+        g.blit(panelTexture,x+2,y,w-4,2,2,0,252,2,256,256);
+        g.blit(panelTexture,x+w-2,y,254,0,2,2);
+        g.blit(panelTexture,x,y+2,2,h-6,0,2,2,250,256,256);
+        g.blit(panelTexture,x+2,y+2,w-4,h-6,2,2,252,250,256,256);
+        g.blit(panelTexture,x+w-2,y+2,2,h-6,254,2,2,250,256,256);
+        g.blit(panelTexture,x,y+h-4,0,252,2,4);
+        g.blit(panelTexture,x+2,y+h-4,w-4,4,2,252,252,4,256,256);
+        g.blit(panelTexture,x+w-2,y+h-4,254,252,2,4);
+        g.setColor(1,1,1,1);
+    }
     @Override protected void renderBg(GuiGraphics g,float partial,int mx,int my){long now=System.nanoTime();delta=lastFrame==0?.016F:Math.min(.05F,(now-lastFrame)/1_000_000_000F);lastFrame=now;themeMix=animate(themeMix,ClientAppearance.isDark()?1:0,16);p=DashboardPalette.blend(themeMix);var s=menu.getSnapshot();
         g.fill(leftPos+1,topPos+6,leftPos+18,topPos+146,0x38000000);
         if(treeVisible){treeFrame(g);if(!treeSearchOpen)clipped(g,tr("network_storage"),leftPos+25,topPos+12,110,p.text());else field(g,treeSearch,leftPos+23,topPos+10,114,"tree_search");tree.render(g,leftPos+22,topPos+26,116,treeHeight,true,s,p,mx,my,delta);renderAttachment(g,s);}
@@ -255,7 +270,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     int smokeContentTargetPage(){return targetPage;}int smokeContentAcknowledgedPage(){return menu.getSnapshot().contentPage();}
     int smokeContentRowOffset(){return gridRowOffset;}int smokeContentVisibleRows(){return visibleRows;}
     boolean smokeContentPending(){return menu.getSnapshot().revision()!=menu.getRequestedRevision();}
-    Map<String,String> smokeGuiTextureSources(){return Map.of("terminal",textureSource(terminalTexture),"icons",textureSource(iconTexture),"text_field",textureSource(fieldTexture),"button_background",textureSource(STATES));}
+    Map<String,String> smokeGuiTextureSources(){return Map.of("terminal",textureSource(terminalTexture),"icons",textureSource(iconTexture),"text_field",textureSource(fieldTexture),"background",textureSource(panelTexture),"button_background",textureSource(STATES));}
     private String textureSource(ResourceLocation texture){return texture+" | "+minecraft.getResourceManager().getResource(texture).map(r->r.sourcePackId()).orElse("missing");}
     AEKey smokeFocusedKey(){var c=focused(menu.getSnapshot());return c==null?null:c.key();}
     int smokeTooltipRenderCount(){return tooltipRenderCount;}String smokeTooltipKind(){return tooltipKind;}List<String> smokeTooltipText(){return tooltipLines.stream().map(Component::getString).toList();}
