@@ -22,8 +22,9 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-/** Native-size AE terminal; item actions are server-authoritative, non-item keys remain inspectable. */
+/** Native-size AE terminal; item and container actions are server-authoritative. */
 public final class ControllerScreen extends AbstractContainerScreen<ControllerMenu> {
+    private static final String[] BYTE_UNITS={"B","KB","MB","GB","TB","PB","EB"};
     private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states");
     private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
@@ -101,9 +102,18 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     private void renderCapacity(GuiGraphics g,Snapshot s,int x,int y){var c=s.capacity();long used=c.usedBytes(),total=c.totalBytes();Component label;
         if(total>=0)label=Component.literal(bytesSummary(used)+" / "+bytesSummary(total));else if(c.totalSlots()>=0){used=c.occupiedSlots();total=c.totalSlots();label=tr("slots",number(used),number(total));}else if(c.fluidCapacity()>=0){used=c.fluidAmount();total=c.fluidCapacity();label=Component.literal(number(used)+" / "+number(total)+" mB");}else label=tr("capacity_unknown");
-        String types=c.usedTypes()>=0?tr("types_inline",number(c.usedTypes()),number(c.totalTypes())).getString():"";int tw=font.width(types);clipped(g,label,x,y,162-(types.isEmpty()?0:tw+5),p.text());if(!types.isEmpty())g.drawString(font,types,x+162-tw,y,p.text(),false);g.fill(x,y+10,x+160,y+12,p.slot());if(total>0&&used>0){float ratio=Math.min(1,used/(float)total);g.fill(x,y+10,x+Math.max(1,Math.round(160*ratio)),y+12,ratio>=.95F?p.danger():ratio>=.8F?p.warning():p.accent());}
+        String types=c.usedTypes()>=0?tr("types_inline",number(c.usedTypes()),number(c.totalTypes())).getString():"";int tw=Math.min(76,font.width(types));fit(g,label,x,y,162-(types.isEmpty()?0:tw+5),p.text());if(!types.isEmpty())fit(g,Component.literal(types),x+162-tw,y,tw,p.text());g.fill(x,y+10,x+160,y+12,p.slot());if(total>0&&used>0){float ratio=Math.min(1,used/(float)total);g.fill(x,y+10,x+Math.max(1,Math.round(160*ratio)),y+12,ratio>=.95F?p.danger():ratio>=.8F?p.warning():p.accent());}
     }
-    private static String bytesSummary(long bytes){if(bytes<0)return tr("unknown").getString();if(bytes<1024)return bytes+" B";var f=NumberFormat.getNumberInstance();f.setMaximumFractionDigits(1);return f.format(bytes/1024.0)+" KiB";}
+    private static String bytesSummary(long bytes){
+        if(bytes<0)return tr("unknown").getString();
+        if(bytes<1024)return bytes+" B";
+        double amount=bytes;int unit=0;
+        while(amount>=1024 && unit<BYTE_UNITS.length-1){amount/=1024;unit++;}
+        // Promote a rounded 1024 to the next unit as well, keeping the summary compact at boundaries.
+        if(Math.round(amount*10)>=10240 && unit<BYTE_UNITS.length-1){amount/=1024;unit++;}
+        var format=NumberFormat.getNumberInstance();format.setGroupingUsed(false);format.setMaximumFractionDigits(1);
+        return format.format(amount)+" "+BYTE_UNITS[unit];
+    }
     private Component breadcrumb(Snapshot s){var path=tr("network_root").copy();if(s.selectedInfo()!=null)path.append(" / ").append(s.selectedInfo().dimension().toString()).append(" / ").append(s.selectedInfo().name());if(s.selectedCell()>=0)path.append(" / ").append(tr("cell",s.selectedCell()+1));return path;}
     @Override protected void renderLabels(GuiGraphics g,int mx,int my){}
     @Override public void render(GuiGraphics g,int mx,int my,float partial){renderBackground(g);super.render(g,mx,my,partial);var s=menu.getSnapshot();if(treeVisible)for(int i=0;i<10;i++){int abs=offset(s)+i,x=leftPos+26+(i%5)*18,y=topPos+cellY+(i/5)*18;if(abs==s.selectedCell()){g.fill(x-1,y-1,x+17,y,p.selected());g.fill(x-1,y+16,x+17,y+17,p.selected());}s.cells().stream().filter(v->v.slot()==abs&&v.totalBytes()>0).findFirst().ifPresent(v->{g.fill(x,y+16,x+16,y+17,p.border());int used=(int)Math.min(16,Math.round(16.0*v.usedBytes()/v.totalBytes()));if(used>0)g.fill(x,y+16,x+used,y+17,p.accent());});}

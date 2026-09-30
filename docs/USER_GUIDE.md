@@ -1,4 +1,4 @@
-# 0.4.4 使用说明 / User guide
+# 0.4.5 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -57,6 +57,10 @@ The first view shows the grid overview. Tree search matches dimensions, device n
 点击左侧工具栏的 **A–Z 目录搜索图标**，可显示或收起目录搜索框。目录搜索与右侧内容搜索独立；要取消目录过滤，请清空目录搜索文字，收起输入框本身不会清除搜索条件。
 
 Click the **A–Z tree-search icon** on the left toolbar to show or hide the tree search field. Tree and content searches are independent. Clear the tree query to remove its filter; hiding the field retains the query.
+
+容量摘要按 1024 进位自动选择 B／KB／MB／GB／TB／PB／EB，最多保留一位小数；悬停显示完整字节数。
+
+Capacity summaries use powers of 1024 with B/KB/MB/GB/TB/PB/EB labels and at most one decimal; hover for the exact byte counts.
 
 字节占用描述存储元件的内部容量，不等于物品个数：AE2 的类型开销和每字节存储数量会影响实际可存数量。类型占用描述可存储的不同条目数量。附属模组不公开这些数值时显示“未知”，不应将未知当成零或无限。
 
