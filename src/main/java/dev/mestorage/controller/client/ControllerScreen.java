@@ -93,7 +93,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void drawAmount(GuiGraphics g,Snapshot.Content c,int x,int y){String v=abbreviate(c.amount());float scale=.65F;g.pose().pushPose();g.pose().translate(x+16-font.width(v)*scale,y+10,200);g.pose().scale(scale,scale,1);g.drawString(font,v,0,0,0xffffffff,true);g.pose().popPose();}
     private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
     private Snapshot.Content focused(Snapshot s){if(focusedKey!=null)for(var c:s.contents())if(c.key().equals(focusedKey))return c;return s.contents().isEmpty()?null:s.contents().get(0);}
-    private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());else clipped(g,tr("content_insert_hint"),x+7,y+imageHeight-90,110,p.muted());
+    private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());
         var d=s.selectedInfo();clipped(g,d==null?tr("network_root"):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
         clipped(g,tr(s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
         if(s.cellSlots()==0){clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
@@ -131,11 +131,11 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         if(index>=0){
             if(index<s.contents().size()){
                 var c=s.contents().get(index);try{tip.addAll(AEKeyRendering.getTooltip(c.key()));}catch(RuntimeException e){tip.add(displayName(c.key()));}
-                tip.add(Component.literal(exactAmount(c)));addHint(tip,c.key() instanceof AEItemKey?"content_controls":"nonitem_inspection");
+                tip.add(Component.literal(exactAmount(c)));
                 tip.add(Component.literal(c.key().getId().toString()).withStyle(ChatFormatting.DARK_GRAY));
                 ItemStack icon=c.key() instanceof AEItemKey key?key.toStack():ItemStack.EMPTY;
                 drawTooltip(g,tip,icon,mx,my,"content");
-            }else drawTooltip(g,List.of(tr("content_insert_hint")),ItemStack.EMPTY,mx,my,"content_empty");
+            }
             return;
         }
         int lx=mx-leftPos,ly=my-topPos;
@@ -146,9 +146,9 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
             if(c.totalSlots()>=0)tip.add(tr("slots",number(c.occupiedSlots()),number(c.totalSlots())));if(c.fluidCapacity()>=0)tip.add(tr("fluid",number(c.fluidAmount()),number(c.fluidCapacity())));
             if(c.totalSlots()>=0||c.fluidCapacity()>=0)tip.add(tr("external_capacity"));if(c.unknownCells()>0)tip.add(tr("unknown_cells",c.unknownCells()));if(!s.error().isEmpty())tip.add(Component.translatable(s.error()));
         }else if(treeVisible&&hit(lx,ly,24,imageHeight-105,112,49)){
-            tip.add(breadcrumb(s));var c=focused(s);if(c!=null){tip.add(displayName(c.key()));tip.add(Component.literal(exactAmount(c)));addHint(tip,c.key() instanceof AEItemKey?"content_controls":"nonitem_inspection");}
+            tip.add(breadcrumb(s));var c=focused(s);if(c!=null){tip.add(displayName(c.key()));tip.add(Component.literal(exactAmount(c)));}
             if(s.selectedInfo()!=null){var d=s.selectedInfo();tip.add(Component.literal(d.dimension()+" · "+d.pos().toShortString()));if(!d.face().isEmpty()){tip.add(tr("via_device",d.sourceName()));tip.add(tr("connection_face",tr("direction."+d.face())));}}
-        }else if(mainVisible&&hit(lx,ly,mainX+6,6,72,16)){tip.add(breadcrumb(s));addHint(tip,"content_controls");}
+        }else if(mainVisible&&hit(lx,ly,mainX+6,6,72,16))tip.add(breadcrumb(s));
         if(!tip.isEmpty())drawTooltip(g,tip,ItemStack.EMPTY,mx,my,"metadata");
     }
     private void appendCellTooltip(List<Component> lines,Snapshot s,int remote,boolean includeName){
@@ -157,9 +157,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         // stripped stacks, so only those need snapshot-backed capacity text.
         if(includeName)s.cells().stream().filter(c->c.slot()==absolute).findFirst().ifPresent(c->{lines.add(c.icon().isEmpty()?tr("empty_cell"):c.icon().getHoverName());lines.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));});
         lines.add(tr("cell_slot",absolute+1));
-        lines.add(tr(remote<s.editableSlots()?"cell_operation_hint":"cell_readonly"));
     }
-    private void addHint(List<Component> lines,String key){for(String line:tr(key).getString().split("\n",-1))lines.add(Component.literal(line));}
     private void drawTooltip(GuiGraphics g,List<Component> lines,ItemStack stack,int mx,int my,String kind){
         tooltipRenderCount++;tooltipKind=kind;tooltipLines=List.copyOf(lines);
         g.renderTooltip(font,lines,stack.isEmpty()?Optional.empty():stack.getTooltipImage(),stack,mx,my);
@@ -202,5 +200,5 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
     UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}
     private final class IconButton extends Button {int sx,sy;float over;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
-        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);g.setColor(1,1,1,1);if(over>.01F)g.fill(getX()+1,getY()+1,getX()+getWidth()-1,getY()+getHeight()-1,((int)(over*45)<<24)|0xffffff);int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));g.setColor(1,1,1,active?1:.4F);g.blit(STATES,getX()+(getWidth()-size)/2,getY()+(getHeight()-size)/2,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);}}
+        @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){over=animate(over,isHoveredOrFocused()&&active?1:0,20);nativeTint(g);g.blit(STATES,getX(),getY(),getWidth(),getHeight(),176,128,18,20,256,256);g.setColor(1,1,1,1);if(over>.01F)g.fill(getX()+1,getY()+1,getX()+getWidth()-1,getY()+getHeight()-1,((int)(over*45)<<24)|0xffffff);int size=Math.min(16,Math.min(getWidth()-2,getHeight()-2));int iconY=getHeight()==20&&getWidth()==18?1:(getHeight()-size)/2;g.setColor(1,1,1,active?1:.4F);g.blit(STATES,getX()+(getWidth()-size)/2,getY()+iconY,size,size,sx,sy,16,16,256,256);g.setColor(1,1,1,1);}}
 }

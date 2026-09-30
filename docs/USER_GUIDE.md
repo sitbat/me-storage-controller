@@ -1,4 +1,4 @@
-# 0.4.2 使用说明 / User guide
+# 0.4.3 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版开放右侧物品存取，网络协议升为 6；多人游戏客户端和服务器须同时升级，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版精简提示框并校正图标对齐，存取方式保持不变。网络协议仍为 6，与 0.4.2 协议兼容；多人游戏建议两端使用相同版本；不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release enables content-grid item transfers and uses protocol 6. Upgrade clients and servers together; version 0.4.1 and earlier are incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+This release simplifies tooltips and corrects icon alignment without changing transfers. Protocol 6 is retained and remains compatible with 0.4.2. Matching client and server releases are recommended; version 0.4.1 and earlier is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -18,8 +18,8 @@ This release enables content-grid item transfers and uses protocol 6. Upgrade cl
 
 ```powershell
 .\gradlew.bat runClient -Pdemo -PeaeTest
-# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.2
-.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.2'
+# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.3
+.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.3'
 ```
 
 `demoWorld` 指定运行目录 `saves` 下的现成存档文件夹名，省略时默认为 `ME-Controller-Demo`。演示模式会进入该存档并尝试打开控制器界面，不执行自动测试或自动退出。如果控制器不存在或离线，会记录 `ME_STORAGE_DEMO_UNAVAILABLE` 并把操作权留给玩家。按 Esc 关闭界面后，可右键坐标 **8, 100, 8** 的控制器重新打开。此处说明启动方法，不代表当前实例已成功启动。
