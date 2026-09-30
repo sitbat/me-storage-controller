@@ -1,4 +1,4 @@
-# 使用说明 / User guide
+# 0.2.0 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -7,6 +7,16 @@
 3. 右键打开。若显示“网络离线”，检查能源、线缆、频道及网络是否分裂。
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
+
+## 仪表盘外观 / Dashboard appearance
+
+右上角的“深色／浅色”按钮切换主题。主题偏好保存在当前客户端的 `config/me-storage-controller-client.properties`，不需要服务器设置，也不改变网络中的存储内容。界面根据窗口和 GUI 缩放调整布局；空间较小时会精简辅助标签，关键控件、元件槽位和玩家物品栏继续保留。
+
+Use the Dark/Light button at the top right to switch appearance. The preference is saved locally in `config/me-storage-controller-client.properties`; it does not require a server setting or alter stored contents. The layout adjusts to the window and GUI scale, reducing secondary labels when space is limited while retaining controls, cell slots and player inventory.
+
+主容量条与元件下方的小容量条显示可获取的占用信息：低于 80% 使用青绿色，80% 至 95% 使用琥珀色，95% 起使用红色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
+
+The main capacity bar and small cell bars show available occupancy information: teal below 80%, amber from 80% to below 95%, and red from 95%. Unknown capacity does not receive an invented percentage. Read the text and tooltips for exact values.
 
 ## 逐级浏览 / Drill down
 
@@ -36,6 +46,10 @@ Use the device's cell slots to move complete cells to or from your inventory. Ce
 
 Use the numbered buttons below the cell row to inspect cells. Click or Shift-click actual slots to move whole cells. For more than ten cells, use the arrow buttons beside the player inventory. Generic devices may offer numbered detail buttons without writable physical slots. Cross-dimensional cell operations are read-only; same-dimensional actions validate player access and post the target's Forge interaction protection event.
 
+ExtendedAE 扩展 ME 驱动器按实际元件槽位数展示。20 槽位驱动器分两页，每页 10 个；第二页按钮 11–20 对应设备内第 11–20 个真实槽位。元件本身的兼容性仍取决于其存储接口，适配驱动器不等于保证所有第三方元件都能显示字节容量。
+
+ExtendedAE expanded ME drives use their actual slot count. A 20-slot drive has two pages of ten; page-two controls 11–20 correspond to those physical slots. Cell compatibility still depends on each cell's storage interfaces; drive support does not guarantee byte-capacity information for every third-party cell.
+
 搜索支持当前客户端语言下的物品／流体注册名称、自定义名称及注册 ID；中文环境可搜索“铁锭”，也可输入 `minecraft:iron_ingot`。单次本地化匹配最多 512 个注册条目；过于宽泛的词可用更具体名称或 ID 缩小范围。
 
 Search accepts client-localized item/fluid registry names, custom names and registry IDs. Localized matching is bounded to 512 registry entries per query; narrow very broad queries or use an exact ID.
@@ -55,6 +69,10 @@ Click Locate in device details. A loaded target within 256 blocks in the same di
 本模组读取当前网络能公开的存储信息。标准 AE2 驱动器和 ME 箱子拥有可管理的元件槽位；通过通用接口识别的其他设备可能只支持内容读取。存储总线过滤、提取模式或附属模组的实现会影响所见内容。
 
 The addon reads storage information exposed by the current grid. Standard AE2 drives and ME Chests provide manageable cell slots. Other devices found through general interfaces may support content inspection only. Storage-bus filters, access modes and addon implementations can affect visible contents.
+
+外部存储来源显示目标容器及其位置，悬停可查看连接它的存储总线和容器连接面。对于熔炉这类方向受限的容器，槽位数是连接面实际公开的槽位，而不是方块 GUI 中所有槽位。双箱应按总线实际连接的合并库存处理；存储总线过滤后的可读内容仍可能少于物理库存。
+
+External sources identify the target container and its location; hover to inspect the connecting storage bus and container face. For sided containers such as furnaces, the slot count follows the connected face, not every slot in the block's own GUI. Double chests use the combined inventory accessible to the bus; filtering may still expose fewer contents than physically stored.
 
 不同网络或同一容器的多个访问路径可能具有不同的可见内容。全网内容应以 AE2 网络视角理解；不要手工累加设备列表中所有外部容器的内容来推算唯一物理库存。
 

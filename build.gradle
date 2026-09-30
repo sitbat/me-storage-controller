@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.1.0'
+version = '0.2.0'
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -21,7 +21,7 @@ minecraft {
         client {
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke').absolutePath
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v020').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }
@@ -33,6 +33,9 @@ repositories {
     maven { url 'https://modmaven.dev' }
     maven { url 'https://maven.guideme.appliedenergistics.org' }
     mavenCentral()
+    if (project.hasProperty('eaeTest')) {
+        flatDir { dirs project.findProperty('compatModsDir') ?: '../../work/vendor' }
+    }
 }
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.0'
@@ -40,6 +43,10 @@ dependencies {
     runtimeOnly fg.deobf('org.appliedenergistics:guideme:20.1.7')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    if (project.hasProperty('eaeTest')) {
+        runtimeOnly fg.deobf('local:ExtendedAE:1.20-1.4.21-forge')
+        runtimeOnly fg.deobf('local:Glodium:1.20-1.5-forge')
+    }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('test') { useJUnitPlatform() }

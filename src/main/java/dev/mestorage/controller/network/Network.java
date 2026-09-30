@@ -14,17 +14,18 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    private static final String VERSION="1";
+    private static final String VERSION="2";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
     public record Request(int containerId,String deviceId,int cell,int devicePage,int contentPage,String deviceQuery,String contentQuery,boolean sortByAmount,
-                          List<ResourceLocation> deviceMatches,List<ResourceLocation> contentMatches) {
+                          List<ResourceLocation> deviceMatches,List<ResourceLocation> contentMatches,long revision) {
         void write(FriendlyByteBuf b) {
             b.writeVarInt(containerId); b.writeUtf(deviceId,256); b.writeInt(cell); b.writeInt(devicePage); b.writeInt(contentPage);
             b.writeUtf(deviceQuery,64); b.writeUtf(contentQuery,64); b.writeBoolean(sortByAmount);
             writeIds(b,deviceMatches); writeIds(b,contentMatches);
+            b.writeLong(revision);
         }
-        static Request read(FriendlyByteBuf b) { return new Request(b.readVarInt(),b.readUtf(256),b.readInt(),b.readInt(),b.readInt(),b.readUtf(64),b.readUtf(64),b.readBoolean(),readIds(b),readIds(b)); }
+        static Request read(FriendlyByteBuf b) { return new Request(b.readVarInt(),b.readUtf(256),b.readInt(),b.readInt(),b.readInt(),b.readUtf(64),b.readUtf(64),b.readBoolean(),readIds(b),readIds(b),b.readLong()); }
         private static void writeIds(FriendlyByteBuf b,List<ResourceLocation> ids) { b.writeVarInt(ids.size()); for(var id:ids) b.writeResourceLocation(id); }
         private static List<ResourceLocation> readIds(FriendlyByteBuf b) {
             int size=b.readVarInt(); if(size<0 || size>512) throw new IllegalArgumentException("search size");

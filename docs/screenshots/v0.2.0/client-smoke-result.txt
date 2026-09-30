@@ -1,0 +1,1 @@
+PASS: real client dark/light dashboard and compact captures; exact item/fluid counts; vanilla packet pickup/reinsert/Shift transfers preserved one cell and all contents. ExtendedAE page-two and localized copper search: PASS

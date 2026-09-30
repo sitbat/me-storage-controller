@@ -1,10 +1,14 @@
 # ME Storage Controller / ME 存储控制器
 
-**0.1.0 · Initial beta / 首个测试版本**
+**0.2.0 · Compatibility and dashboard update / 兼容性与仪表盘更新**
 
 Minecraft **1.20.1 Forge** 的 AE2 附属模组。通过一个联网方块，逐级查看全网、存储设备和存储元件的占用及实际内容，并在设备详情中管理整个存储元件。
 
 An AE2 addon for **Minecraft 1.20.1 Forge**. Browse network, device and cell storage details, inspect exact contents, and move complete storage cells through a connected controller.
+
+本轮更新增加现代仪表盘与深色／浅色外观，扩展 ExtendedAE 驱动器适配及真实存储总线容器测试。新版进展与实际验收范围见 [0.2.0 记录](docs/RELEASE_0.2.0.md)；[0.1.0 测试记录](docs/TEST_REPORT.md) 单独保留。
+
+This update adds a modern light/dark dashboard, ExtendedAE drive support and broader real storage-bus testing. See the [0.2.0 record](docs/RELEASE_0.2.0.md) for current validation status; the [0.1.0 record](docs/TEST_REPORT.md) remains separate.
 
 ## 安装 / Installation
 
@@ -20,7 +24,7 @@ Install matching versions of this mod and its dependencies on **both client and 
 
 ## 功能与边界 / Features and scope
 
-- AE2 风格宽窗口；设备与内容搜索、内容排序、分页，支持简体中文和英文。 / Wide AE2-style interface with search, sorting, pagination, Simplified Chinese and English.
+- 现代仪表盘宽窗口，支持深色／浅色外观；设备与内容搜索、内容排序、分页，支持简体中文和英文。 / Modern wide dashboard with light/dark appearance, search, sorting, pagination, Simplified Chinese and English.
 - 显示可获取的字节占用、类型槽位和进度条，内容清单展示精确数量。流体与其他存储类型按其实际单位显示。 / Available byte/type capacity information, progress bars, and exact content quantities with type-appropriate units.
 - 设备详情允许存入、取出**整个存储元件**；内容清单只读，不能直接取出里面的物品或流体。 / Device details allow moving **complete storage cells**; content lists are read-only.
 - 名称、维度、坐标与临时定位高亮。高亮仅适用于同维度、客户端已加载且不超过 256 格的设备，持续 15 秒。 / Names, dimensions, coordinates and a 15-second highlight for loaded devices within 256 blocks in the same dimension.
@@ -29,9 +33,9 @@ Install matching versions of this mod and its dependencies on **both client and 
 - 外部存储受存储总线的可见性与过滤规则影响；不会把字节、槽位和流体体积合成同一个占用百分比。 / External storage follows what the storage bus exposes; byte, slot and fluid capacities are not mixed into one occupancy percentage.
 - 服务端验证远程元件操作。AE2 15.x 本身未提供旧版安全终端接口；不能声称本模组接入旧版安全终端或所有领地保护系统。使用领地保护模组时，请执行手动权限测试。 / Remote cell operations are server-validated. AE2 15.x does not provide the older security-terminal API; integration with older AE2 security terminals or every claim-protection mod is not claimed. Test your protection mod explicitly.
 
-这是通用接口优先的初始版本，**不保证兼容所有 AE2 附属模组**。已通过 5 项单元测试、2 项 Forge 服务端游戏测试和实际中文客户端操作检查；详见 [测试记录](docs/TEST_REPORT.md)。大型整合包、双客户端并发和保护模组兼容性仍需实测，测试方法见 [手动测试计划](docs/MANUAL_TEST_PLAN.md)。
+这是通用接口优先的测试版本，**不保证兼容所有 AE2 附属模组**。0.2.0 已通过 **5 项单元测试、安装 ExtendedAE 时的 11 项真实 Forge 游戏测试，以及无附属时的 8 项实际基线测试**。实际中文客户端完成 10 张深浅主题和紧凑布局截图，验证第 20 个元件取放、精确数量、中文搜索及快速设备切换。详见 [0.2.0 测试记录与截图](docs/RELEASE_0.2.0.md)。大型整合包、双客户端并发和保护模组仍需实测。
 
-This release passed five unit tests, two Forge server GameTests and a real Chinese-language client smoke test including pickup and shift transfers. See the [test report](docs/TEST_REPORT.md). Third-party addons, simultaneous clients and protection mods need further verification.
+Version 0.2.0 passed **five unit tests, eleven real Forge GameTests with ExtendedAE, and eight executed baseline cases without it**. The Chinese-language client produced ten real dark/light/compact captures and verified twentieth-cell transfers, exact quantities, localized search and rapid device switching. See the [0.2.0 report and screenshots](docs/RELEASE_0.2.0.md). Broader modpacks, concurrent clients and protection mods remain unverified.
 
 远程元件操作仅限同维度；跨维度设备仍可浏览。第三方设备只有在能可靠识别物理元件槽时才允许取放，否则只读。注册为全局存储提供者且没有节点／位置的来源，包含在全网内容中，但可能无法逐设备定位。总览的字节容量仅汇总能识别的存储元件，不代表外部容器的总容量。
 
@@ -84,7 +88,8 @@ Build artifacts are in `build/libs/`. Install the JAR without the `-sources` suf
 
 - [使用说明 / User guide](docs/USER_GUIDE.md)
 - [手动测试计划 / Manual test plan](docs/MANUAL_TEST_PLAN.md)
-- [测试记录与实际截图 / Test report and screenshots](docs/TEST_REPORT.md)
+- [0.2.0 测试记录 / Current test report](docs/RELEASE_0.2.0.md)
+- [0.1.0 历史记录与截图 / Historical test report and screenshots](docs/TEST_REPORT.md)
 - [许可证 / License](LICENSE)
 
 本模组原创代码和 JSON 模型采用 MIT 许可证。方块模型通过资源路径引用 AE2 与 Minecraft 已安装的纹理，不在本模组中复制分发这些纹理。本项目不是 AE2 官方项目。

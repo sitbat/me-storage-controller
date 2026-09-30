@@ -21,9 +21,10 @@ import appeng.api.storage.MEStorage;
 import appeng.api.storage.cells.CellState;
 import appeng.blockentity.storage.ChestBlockEntity;
 import appeng.blockentity.storage.DriveBlockEntity;
+import appeng.capabilities.Capabilities;
 import appeng.me.cells.BasicCellInventory;
 import appeng.parts.AEBasePart;
-import appeng.parts.storagebus.StorageBusPart;
+import dev.mestorage.controller.storage.compat.StorageCompatibility;
 import net.minecraft.core.Direction;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.network.chat.Component;
@@ -65,6 +66,39 @@ public final class StorageScanner {
         public static final ExternalCapacity UNKNOWN = new ExternalCapacity(-1, -1, -1, -1);
     }
 
+    /** Bus attachment face is separate from the target's accessed face. */
+    public record TargetInfo(Component name, GlobalPos location, Direction face, String adapter) {}
+
+    public static @Nullable TargetInfo targetInfo(Device device) {
+        if (!StorageCompatibility.isExternalStorageBus(device.owner())) return null;
+        var bus = (AEBasePart) device.owner();
+        var level = bus.getLevel();
+        if (level == null) return null;
+        var pos = bus.getBlockEntity().getBlockPos().relative(bus.getSide());
+        var location = GlobalPos.of(level.dimension(), pos);
+        var face = bus.getSide().getOpposite();
+        if (!level.hasChunkAt(pos)) return new TargetInfo(Component.literal("?"), location, face, "unloaded");
+        try {
+            var entity = level.getBlockEntity(pos);
+            var name = entity instanceof Nameable named ? named.getName() : level.getBlockState(pos).getBlock().getName();
+            String adapter = "unknown";
+            if (entity != null) {
+                if (entity.getCapability(Capabilities.STORAGE, face).orElse(null) != null) {
+                    adapter = "me";
+                } else {
+                    boolean item = entity.getCapability(ForgeCapabilities.ITEM_HANDLER, face).orElse(null) != null;
+                    boolean fluid = entity.getCapability(ForgeCapabilities.FLUID_HANDLER, face).orElse(null) != null;
+                    adapter = item && fluid ? "items+fluids" : item ? "items" : fluid ? "fluids" : "unknown";
+                }
+            }
+            return new TargetInfo(name, location, face, adapter);
+        } catch (RuntimeException exception) {
+            reportFailure(device.owner(), exception);
+            markDegraded(device);
+            return new TargetInfo(Component.literal("?"), location, face, "unknown");
+        }
+    }
+
     public static List<Device> discover(IGrid grid) {
         var result = new ArrayList<Device>();
         Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -77,7 +111,7 @@ public final class StorageScanner {
             var name = nameOf(owner, node);
             Kind kind = owner instanceof DriveBlockEntity ? Kind.DRIVE
                     : owner instanceof ChestBlockEntity ? Kind.CHEST
-                    : owner instanceof StorageBusPart ? Kind.EXTERNAL : Kind.OTHER;
+                    : StorageCompatibility.isExternalStorageBus(owner) ? Kind.EXTERNAL : Kind.OTHER;
             IItemHandler cells = null;
             boolean failed = false;
             try {
@@ -247,15 +281,20 @@ public final class StorageScanner {
     }
 
     private static ExternalCapacity readExternalCapacity(Device device) {
-        if (!(device.owner() instanceof StorageBusPart bus)) return ExternalCapacity.UNKNOWN;
+        if (!StorageCompatibility.isExternalStorageBus(device.owner())) return ExternalCapacity.UNKNOWN;
+        var bus = (AEBasePart) device.owner();
         var level = bus.getLevel();
         var target = bus.getBlockEntity().getBlockPos().relative(bus.getSide());
         if (level == null || !level.hasChunkAt(target)) return ExternalCapacity.UNKNOWN;
         var blockEntity = level.getBlockEntity(target);
         if (blockEntity == null) return ExternalCapacity.UNKNOWN;
         var face = bus.getSide().getOpposite();
-        var items = blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER, face).resolve().orElse(null);
-        var fluids = blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, face).resolve().orElse(null);
+        // AE2 prioritizes the ME storage capability over normal item/fluid
+        // handlers. An interface's nine-slot input buffer is not its network's
+        // capacity and must never be reported as such.
+        if (blockEntity.getCapability(Capabilities.STORAGE, face).orElse(null) != null) return ExternalCapacity.UNKNOWN;
+        var items = blockEntity.getCapability(ForgeCapabilities.ITEM_HANDLER, face).orElse(null);
+        var fluids = blockEntity.getCapability(ForgeCapabilities.FLUID_HANDLER, face).orElse(null);
         long occupied = -1, slots = -1, amount = -1, capacity = -1;
         if (items != null) {
             slots = items.getSlots();
@@ -267,7 +306,10 @@ public final class StorageScanner {
             capacity = 0;
             for (int i = 0; i < fluids.getTanks(); i++) {
                 amount = saturatedAdd(amount, fluids.getFluidInTank(i).getAmount());
-                capacity = saturatedAdd(capacity, fluids.getTankCapacity(i));
+                int tankCapacity = fluids.getTankCapacity(i);
+                // Forge has no infinity flag. MAX_VALUE is commonly a creative
+                // or unbounded sentinel; do not claim it is a finite limit.
+                capacity = tankCapacity == Integer.MAX_VALUE ? -1 : saturatedAdd(capacity, tankCapacity);
             }
         }
         return new ExternalCapacity(occupied, slots, amount, capacity);
