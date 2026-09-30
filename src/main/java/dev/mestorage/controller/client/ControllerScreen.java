@@ -5,6 +5,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import appeng.api.client.AEKeyRendering;
 import appeng.api.stacks.AEFluidKey;
+import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import dev.mestorage.controller.menu.ControllerMenu;
 import dev.mestorage.controller.network.Snapshot;
@@ -13,15 +14,15 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
-/** Native-size AE terminal with a directory attachment. Content tiles are inspection only. */
+/** Native-size AE terminal; item actions are server-authoritative, non-item keys remain inspectable. */
 public final class ControllerScreen extends AbstractContainerScreen<ControllerMenu> {
     private static final ResourceLocation TERMINAL=texture("terminal"),STATES=texture("states");
     private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
@@ -37,6 +38,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private final float[] hover=new float[45];
     private String observedSelection="";
     private AEKey focusedKey;
+    private int tooltipRenderCount;
+    private String tooltipKind="none";
+    private List<Component> tooltipLines=List.of();
+    private Boolean smokeShiftOverride;
     public ControllerScreen(ControllerMenu menu,Inventory inventory,Component title){super(menu,inventory,title);}
     static Component tr(String key,Object... args){return Component.translatable("gui.me_storage_controller."+key,args);}
     @Override protected void init(){
@@ -47,7 +52,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         imageWidth=treeVisible&&!narrow?340:216;visibleRows=Math.max(2,Math.min(5,(height-150)/18));imageHeight=150+visibleRows*18;
         cellY=imageHeight-49;inventoryY=imageHeight-94;hotbarY=imageHeight-36;treeHeight=imageHeight-134;gridRowOffset=Math.min(gridRowOffset,5-visibleRows);
         String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();
-        sort=icon(0,24,18,20,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setTooltip(Tooltip.create(tr(sortByAmount?"sort_amount":"sort_name")));request(0);});
+        sort=icon(0,24,18,20,16,64,tr("sort_amount"),b->{sortByAmount=!sortByAmount;((IconButton)b).sx=sortByAmount?16:0;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         ((IconButton)sort).sx=sortByAmount?16:0;
         root=icon(0,46,18,20,160,16,tr("network_root"),b->select("",-1));
         back=icon(0,68,18,20,96,16,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
@@ -64,7 +69,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         menu.layoutSlots(26,cellY,5,mainX+8,inventoryY,hotbarY,treeVisible,mainVisible);updateWidgets();
     }
     @Override public void removed(){super.removed();var w=minecraft.getWindow();w.setGuiScale(w.calculateScale(minecraft.options.guiScale().get(),minecraft.isEnforceUnicode()));}
-    private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){var b=new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action);b.setTooltip(Tooltip.create(tooltip));return addRenderableWidget(b);}
+    private Button icon(int x,int y,int w,int h,int sx,int sy,Component tooltip,Button.OnPress action){return addRenderableWidget(new IconButton(leftPos+x,topPos+y,w,h,sx,sy,tooltip,action));}
     private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> response){var b=new EditBox(font,leftPos+x,topPos+y,w,10,tr(hint));b.setBordered(false);b.setMaxLength(64);b.setValue(value);b.setResponder(response);return addRenderableWidget(b);}
     private static int offset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
     private void select(String device,int cell){searchDue=0;focusedKey=null;gridRowOffset=0;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
@@ -88,7 +93,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private void drawAmount(GuiGraphics g,Snapshot.Content c,int x,int y){String v=abbreviate(c.amount());float scale=.65F;g.pose().pushPose();g.pose().translate(x+16-font.width(v)*scale,y+10,200);g.pose().scale(scale,scale,1);g.drawString(font,v,0,0,0xffffffff,true);g.pose().popPose();}
     private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
     private Snapshot.Content focused(Snapshot s){if(focusedKey!=null)for(var c:s.contents())if(c.key().equals(focusedKey))return c;return s.contents().isEmpty()?null:s.contents().get(0);}
-    private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());else clipped(g,tr("contents_readonly"),x+7,y+imageHeight-90,110,p.muted());
+    private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());else clipped(g,tr("content_insert_hint"),x+7,y+imageHeight-90,110,p.muted());
         var d=s.selectedInfo();clipped(g,d==null?tr("network_root"):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
         clipped(g,tr(s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
         if(s.cellSlots()==0){clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
@@ -102,16 +107,69 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private Component breadcrumb(Snapshot s){var path=tr("network_root").copy();if(s.selectedInfo()!=null)path.append(" / ").append(s.selectedInfo().dimension().toString()).append(" / ").append(s.selectedInfo().name());if(s.selectedCell()>=0)path.append(" / ").append(tr("cell",s.selectedCell()+1));return path;}
     @Override protected void renderLabels(GuiGraphics g,int mx,int my){}
     @Override public void render(GuiGraphics g,int mx,int my,float partial){renderBackground(g);super.render(g,mx,my,partial);var s=menu.getSnapshot();if(treeVisible)for(int i=0;i<10;i++){int abs=offset(s)+i,x=leftPos+26+(i%5)*18,y=topPos+cellY+(i/5)*18;if(abs==s.selectedCell()){g.fill(x-1,y-1,x+17,y,p.selected());g.fill(x-1,y+16,x+17,y+17,p.selected());}s.cells().stream().filter(v->v.slot()==abs&&v.totalBytes()>0).findFirst().ifPresent(v->{g.fill(x,y+16,x+16,y+17,p.border());int used=(int)Math.min(16,Math.round(16.0*v.usedBytes()/v.totalBytes()));if(used>0)g.fill(x,y+16,x+used,y+17,p.accent());});}
-        renderTooltip(g,mx,my);var tip=new ArrayList<Component>(treeVisible?tree.tooltip(mx,my):List.of());int index=contentIndex(mx,my);if(tip.isEmpty()&&index>=0&&index<s.contents().size()){var c=s.contents().get(index);try{tip.addAll(AEKeyRendering.getTooltip(c.key()));}catch(RuntimeException e){tip.add(displayName(c.key()));}tip.add(Component.literal(exactAmount(c)));tip.add(tr("contents_readonly"));tip.add(Component.literal(c.key().getId().toString()).withStyle(ChatFormatting.DARK_GRAY));}
-        int lx=mx-leftPos,ly=my-topPos;if(tip.isEmpty()&&mainVisible&&hit(lx,ly,mainX,23+visibleRows*18,195,18)){var c=s.capacity();tip.add(breadcrumb(s));tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));tip.add(tr("types",number(c.usedTypes()),number(c.totalTypes())));if(c.totalSlots()>=0)tip.add(tr("slots",number(c.occupiedSlots()),number(c.totalSlots())));if(c.fluidCapacity()>=0)tip.add(tr("fluid",number(c.fluidAmount()),number(c.fluidCapacity())));if(c.totalSlots()>=0||c.fluidCapacity()>=0)tip.add(tr("external_capacity"));if(c.unknownCells()>0)tip.add(tr("unknown_cells",c.unknownCells()));if(!s.error().isEmpty())tip.add(Component.translatable(s.error()));}
-        if(tip.isEmpty()&&treeVisible&&hit(lx,ly,24,imageHeight-105,112,49)){tip.add(breadcrumb(s));var c=focused(s);if(c!=null){tip.add(displayName(c.key()));tip.add(Component.literal(exactAmount(c)));}if(s.selectedInfo()!=null){var d=s.selectedInfo();tip.add(Component.literal(d.dimension()+" · "+d.pos().toShortString()));if(!d.face().isEmpty()){tip.add(tr("via_device",d.sourceName()));tip.add(tr("connection_face",tr("direction."+d.face())));}}}
-        int remote=remoteIndex(mx,my);if(tip.isEmpty()&&remote>=0&&offset(s)+remote<s.cellSlots()){int abs=offset(s)+remote;tip.add(tr("cell_details",abs+1));s.cells().stream().filter(c->c.slot()==abs).findFirst().ifPresent(c->{tip.add(c.icon().isEmpty()?tr("empty_cell"):c.icon().getHoverName());tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));});tip.add(tr(remote<s.editableSlots()?"cell_operation_hint":"cell_readonly"));}
-        if(tip.isEmpty()&&mainVisible&&hit(lx,ly,mainX+6,6,72,16))tip.add(breadcrumb(s));
-        if(!tip.isEmpty())g.renderComponentTooltip(font,tip,mx,my);
+        renderControllerTooltip(g,mx,my);
+    }
+    /** A single tooltip decision per frame: controls, real slots, content tiles, then metadata. */
+    private void renderControllerTooltip(GuiGraphics g,int mx,int my){
+        tooltipRenderCount=0;tooltipKind="none";tooltipLines=List.of();
+        for(var child:children())if(child instanceof IconButton button&&button.visible&&hit(mx,my,button.getX(),button.getY(),button.getWidth(),button.getHeight())){
+            drawTooltip(g,List.of(button.getMessage()),ItemStack.EMPTY,mx,my,"widget");return;
+        }
+        // Match vanilla container behavior: carried items suppress item and metadata tooltips.
+        if(!menu.getCarried().isEmpty())return;
+        var s=menu.getSnapshot();
+        if(hoveredSlot!=null&&hoveredSlot.isActive()&&hoveredSlot.hasItem()){
+            ItemStack stack=hoveredSlot.getItem();var lines=new ArrayList<Component>(getTooltipFromContainerItem(stack));
+            if(hoveredSlot.index<10)appendCellTooltip(lines,s,hoveredSlot.index,false);
+            drawTooltip(g,lines,stack,mx,my,hoveredSlot.index<10?"cell":"inventory");return;
+        }
+        var tip=new ArrayList<Component>();int remote=remoteIndex(mx,my);
+        if(remote>=0&&offset(s)+remote<s.cellSlots()){
+            appendCellTooltip(tip,s,remote,true);drawTooltip(g,tip,ItemStack.EMPTY,mx,my,"cell");return;
+        }
+        int index=contentIndex(mx,my);
+        if(index>=0){
+            if(index<s.contents().size()){
+                var c=s.contents().get(index);try{tip.addAll(AEKeyRendering.getTooltip(c.key()));}catch(RuntimeException e){tip.add(displayName(c.key()));}
+                tip.add(Component.literal(exactAmount(c)));addHint(tip,c.key() instanceof AEItemKey?"content_controls":"nonitem_inspection");
+                tip.add(Component.literal(c.key().getId().toString()).withStyle(ChatFormatting.DARK_GRAY));
+                ItemStack icon=c.key() instanceof AEItemKey key?key.toStack():ItemStack.EMPTY;
+                drawTooltip(g,tip,icon,mx,my,"content");
+            }else drawTooltip(g,List.of(tr("content_insert_hint")),ItemStack.EMPTY,mx,my,"content_empty");
+            return;
+        }
+        int lx=mx-leftPos,ly=my-topPos;
+        if(treeVisible)tip.addAll(tree.tooltip(mx,my));
+        if(!tip.isEmpty()){drawTooltip(g,tip,ItemStack.EMPTY,mx,my,"tree");return;}
+        if(mainVisible&&hit(lx,ly,mainX,23+visibleRows*18,195,18)){
+            var c=s.capacity();tip.add(breadcrumb(s));tip.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));tip.add(tr("types",number(c.usedTypes()),number(c.totalTypes())));
+            if(c.totalSlots()>=0)tip.add(tr("slots",number(c.occupiedSlots()),number(c.totalSlots())));if(c.fluidCapacity()>=0)tip.add(tr("fluid",number(c.fluidAmount()),number(c.fluidCapacity())));
+            if(c.totalSlots()>=0||c.fluidCapacity()>=0)tip.add(tr("external_capacity"));if(c.unknownCells()>0)tip.add(tr("unknown_cells",c.unknownCells()));if(!s.error().isEmpty())tip.add(Component.translatable(s.error()));
+        }else if(treeVisible&&hit(lx,ly,24,imageHeight-105,112,49)){
+            tip.add(breadcrumb(s));var c=focused(s);if(c!=null){tip.add(displayName(c.key()));tip.add(Component.literal(exactAmount(c)));addHint(tip,c.key() instanceof AEItemKey?"content_controls":"nonitem_inspection");}
+            if(s.selectedInfo()!=null){var d=s.selectedInfo();tip.add(Component.literal(d.dimension()+" · "+d.pos().toShortString()));if(!d.face().isEmpty()){tip.add(tr("via_device",d.sourceName()));tip.add(tr("connection_face",tr("direction."+d.face())));}}
+        }else if(mainVisible&&hit(lx,ly,mainX+6,6,72,16)){tip.add(breadcrumb(s));addHint(tip,"content_controls");}
+        if(!tip.isEmpty())drawTooltip(g,tip,ItemStack.EMPTY,mx,my,"metadata");
+    }
+    private void appendCellTooltip(List<Component> lines,Snapshot s,int remote,boolean includeName){
+        int absolute=offset(s)+remote;
+        // Actual stacks already provide AE's rich name/capacity lines. Preview icons are
+        // stripped stacks, so only those need snapshot-backed capacity text.
+        if(includeName)s.cells().stream().filter(c->c.slot()==absolute).findFirst().ifPresent(c->{lines.add(c.icon().isEmpty()?tr("empty_cell"):c.icon().getHoverName());lines.add(tr("bytes",number(c.usedBytes()),number(c.totalBytes())));});
+        lines.add(tr("cell_slot",absolute+1));
+        lines.add(tr(remote<s.editableSlots()?"cell_operation_hint":"cell_readonly"));
+    }
+    private void addHint(List<Component> lines,String key){for(String line:tr(key).getString().split("\n",-1))lines.add(Component.literal(line));}
+    private void drawTooltip(GuiGraphics g,List<Component> lines,ItemStack stack,int mx,int my,String kind){
+        tooltipRenderCount++;tooltipKind=kind;tooltipLines=List.copyOf(lines);
+        g.renderTooltip(font,lines,stack.isEmpty()?Optional.empty():stack.getTooltipImage(),stack,mx,my);
     }
     private int contentIndex(double mx,double my){if(!mainVisible)return -1;double x=mx-leftPos-mainX-7,y=my-topPos-23;if(x<0||x>=162||y<0||y>=visibleRows*18)return -1;return (gridRowOffset+(int)y/18)*9+(int)x/18;}
     private int remoteIndex(double mx,double my){if(!treeVisible)return -1;double x=mx-leftPos-25,y=my-topPos-cellY+1;if(x<0||x>=90||y<0||y>=36)return -1;return (int)y/18*5+(int)x/18;}
-    @Override public boolean mouseClicked(double mx,double my,int button){if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){if(button==0&&i<menu.getSnapshot().contents().size())focusedKey=menu.getSnapshot().contents().get(i).key();controlPressButton=button;return true;}
+    @Override public boolean mouseClicked(double mx,double my,int button){if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
+            var contents=menu.getSnapshot().contents();AEKey key=i<contents.size()?contents.get(i).key():null;if(key!=null)focusedKey=key;
+            if((button==0||button==1)&&(!menu.getCarried().isEmpty()||key instanceof AEItemKey))menu.requestContent(i,button,smokeShiftOverride!=null?smokeShiftOverride:hasShiftDown());
+            controlPressButton=button;return true;}
         int remote=remoteIndex(mx,my);var snapshot=menu.getSnapshot();if(remote>=snapshot.editableSlots()&&remote>=0&&offset(snapshot)+remote<snapshot.cellSlots()){if(button==0)select(snapshot.selectedDevice(),offset(snapshot)+remote);controlPressButton=button;return true;}
         boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&hit(mx,my,w.getX(),w.getY(),w.getWidth(),w.getHeight()));boolean handled=super.mouseClicked(mx,my,button);if(widget){controlPressButton=button;return true;}return handled;}
     @Override public boolean mouseReleased(double mx,double my,int button){if(controlPressButton==button){controlPressButton=-1;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
@@ -133,6 +191,13 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     UiRect smokePanelRect(){return new UiRect(leftPos,topPos,imageWidth,imageHeight);}UiRect smokeSlotRect(int i){if(i<0||i>=menu.slots.size()||!menu.getSlot(i).isActive())return null;var s=menu.getSlot(i);return new UiRect(leftPos+s.x,topPos+s.y,16,16);}
     UiRect smokeContentRect(int i){int row=i/9-gridRowOffset;if(!mainVisible||i<0||i>=45||row<0||row>=visibleRows)return null;return new UiRect(leftPos+mainX+8+i%9*18,topPos+24+row*18,16,16);}
     AEKey smokeFocusedKey(){var c=focused(menu.getSnapshot());return c==null?null:c.key();}
+    int smokeTooltipRenderCount(){return tooltipRenderCount;}String smokeTooltipKind(){return tooltipKind;}List<String> smokeTooltipText(){return tooltipLines.stream().map(Component::getString).toList();}
+    String smokeRootLabel(){return root.getMessage().getString();}
+    void smokeContentClick(int index,int button,boolean shift){
+        if(net.minecraftforge.fml.loading.FMLEnvironment.production)throw new IllegalStateException("Development smoke helper is disabled in production");
+        var target=smokeContentRect(index);if(target==null)throw new IllegalArgumentException("Content tile is not visible");
+        smokeShiftOverride=shift;try{mouseClicked(target.centerX(),target.centerY(),button);mouseReleased(target.centerX(),target.centerY(),button);}finally{smokeShiftOverride=null;}
+    }
     UiRect smokeTreeViewport(){return treeVisible?new UiRect(leftPos+22,topPos+26,116,treeHeight):null;}UiRect smokeDeviceRect(String id,boolean chevron){return treeVisible?tree.rect("dev:"+id,chevron):null;}UiRect smokeCellRect(String id,int cell){return treeVisible?tree.rect("cell:"+id+":"+cell,false):null;}
     void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
     UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}

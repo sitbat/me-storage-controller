@@ -2,7 +2,7 @@
 
 以下项目是**待执行的验收步骤**，不是已通过的测试记录。执行人应记录日期、环境、实际结果和日志。静态检查、编译和资源校验无法代替游戏内验证。
 
-本次实际完成的自动化与客户端检查另见 [TEST_REPORT.md](TEST_REPORT.md)；这里保留完整的后续人工验收清单。
+本次实际完成的自动化与客户端检查另见 [0.4.2 测试记录](RELEASE_0.4.2.md)；这里保留完整的后续人工验收清单。
 
 The following are **acceptance procedures to execute**, not passed test results. Record the date, environment, observed results and logs. Static checks, compilation and resource validation do not replace gameplay testing.
 
@@ -38,6 +38,16 @@ The following are **acceptance procedures to execute**, not passed test results.
 6. 保护领地禁止操作、受限玩家、跨维度设备与卸载区块分别测试。记录保护模组是否确实拦截远程操作，不能仅凭其已安装就判定权限安全。
 
 Repeat these scenarios for both drives and ME Chests: empty/full cells, full player inventory, carried cursor stack, Shift-click and rapid clicks, invalid items, reconnecting, two players racing for one cell, device removal/replacement/disconnection, claim protection and unloaded targets. Verify exact total cell counts and NBT before/after. A protection mod's presence alone is not proof that remote operations are blocked.
+
+## 内容存取 / Content transfers
+
+- 在 ME网络、驱动器、单个元件与存储总线范围分别测试左键、右键、Shift、空白格存入及背包 Shift 存入，核对服务器、鼠标与背包的总数。
+- 保留同名但不同 NBT 的物品，确认不会混为一类；取放满堆叠数为 1、16、64 的物品。
+- 两名玩家同时提取最后一组物品，另一名玩家同时换芯或切断设备；确认没有复制、遗失或跨范围存取。
+- 背包只剩部分堆叠空间、元件已满、断电、存储总线只读／只写／过滤拒绝时，确认剩余物品留在正确位置。
+- 悬停物品和流体元件、普通背包物品及工具栏，确认只出现一个清晰提示框；拿着物品时不遮挡操作位置。
+
+Test every scope and gesture with authoritative item totals, NBT-distinct and nonstandard stack-size items, concurrent players, replacement/disconnection, full inventories/cells, power loss and bus restrictions. Check single, readable tooltips for item/fluid cells, backpack items and controls.
 
 ## 容量与外部存储 / Capacity and external storage
 

@@ -1,6 +1,11 @@
 package dev.mestorage.controller.menu;
 
 import appeng.api.networking.IGrid;
+import appeng.api.config.Actionable;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.stacks.AEItemKey;
+import appeng.api.storage.MEStorage;
+import appeng.api.storage.StorageHelper;
 import appeng.api.implementations.blockentities.IChestOrDrive;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.StorageCells;
@@ -9,6 +14,7 @@ import dev.mestorage.controller.block.ControllerBlockEntity;
 import dev.mestorage.controller.network.Network;
 import dev.mestorage.controller.network.Snapshot;
 import dev.mestorage.controller.storage.StorageScanner;
+import dev.mestorage.controller.storage.ContentAccess;
 import dev.mestorage.controller.storage.StorageScanner.Device;
 import java.util.*;
 import net.minecraft.core.BlockPos;
@@ -59,6 +65,9 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private long nextDirectoryRefresh;
     private boolean clientSlotsVisible=true;
     private boolean clientCellsVisible=true;
+    private MEStorage observedCellStorage;
+    private long contentActionTick=Long.MIN_VALUE;
+    private int contentActionsThisTick;
 
     public ControllerMenu(int id,Inventory inventory,FriendlyByteBuf data) {
         this(id,inventory,inventory.player.level().getBlockEntity(data.readBlockPos()) instanceof ControllerBlockEntity be ? be : null);
@@ -113,6 +122,108 @@ public final class ControllerMenu extends AbstractContainerMenu {
         }
         Network.request(new Network.Request(containerId,deviceId,cell,dp,cp,dq,cq,amount,localizedMatches(dq),localizedMatches(cq),++requestedRevision));
     }
+    /** The screen consumes these clicks; vanilla slot prediction must not run for the virtual grid. */
+    public void requestContent(int contentIndex,int button,boolean shift) {
+        if(!player.level().isClientSide || selectionPending || requestedRevision!=snapshot.revision()
+                || !snapshot.online() || contentIndex<0 || contentIndex>=Snapshot.CONTENT_PAGE_SIZE || button<0 || button>1) return;
+        var key=contentIndex<snapshot.contents().size() ? snapshot.contents().get(contentIndex).key() : null;
+        Network.contentAction(new Network.ContentAction(containerId,snapshot.revision(),snapshot.selectedDevice(),snapshot.selectedCell(),key,button,shift));
+    }
+    public void handleContentAction(Network.ContentAction action) {
+        if(player.level().isClientSide) return;
+        long now=player.level().getGameTime();
+        if(contentActionTick!=now) { contentActionTick=now; contentActionsThisTick=0; }
+        // Far above real input rates; bounded work for a malicious stream without coalescing normal clicks.
+        if(++contentActionsThisTick>128) return;
+        if(action.containerId()!=containerId || action.button()<0 || action.button()>1 || pending!=null
+                || action.revision()!=acknowledgedRevision || !action.deviceId().equals(selectedId) || action.cell()!=selectedCell
+                || !snapshot.online() || !contentProtectionAllows()) { broadcastFullState(); return; }
+        try {
+            var grid=grid();
+            var storage=contentStorage(grid);
+            if(storage==null) return;
+            var source=IActionSource.ofPlayer(player,()->controller.getMainNode().getNode());
+            var carried=getCarried();
+            if(!carried.isEmpty()) {
+                var key=AEItemKey.of(carried);
+                int amount=action.button()==1 ? 1 : carried.getCount();
+                int inserted=(int)StorageHelper.poweredInsert(grid.getEnergyService(),storage,key,amount,source);
+                if(inserted>0) { var remainder=carried.copy(); remainder.shrink(inserted); setCarried(remainder); scheduleMutationRefresh(); }
+            } else if(action.key() instanceof AEItemKey key
+                    && snapshot.contents().stream().anyMatch(entry->entry.key().equals(key))) {
+                boolean toBackpack=action.shift() && action.button()==0;
+                int amount=key.getMaxStackSize();
+                if(toBackpack) {
+                    amount=backpackSpace(key,amount);
+                } else if(action.button()==1) {
+                    long available=storage.extract(key,amount,Actionable.SIMULATE,source);
+                    amount=(int)((available+1)/2);
+                }
+                if(amount<=0) return;
+                int extracted=(int)StorageHelper.poweredExtraction(grid.getEnergyService(),storage,key,amount,source);
+                if(extracted>0) {
+                    if(!toBackpack) setCarried(key.toStack(extracted));
+                    else placeInBackpack(key,extracted);
+                    scheduleMutationRefresh();
+                }
+            }
+        } finally {
+            // Send cursor and physical slots immediately, without triggering a discovery/content rescan.
+            super.broadcastChanges();
+        }
+    }
+    private MEStorage contentStorage(IGrid grid) {
+        if(grid==null || !stillValid(player)) return null;
+        if(selectedId.isEmpty()) return selectedCell<0 ? grid.getStorageService().getInventory() : null;
+        if(!current()) return null;
+        try {
+            var storage=ContentAccess.resolve(grid,selected,selectedCell);
+            return selectedCell<0 || storage==observedCellStorage ? storage : null;
+        } catch(RuntimeException problem) {
+            if(!reportedStorageError) {
+                org.slf4j.LoggerFactory.getLogger(ControllerMenu.class).warn("Unable to resolve live content target; transfer rejected",problem);
+                reportedStorageError=true;
+            }
+            return null;
+        }
+    }
+    private int backpackSpace(AEItemKey key,int limit) {
+        int space=0,max=Math.min(key.getMaxStackSize(),playerInventory.getMaxStackSize());
+        for(var stack:playerInventory.items) {
+            if(stack.isEmpty()) space+=max;
+            else if(key.matches(stack)) space+=Math.max(0,max-stack.getCount());
+            if(space>=limit) return limit;
+        }
+        return space;
+    }
+    private void placeInBackpack(AEItemKey key,int amount) {
+        int max=Math.min(key.getMaxStackSize(),playerInventory.getMaxStackSize());
+        // Merge existing stacks before consuming an empty slot; capacity was checked before extraction.
+        for(int pass=0;pass<2 && amount>0;pass++) for(int slot=0;slot<playerInventory.items.size() && amount>0;slot++) {
+            var stack=playerInventory.getItem(slot);
+            if(pass==0 ? stack.isEmpty() || !key.matches(stack) : !stack.isEmpty()) continue;
+            int moved=Math.min(amount,Math.max(0,max-stack.getCount()));
+            if(moved>0) { playerInventory.setItem(slot,key.toStack(stack.getCount()+moved)); amount-=moved; }
+        }
+        // Defensive conservation if an addon changes player inventory inside its extract callback.
+        if(amount>0) setCarried(key.toStack(amount));
+        playerInventory.setChanged();
+    }
+    private boolean contentProtectionAllows() {
+        if(!stillValid(player) || !player.mayBuild() || grid()==null || !allowsAt(controller.getBlockPos(),Direction.UP)) return false;
+        if(selectedId.isEmpty()) return selectedCell<0;
+        if(!current() || selected.location()==null || !player.level().dimension().equals(selected.location().dimension())
+                || !allowsAt(selected.location().pos(),selected.side()==null ? Direction.UP : selected.side())) return false;
+        var target=StorageScanner.targetInfo(selected);
+        return target==null || player.level().dimension().equals(target.location().dimension())
+                && player.level().hasChunkAt(target.location().pos()) && allowsAt(target.location().pos(),target.face());
+    }
+    private boolean allowsAt(BlockPos pos,Direction face) {
+        if(!player.level().hasChunkAt(pos) || !player.level().mayInteract(player,pos)) return false;
+        var event=new PlayerInteractEvent.RightClickBlock(player,InteractionHand.MAIN_HAND,pos,
+                new BlockHitResult(Vec3.atCenterOf(pos),face,pos,false));
+        return !MinecraftForge.EVENT_BUS.post(event) && event.getUseBlock()!=Event.Result.DENY;
+    }
     /** Resolve translated registry names on the client; the server only uses these IDs as read-only filters. */
     private List<ResourceLocation> localizedMatches(String query) {
         if(query.isBlank()) return List.of();
@@ -155,11 +266,12 @@ public final class ControllerMenu extends AbstractContainerMenu {
         // Cells are individual containers, so this gesture means placing the
         // carried cell back, not collecting a stack of identical containers.
         if(type==ClickType.PICKUP_ALL && (slot>=0 && slot<10 || StorageCells.isCellHandled(getCarried()))) type=ClickType.PICKUP;
-        boolean usesRemote=slot>=0 && slot<10 || type==ClickType.QUICK_MOVE && slot>=10;
+        boolean usesRemote=slot>=0 && slot<10 || type==ClickType.QUICK_MOVE && slot>=10 && slot<slots.size()
+                && StorageCells.isCellHandled(slots.get(slot).getItem()) && (p.level().isClientSide ? snapshot.editableSlots()>0 : selected!=null && selected.cells()!=null);
         if(p.level().isClientSide) { if(!canSendClick(slot,type)) return; super.clicked(slot,button,type,p); return; }
         if(!stillValid(p)) return;
         if(type==ClickType.QUICK_CRAFT) { broadcastFullState(); return; }
-        if(usesRemote && (pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell) || !protectionAllows())) { broadcastFullState(); return; }
+        if((usesRemote || type==ClickType.QUICK_MOVE) && pending!=null || usesRemote && !protectionAllows()) { broadcastFullState(); return; }
         super.clicked(slot,button,type,p);
         if(usesRemote) scheduleMutationRefresh();
     }
@@ -178,10 +290,23 @@ public final class ControllerMenu extends AbstractContainerMenu {
         nextRefresh=Math.min(nextRefresh,Math.max(now+1,lastRefresh+MUTATION_REFRESH_INTERVAL));
     }
     @Override public ItemStack quickMoveStack(Player p,int index) {
-        if(index<0 || index>=slots.size() || !canEdit()) return ItemStack.EMPTY;
+        if(index<0 || index>=slots.size()) return ItemStack.EMPTY;
         Slot slot=slots.get(index);
         if(!slot.hasItem()) return ItemStack.EMPTY;
         ItemStack source=slot.getItem(),copy=source.copy();
+        boolean cellManagement=index<10 || StorageCells.isCellHandled(source)
+                && (p.level().isClientSide ? snapshot.editableSlots()>0 : selected!=null && selected.cells()!=null);
+        if(!cellManagement) {
+            if(p.level().isClientSide || pending!=null || !contentProtectionAllows()) return ItemStack.EMPTY;
+            var grid=grid(); var storage=contentStorage(grid);
+            if(storage==null) return ItemStack.EMPTY;
+            int inserted=(int)StorageHelper.poweredInsert(grid.getEnergyService(),storage,AEItemKey.of(source),source.getCount(),
+                    IActionSource.ofPlayer(player,()->controller.getMainNode().getNode()));
+            if(inserted<=0) return ItemStack.EMPTY;
+            source.shrink(inserted); slot.set(source.isEmpty() ? ItemStack.EMPTY : source); slot.setChanged();
+            scheduleMutationRefresh(); return copy;
+        }
+        if(!canEdit()) return ItemStack.EMPTY;
         if(index<10) {
             if(!moveItemStackTo(source,10,46,true)) return ItemStack.EMPTY;
         } else if(!moveItemStackTo(source,0,10,false)) return ItemStack.EMPTY;
@@ -212,6 +337,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         if(refreshed) send();
     }
     private void refresh() {
+        observedCellStorage=null;
         var grid=grid();
         if(grid==null || !stillValid(player)) {
             directory=List.of(); nextDirectoryRefresh=0;
@@ -273,6 +399,14 @@ public final class ControllerMenu extends AbstractContainerMenu {
             if(selectedCell>=cells.size()) selectedCell=-1;
             keys=new KeyCounter();
             if(selectedCell>=0) {
+                if(selected.owner() instanceof IChestOrDrive host) {
+                    try { observedCellStorage=host.getCellInventory(selectedCell); }
+                    catch(RuntimeException problem) {
+                        // A broken addon getter must not turn a degraded read-only view into a menu crash.
+                        observedCellStorage=null;
+                        error="gui.me_storage_controller.unreadable";
+                    }
+                }
                 var cell=cells.get(selectedCell); cap=cell.capacity();
                 keys=StorageScanner.contents(cell.storage());
                 title=Component.translatable("gui.me_storage_controller.cell_title",selectedInfo.name(),selectedCell+1);

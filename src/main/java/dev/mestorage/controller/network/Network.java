@@ -5,6 +5,7 @@ import dev.mestorage.controller.menu.ControllerMenu;
 import java.util.function.Consumer;
 import java.util.List;
 import java.util.ArrayList;
+import appeng.api.stacks.AEKey;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,8 +15,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    // Version 5 raises content pages to the 9-by-5 grid; older decoders reject them.
-    private static final String VERSION="5";
+    // Version 6 adds server-authoritative, scope-bound content transfers.
+    private static final String VERSION="6";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
     public record Request(int containerId,String deviceId,int cell,int devicePage,int contentPage,String deviceQuery,String contentQuery,boolean sortByAmount,
@@ -37,6 +38,16 @@ public final class Network {
         void write(FriendlyByteBuf b) { b.writeVarInt(containerId); snapshot.write(b); }
         static SnapshotMessage read(FriendlyByteBuf b) { return new SnapshotMessage(b.readVarInt(),Snapshot.read(b)); }
     }
+    /** Keys identify displayed entries; quantities and carried stacks are never client supplied. */
+    public record ContentAction(int containerId,long revision,String deviceId,int cell,AEKey key,int button,boolean shift) {
+        void write(FriendlyByteBuf b) {
+            b.writeVarInt(containerId); b.writeLong(revision); b.writeUtf(deviceId,256); b.writeInt(cell);
+            AEKey.writeOptionalKey(b,key); b.writeByte(button); b.writeBoolean(shift);
+        }
+        static ContentAction read(FriendlyByteBuf b) {
+            return new ContentAction(b.readVarInt(),b.readLong(),b.readUtf(256),b.readInt(),AEKey.readOptionalKey(b),b.readUnsignedByte(),b.readBoolean());
+        }
+    }
     public static void register() {
         CHANNEL.messageBuilder(Request.class,0,NetworkDirection.PLAY_TO_SERVER).encoder(Request::write).decoder(Request::read)
             .consumerMainThread((message,context)-> {
@@ -45,7 +56,13 @@ public final class Network {
             }).add();
         CHANNEL.messageBuilder(SnapshotMessage.class,1,NetworkDirection.PLAY_TO_CLIENT).encoder(SnapshotMessage::write).decoder(SnapshotMessage::read)
             .consumerMainThread((message,context)->clientReceiver.accept(message)).add();
+        CHANNEL.messageBuilder(ContentAction.class,2,NetworkDirection.PLAY_TO_SERVER).encoder(ContentAction::write).decoder(ContentAction::read)
+            .consumerMainThread((message,context)-> {
+                ServerPlayer player=context.get().getSender();
+                if(player!=null && player.containerMenu instanceof ControllerMenu menu && menu.containerId==message.containerId()) menu.handleContentAction(message);
+            }).add();
     }
     public static void request(Request request) { CHANNEL.sendToServer(request); }
+    public static void contentAction(ContentAction action) { CHANNEL.sendToServer(action); }
     public static void send(ServerPlayer player,int containerId,Snapshot snapshot) { CHANNEL.send(PacketDistributor.PLAYER.with(()->player),new SnapshotMessage(containerId,snapshot)); }
 }

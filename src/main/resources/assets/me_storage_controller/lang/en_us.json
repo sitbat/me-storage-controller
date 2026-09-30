@@ -68,7 +68,7 @@
   "gui.me_storage_controller.cell_operations": "Storage cell controls",
   "gui.me_storage_controller.cell_operation_hint": "Insert / remove whole cells here",
   "gui.me_storage_controller.player_inventory": "Player inventory",
-  "gui.me_storage_controller.network_root": "Entire network",
+  "gui.me_storage_controller.network_root": "ME Network",
   "gui.me_storage_controller.tree_search": "Search devices or cells…",
   "gui.me_storage_controller.content_search_readonly": "Search contents…",
   "gui.me_storage_controller.empty_tree": "No matching devices",
@@ -94,5 +94,9 @@
   "gui.me_storage_controller.inventory_short": "Inventory",
   "gui.me_storage_controller.capacity_unknown": "Capacity unknown",
   "gui.me_storage_controller.next_page": "Next contents page",
-  "gui.me_storage_controller.types_inline": "Types %s/%s"
+  "gui.me_storage_controller.types_inline": "Types %s/%s",
+  "gui.me_storage_controller.content_controls": "Empty cursor: left takes a stack, right takes half\nEmpty cursor: Shift-left takes a stack into inventory\nHolding items: left (including Shift) stores all; right stores one",
+  "gui.me_storage_controller.nonitem_inspection": "Fluid and other non-item contents are inspection only.\nHeld items can still be inserted into the selected storage scope.",
+  "gui.me_storage_controller.content_insert_hint": "Hold an item: left stores all, right stores one",
+  "gui.me_storage_controller.cell_slot": "Cell slot %s"
 }

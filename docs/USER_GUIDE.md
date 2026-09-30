@@ -1,4 +1,4 @@
-# 0.4.1 使用说明 / User guide
+# 0.4.2 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-本版将内容分页扩展到 45 格，网络协议升为 5；多人游戏客户端和服务器须同时升级，不能与 0.4.0 混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
+本版开放右侧物品存取，网络协议升为 6；多人游戏客户端和服务器须同时升级，不能与 0.4.1 或更早版本混用。界面与方块采用官方 AE2 1.21.1 美术资源适配，但游戏版本仍为 **Minecraft 1.20.1 Forge**。
 
-This release expands content pages to 45 entries and uses protocol 5. Upgrade clients and servers together; version 0.4.0 is incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
+This release enables content-grid item transfers and uses protocol 6. Upgrade clients and servers together; version 0.4.1 and earlier are incompatible. Official AE2 1.21.1 artwork is adapted for the interface and block, while the runtime remains **Minecraft 1.20.1 Forge**.
 
 ## 本地演示启动 / Local demo
 
@@ -18,8 +18,8 @@ This release expands content pages to 45 entries and uses protocol 5. Upgrade cl
 
 ```powershell
 .\gradlew.bat runClient -Pdemo -PeaeTest
-# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.1
-.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.1'
+# 也可选择另一个现成存档，例如 run/saves/ME-Controller-Demo-0.4.2
+.\gradlew.bat runClient -Pdemo -PeaeTest '-PdemoWorld=ME-Controller-Demo-0.4.2'
 ```
 
 `demoWorld` 指定运行目录 `saves` 下的现成存档文件夹名，省略时默认为 `ME-Controller-Demo`。演示模式会进入该存档并尝试打开控制器界面，不执行自动测试或自动退出。如果控制器不存在或离线，会记录 `ME_STORAGE_DEMO_UNAVAILABLE` 并把操作权留给玩家。按 Esc 关闭界面后，可右键坐标 **8, 100, 8** 的控制器重新打开。此处说明启动方法，不代表当前实例已成功启动。
@@ -28,25 +28,25 @@ Use JDK 17 and an existing world under the run directory's `saves` folder. `demo
 
 ## 文件树与界面 / Storage tree and interface
 
-左侧目录按 **整个网络 → 维度 → 设备 → 元件** 分层。点击节点前的箭头展开或折叠；多个设备可同时展开。点击设备名称查看设备汇总，点击元件行查看该元件的容量与内容。展开、折叠和滚动目录不会取放元件，也不会自动清除其他已展开的设备。
+左侧目录按 **ME网络 → 维度 → 设备 → 元件** 分层。点击节点前的箭头展开或折叠；多个设备可同时展开。点击设备名称查看设备汇总，点击元件行查看该元件的容量与内容。展开、折叠和滚动目录不会取放元件，也不会自动清除其他已展开的设备。
 
-The left tree follows **Entire network → Dimension → Device → Cell**. Click arrows to expand or collapse branches; multiple devices can remain open. Click a device name for its summary or a cell row for that cell's details. Expanding, collapsing and scrolling do not move cells or automatically close other devices.
+The left tree follows **ME Network → Dimension → Device → Cell**. Click arrows to expand or collapse branches; multiple devices can remain open. Click a device name for its summary or a cell row for that cell's details. Expanding, collapsing and scrolling do not move cells or automatically close other devices.
 
 鼠标位于目录上时滚轮用于浏览树。滚离当前元件后，其详情仍保留。“返回”从元件回到设备，再回到全网；“全网”直接返回网络概况。图标按钮提供悬停说明，标题与节点提示显示完整详情。
 
 Use the mouse wheel over the tree to scroll. Scrolling the selected cell out of view leaves its details selected. Back moves from cell to device, then to the network; All returns directly to the overview. Hover the title or path for full details.
 
-界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格只读，点击查看精确数量，不会取出其中的物品或流体。
+界面采用约 340×240 逻辑像素的 AE 终端布局：左侧文件树与元件区，右侧 9 列 × 5 行内容网格和玩家背包。元件槽为 5 列 × 2 行，选择具有可操作元件的设备后，可直接在同屏元件槽与背包之间取放。图标栏提供返回、全网、排序、主题等控制。默认浅色，已有主题偏好仍保留，设置保存在当前客户端的 `config/me-storage-controller-client.properties`。内容网格支持物品存取，选中物品后左侧仍显示精确数量；流体条目保留查看功能。
 
-The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. Content-grid entries are read-only: selecting one shows its exact quantity without extracting items or fluids.
+The approximately 340×240 logical-pixel terminal shows the tree and cells on the left, with a 9-by-5 content grid and player inventory on the right. The five-column, two-row cell controls and player inventory remain visible together, allowing direct transfers when the selected device exposes editable cells. The icon toolbar provides Back, All, Sort and Theme controls. Light is the default; saved preferences remain in `config/me-storage-controller-client.properties`. Content-grid items can be inserted and extracted, with exact selected quantities shown on the left. Fluid entries remain inspectable.
 
 GUI 缩放为 Auto 时，仅此控制器界面会临时限制实际渲染倍率，使面板能完整显示；不会修改游戏的 GUI 缩放选项。关闭界面后恢复游戏原本计算的倍率，重新打开时再适配。演示启动同样保留玩家原有 GUI 缩放设置。
 
 With GUI Scale set to Auto, only this controller screen temporarily limits its rendering scale so the panel fits. The game option is unchanged. Closing restores the game's calculated scale, and reopening adapts again. Demo startup also preserves the player's GUI Scale setting.
 
-主容量条与元件下方的小容量条显示可获取的占用信息：低于 80% 使用蓝灰色，80% 至 95% 使用琥珀色，95% 起使用红色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
+主容量条与树内元件条显示可获取的占用信息：低于 80% 使用当前主题强调色，80% 至 95% 使用琥珀色，95% 起使用红色。实际元件槽下方的细条始终使用主题强调色。未知容量不会伪造占用百分比。颜色用于辅助浏览，精确数值以文本及悬停提示为准。
 
-The main capacity bar and small cell bars show available occupancy information: blue-gray below 80%, amber from 80% to below 95%, and red from 95%. Unknown capacity does not receive an invented percentage. Read the text and tooltips for exact values.
+The main capacity bar and tree cell bars use the theme accent below 80%, amber from 80% to below 95%, and red from 95%. Thin bars beneath physical cell slots always use the theme accent. Unknown capacity does not receive an invented percentage. Read text and tooltips for exact values.
 
 ## 逐级浏览 / Drill down
 
@@ -70,11 +70,35 @@ External containers exposing the relevant capabilities can show occupied/total s
 
 Search, sort by name or quantity, and page through contents. Item entries show actual quantities and fluid entries use fluid units. Items with the same display name but different NBT may be separate stored types.
 
+## 存取物品 / Item transfers
+
+右侧物品区按当前选择的范围操作：选择 **ME网络** 时使用网络的正常存储路由；选择设备或元件时只操作该设备或元件，失败时不会转存到其他设备。空白格同样可以接收鼠标上拿着的物品。
+
+The content grid operates on the selected scope. **ME Network** uses normal network routing; a device or cell selection only accesses that device or cell and never falls back to another destination. Empty tiles also accept the carried item.
+
+| 操作 / Action | 鼠标未持物 / Empty cursor | 鼠标持物 / Carrying an item |
+|---|---|---|
+| 左键 / Left-click | 取出最多一组 / Extract up to one stack | 存入持有的全部物品 / Insert the carried stack |
+| 右键 / Right-click | 取出可取一组的一半，向上取整 / Extract half of an available stack, rounded up | 存入一个 / Insert one |
+| Shift 左键 / Shift-left-click | 取一组到背包，受可用空间限制 / Extract a stack into available backpack space | 存入持有的全部物品 / Insert the carried stack |
+
+Shift 点击背包中的普通物品可将其存入当前范围。若当前设备开放元件槽，Shift 点击背包中的存储元件仍优先将整个元件装入设备；普通物品不会误入元件槽。
+
+Shift-click a regular backpack item to insert it into the selected scope. When editable cell slots are available, Shift-clicking a storage cell still installs the complete cell in the selected device.
+
+存取由服务端执行，使用 AE2 原生存储接口、玩家操作来源和能量消耗；存储总线过滤、存取模式及元件限制仍然生效。设备或元件范围操作还会检查设备及外部容器的交互保护，同维度且目标可访问时才允许操作。无电、无空间、目标移除或拒绝存取时不会凭空生成物品。
+
+Transfers run on the server through AE2 storage interfaces with the player action source and energy costs. Storage-bus filters, access modes and cell restrictions remain effective. Scoped transfers also check device and external-container interaction protection and require an accessible target in the same dimension. Power, capacity and access failures cannot create items.
+
+空手点击流体与第三方非物品条目只显示内容和精确数量，不会直接变成鼠标物品。持有物品时，点击这些格子仍会尝试向当前范围存入该物品。
+
+Empty-cursor clicks on fluids and third-party non-item keys inspect their contents and exact amounts without converting them into cursor items. A carried item can still be inserted into the selected scope by clicking these tiles.
+
 ## 管理整个元件 / Move complete cells
 
-在设备详情中操作设备的元件槽位，可将整个元件移入或移出玩家物品栏。元件详情按钮用于查看内容。不要把内容清单当成 ME 终端：点击清单不会提取元件内的物品或流体。
+在设备详情中操作设备的元件槽位，可将整个元件移入或移出玩家物品栏。元件详情按钮用于查看内容。右侧内容网格用于移动存储中的物品；左侧元件槽用于移动整个元件。
 
-Use the device's cell slots to move complete cells to or from your inventory. Cell detail controls inspect the contents. The content list is not an ME Terminal: clicking a listed resource does not extract items or fluids.
+Use the device's cell slots to move complete cells to or from your inventory. Cell detail controls inspect the contents. The content grid moves stored items, while the left-side cell slots move complete storage cells.
 
 点击树中的元件行进入元件详情；普通点击、Shift 点击实际槽位用于移动整个元件。超过 10 个槽位时，选中树中后面的元件会自动映射到对应操作页，也可使用元件区域的分页箭头。只读附属设备可查看详情但不开放取放槽位。跨维度元件只读；同维度取放会验证玩家操作权限和目标设备的 Forge 交互保护事件。
 

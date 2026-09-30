@@ -27,6 +27,7 @@ import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.inventory.ClickType;
@@ -104,6 +105,20 @@ public final class ClientSmokeTest {
     private static Field captureMouseX;
     private static Field captureMouseY;
     private static PendingExtraCapture pendingExtraCapture;
+    private static ControllerScreen.UiRect hoverCaptureRect;
+    private static boolean cellTooltipCaptured;
+    private static boolean fluidTooltipCaptured;
+    private static int contentTransferScope;
+    private static int contentTransferStep;
+    private static int contentTransferWait;
+    private static boolean contentTransferVerified;
+    private static volatile boolean contentServerCheckDone;
+    private static boolean contentServerCheckRequested;
+    private static int contentInventorySlot;
+    private static int expandedContentStep;
+    private static int expandedContentWait;
+    private static boolean expandedContentCheckRequested;
+    private static volatile boolean expandedContentCheckDone;
     private record PendingExtraCapture(String name, int readyTick, Runnable afterCapture) {}
     private static final String[] NAMES = { "dark-network", "dark-drive", "dark-cell", "dark-expanded-cell20",
             "dark-fluid", "dark-external", "light-network", "light-expanded-cell20", "scale2-grid-light", "scale2-grid-dark",
@@ -243,8 +258,6 @@ public final class ClientSmokeTest {
         barrel.setItem(0, new ItemStack(Items.EMERALD, 37));
         PartHelper.setPart(level, controllerPos.north(), null, null, AEParts.GLASS_CABLE.item(AEColor.TRANSPARENT));
         PartHelper.setPart(level, controllerPos.north(), Direction.NORTH, null, AEParts.STORAGE_BUS.asItem());
-        player.getInventory().add(AEItems.ITEM_CELL_1K.stack());
-        player.getInventory().add(new ItemStack(Items.DIAMOND, 32));
         player.teleportTo(controllerPos.getX() - 2.5, controllerPos.getY(), controllerPos.getZ() + 2.5);
     }
 
@@ -297,6 +310,19 @@ public final class ClientSmokeTest {
         var baseline = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, fixtureBounds,
                 entity -> entity.isAlive() && entity.getItem().is(AEItems.ITEM_CELL_64K.asItem()));
         if (!baseline.isEmpty()) throw new IllegalStateException("Disposable fixture did not reach zero dropped-cell baseline");
+        // Old block drops may already have been picked up during the network startup wait.
+        // Normalize only this pre-interaction disposable fixture, after all old drops are removed.
+        System.out.println("ME_STORAGE_SMOKE_PLAYER_FIXTURE_RESET collectedOld64k="
+                +playerAmount(player,AEItems.ITEM_CELL_64K.asItem())+" oldCursor="+player.containerMenu.getCarried());
+        player.getInventory().clearContent();
+        player.containerMenu.setCarried(ItemStack.EMPTY);
+        player.getInventory().add(AEItems.ITEM_CELL_1K.stack());
+        player.getInventory().add(new ItemStack(Items.DIAMOND,32));
+        if(playerAmount(player,AEItems.ITEM_CELL_64K.asItem())!=0
+                ||playerAmount(player,AEItems.ITEM_CELL_1K.asItem())!=1||playerAmount(player,Items.DIAMOND)!=32
+                ||!player.containerMenu.getCarried().isEmpty())
+            throw new IllegalStateException("Pre-open disposable player inventory baseline is invalid");
+        System.out.println("ME_STORAGE_SMOKE_PLAYER_BASELINE PASS extra64k=0, cell1k=1, diamonds=32, cursor empty before any interaction");
         System.out.println("ME_STORAGE_SMOKE_DROP_BASELINE PASS removedOldFixtureItems=" + oldDrops.size()
                 + "; dropped64k=0 before opening the menu or sending any mouse events");
         NetworkHooks.openScreen(player, controller, controllerPos);
@@ -310,6 +336,7 @@ public final class ClientSmokeTest {
         if (!treeVerified && !verifyStorageTree(mc, menu)) return;
         if(view==0 && !verifyNavigationSync(menu))return;
         if(view==0 && !verifyContentGrid(mc,menu)) return;
+        if(view==0 && !verifyContentTransfers(mc,menu)) return;
         if (capturing) {
             if (!captureDone) return;
             capturing = false;
@@ -442,16 +469,31 @@ public final class ClientSmokeTest {
             if (transferPhase == 0 || transferPhase >= 5) throw new IllegalStateException("Cell detail lost exact iron count");
         }
         if (view == 2 && !verifyTransfers(mc, menu, 0, Items.IRON_INGOT, 12345)) return;
+        if (view == 2 && !cellTooltipCaptured) {
+            hoverCaptureRect=((ControllerScreen)mc.screen).smokeSlotRect(0);
+            if(hoverCaptureRect==null)throw new IllegalStateException("Tooltip fixture cell is not visible");
+            cellTooltipCaptured=true;
+            captureExtra(mc,"smoke-cell-tooltip.png");
+            return;
+        }
         if (view == 3) {
             if (s.cellSlots() != 20 || s.editableSlots() != 10) throw new IllegalStateException("Expanded page-two slot counts incorrect");
             if (!verifyRapidMouseClicks(mc, menu, 9, 19, Items.COPPER_INGOT, 98765)) return;
             if (!verifyTransfers(mc, menu, 9, Items.COPPER_INGOT, 98765)) return;
+            if (!verifyExpandedContentTransfer(mc,menu)) return;
             if (!verifyLocalizedSearch(menu)) return;
         }
         if (expandedView && transferPhase == 0 && s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.COPPER_INGOT)) && c.amount() == 98765))
             throw new IllegalStateException("Expanded slot20 lost exact copper count");
         if (view == 4 && s.contents().stream().noneMatch(c -> c.key().equals(AEFluidKey.of(Fluids.WATER)) && c.amount() == 23456)) {
             throw new IllegalStateException("Cell detail lost exact water amount");
+        }
+        if(view==4&&!fluidTooltipCaptured) {
+            hoverCaptureRect=((ControllerScreen)mc.screen).smokeSlotRect(0);
+            if(hoverCaptureRect==null)throw new IllegalStateException("Fluid tooltip fixture slot is not visible");
+            fluidTooltipCaptured=true;
+            captureExtra(mc,"smoke-fluid-cell-tooltip.png");
+            return;
         }
         if (view == 5 && (s.capacity().occupiedSlots() != 1 || s.capacity().totalSlots() != 27
                 || s.contents().stream().noneMatch(c -> c.key().equals(AEItemKey.of(Items.EMERALD)) && c.amount() == 37)))
@@ -497,8 +539,6 @@ public final class ClientSmokeTest {
                     throw new IllegalStateException("Grid smoke fixture must contain two pages with 45 visible keys");
                 gridKeys.clear();snapshot.contents().forEach(entry->gridKeys.add(entry.key()));
                 assertAmountOrder(snapshot);
-                clickUi(screen,screen.smokeContentRect(0));
-                if(!menu.getCarried().isEmpty())throw new IllegalStateException("Read-only content grid extracted a real item");
                 clickUi(screen,screen.smokeContentNextRect());
             }
             case 1 -> {
@@ -525,12 +565,187 @@ public final class ClientSmokeTest {
                 assertAmountOrder(snapshot);
                 if(snapshot.contents().get(0).amount()!=777000 || !snapshot.contents().get(0).key().equals(AEFluidKey.of(Fluids.LAVA)))
                     throw new IllegalStateException("Amount sort did not restore the 777000 mB lava entry");
-                var cursor=menu.getCarried().copy();clickUi(screen,screen.smokeContentRect(44));
-                if(!ItemStack.matches(cursor,menu.getCarried()))throw new IllegalStateException("Last read-only grid cell changed the cursor");
+                contentClick(screen,0,0);
             }
-            case 5 -> System.out.println("ME_STORAGE_SMOKE_CONTENT_GRID PASS 45-slot page, 52+ types, full unique-key coverage, real Next/Previous/name/amount controls, grid remains read-only");
+            case 5 -> {
+                if(!menu.getCarried().isEmpty())throw new IllegalStateException("Empty-cursor fluid inspection changed inventory");
+                System.out.println("ME_STORAGE_SMOKE_CONTENT_GRID PASS 45-slot page, 52+ types, full unique-key coverage, real Next/Previous/name/amount controls; fluid inspection preserves empty cursor");
+            }
         }
         contentGridPhase++;contentGridWait=25;return contentGridPhase>=6;
+    }
+
+    /** Real grid gestures with authoritative round-trip checks; each scope restores the original fixture. */
+    private static boolean verifyContentTransfers(Minecraft mc,ControllerMenu menu) {
+        if(contentTransferVerified)return true;
+        if(contentTransferWait>0&&--contentTransferWait>0)return false;
+        var screen=(ControllerScreen)mc.screen;var s=menu.getSnapshot();
+        String driveId=s.directory().stream().map(Snapshot.DirectoryEntry::device)
+                .filter(d->d.pos().equals(controllerPos.east())).findFirst().orElseThrow().id();
+        if(contentTransferScope==3)return verifyCellInsertionScope(mc,menu,screen,driveId);
+        String id=contentTransferScope==0?"":driveId;
+        int cell=contentTransferScope==2?0:-1;
+        switch(contentTransferStep) {
+            case 0 -> {
+                if(!screen.smokeRootLabel().equals("ME网络"))
+                    throw new IllegalStateException("Chinese network root label is not ME网络");
+                menu.request(id,cell,0,0,"","minecraft:iron_ingot",true);
+            }
+            case 1 -> {
+                assertTreeSelection(s,id,cell);assertContentState(menu,Items.IRON_INGOT,12345,0,0);
+                contentClick(screen,0,0);
+            }
+            case 2 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);contentClick(screen,44,0);}
+            case 3 -> {assertContentState(menu,Items.IRON_INGOT,12345,0,0);contentClick(screen,0,1);}
+            case 4 -> {assertContentState(menu,Items.IRON_INGOT,12313,32,0);contentClick(screen,44,1);}
+            case 5 -> {assertContentState(menu,Items.IRON_INGOT,12314,31,0);contentClick(screen,44,0);}
+            case 6 -> {assertContentState(menu,Items.IRON_INGOT,12345,0,0);screen.smokeContentClick(0,0,true);}
+            case 7 -> {
+                assertContentState(menu,Items.IRON_INGOT,12281,0,64);
+                contentInventorySlot=findPlayerItemSlot(menu,Items.IRON_INGOT);
+                clickUi(screen,screen.smokeSlotRect(contentInventorySlot));
+            }
+            case 8 -> {assertContentState(menu,Items.IRON_INGOT,12281,64,0);screen.smokeContentClick(44,0,true);}
+            case 9 -> {
+                assertContentState(menu,Items.IRON_INGOT,12345,0,0);
+                // No acknowledgement delay between presses: server must alternate extract/insert in arrival order.
+                for(int click=0;click<8;click++)contentClick(screen,0,0);
+            }
+            case 10 -> {
+                assertContentState(menu,Items.IRON_INGOT,12345,0,0);
+                if(!verifyContentServer(mc,12345,64,0,32))return false;
+                System.out.println("ME_STORAGE_SMOKE_CONTENT_TRANSFER PASS scope="+contentTransferScope
+                        +" left-stack/right-half/insert-one/empty-tile/Shift-to-inventory/8-rapid-clicks; exact iron=12345");
+                contentTransferScope++;contentTransferStep=0;contentServerCheckRequested=false;contentServerCheckDone=false;
+                contentTransferWait=2;return false;
+            }
+            default -> throw new IllegalStateException("Unknown content-transfer step "+contentTransferStep);
+        }
+        contentTransferStep++;contentTransferWait=25;return false;
+    }
+
+    private static boolean verifyCellInsertionScope(Minecraft mc,ControllerMenu menu,ControllerScreen screen,String driveId) {
+        switch(contentTransferStep) {
+            case 0 -> menu.request(driveId,1,0,0,"","minecraft:diamond",true);
+            case 1 -> {
+                assertTreeSelection(menu.getSnapshot(),driveId,1);
+                assertContentState(menu,Items.DIAMOND,0,0,32);
+                contentInventorySlot=findPlayerItemSlot(menu,Items.DIAMOND);
+                clickUi(screen,screen.smokeSlotRect(contentInventorySlot));
+            }
+            case 2 -> {assertContentState(menu,Items.DIAMOND,0,32,0);contentClick(screen,0,0);}
+            case 3 -> {
+                assertContentState(menu,Items.DIAMOND,32,0,0);
+                if(!verifyContentServer(mc,12345,64,32,0))return false;
+                contentServerCheckRequested=false;contentServerCheckDone=false;
+                contentClick(screen,0,0);
+            }
+            case 4 -> {
+                assertContentState(menu,Items.DIAMOND,0,32,0);
+                clickUi(screen,screen.smokeSlotRect(contentInventorySlot));
+            }
+            case 5 -> {
+                assertContentState(menu,Items.DIAMOND,0,0,32);
+                if(!verifyContentServer(mc,12345,64,0,32))return false;
+                System.out.println("ME_STORAGE_SMOKE_CONTENT_SCOPE PASS selected cell2 insert32 diamonds stays separate from cell1 existing64; withdrawal restored player32");
+                menu.request("",-1,0,0,"","",true);
+            }
+            case 6 -> {
+                if(!menu.getSnapshot().selectedDevice().isEmpty()||menu.getSnapshot().contentCount()<=45)return false;
+                contentTransferVerified=true;
+                System.out.println("ME_STORAGE_SMOKE_ROOT_LABEL PASS ME网络");return true;
+            }
+            default -> throw new IllegalStateException("Unknown cell-scope step");
+        }
+        contentTransferStep++;contentTransferWait=25;return false;
+    }
+
+    private static void contentClick(ControllerScreen screen,int index,int button) {
+        var rect=screen.smokeContentRect(index);
+        if(rect==null)throw new IllegalStateException("Content tile not visible: "+index);
+        screen.mouseClicked(rect.centerX(),rect.centerY(),button);
+        screen.mouseReleased(rect.centerX(),rect.centerY(),button);
+    }
+
+    private static boolean verifyExpandedContentTransfer(Minecraft mc,ControllerMenu menu) {
+        if(expandedContentStep>=3)return true;
+        if(expandedContentWait>0&&--expandedContentWait>0)return false;
+        if(menu.getSnapshot().selectedCell()!=19)throw new IllegalStateException("Expanded content test did not select actual cell19");
+        var screen=(ControllerScreen)mc.screen;
+        if(expandedContentStep==0) {
+            assertContentState(menu,Items.COPPER_INGOT,98765,0,0);
+            contentClick(screen,0,0);
+        } else if(expandedContentStep==1) {
+            assertContentState(menu,Items.COPPER_INGOT,98701,64,0);
+            contentClick(screen,44,0);
+        } else {
+            assertContentState(menu,Items.COPPER_INGOT,98765,0,0);
+            if(!expandedContentCheckRequested) {
+                expandedContentCheckRequested=true;var id=mc.player.getUUID();
+                mc.getSingleplayerServer().execute(()->{
+                    try {
+                        var player=mc.getSingleplayerServer().getPlayerList().getPlayer(id);
+                        var drive=(DriveBlockEntity)player.serverLevel().getBlockEntity(controllerPos.above());
+                        long amount=StorageScanner.contents(drive.getCellInventory(19)).get(AEItemKey.of(Items.COPPER_INGOT));
+                        if(amount!=98765||playerAmount(player,Items.COPPER_INGOT)!=0||!player.containerMenu.getCarried().isEmpty())
+                            throw new IllegalStateException("Expanded actual19 content transfer lost copper: "+amount);
+                        expandedContentCheckDone=true;
+                    } catch(Throwable problem){failure=problem.toString();}
+                });
+            }
+            if(!expandedContentCheckDone)return false;
+            System.out.println("ME_STORAGE_SMOKE_EAE_CONTENT PASS actual19 copper98765 -> cursor64 -> actual19 copper98765 via real content-grid clicks");
+        }
+        expandedContentStep++;expandedContentWait=25;return expandedContentStep>=3;
+    }
+
+    private static int findPlayerItemSlot(ControllerMenu menu,net.minecraft.world.item.Item item) {
+        for(int index=10;index<menu.slots.size();index++)if(menu.getSlot(index).getItem().is(item))return index;
+        throw new IllegalStateException("Player inventory has no expected item "+ForgeRegistries.ITEMS.getKey(item));
+    }
+
+    private static long playerAmount(Player player,net.minecraft.world.item.Item item) {
+        long amount=0;for(int i=0;i<player.getInventory().getContainerSize();i++) {
+            var stack=player.getInventory().getItem(i);if(stack.is(item))amount+=stack.getCount();
+        }return amount;
+    }
+
+    private static void assertContentState(ControllerMenu menu,net.minecraft.world.item.Item item,long stored,int carried,long inventory) {
+        long actual=menu.getSnapshot().contents().stream().filter(c->c.key().equals(AEItemKey.of(item))).mapToLong(Snapshot.Content::amount).sum();
+        var cursor=menu.getCarried();boolean cursorMatches=carried==0?cursor.isEmpty():cursor.is(item)&&cursor.getCount()==carried;
+        long actualInventory=playerAmount(Minecraft.getInstance().player,item);
+        long player64k=playerAmount(Minecraft.getInstance().player,AEItems.ITEM_CELL_64K.asItem());
+        if(player64k!=0)throw new IllegalStateException("Content interaction introduced player64k="+player64k
+                +" scope="+contentTransferScope+" step="+contentTransferStep);
+        if(actual!=stored||!cursorMatches||actualInventory!=inventory)
+            throw new IllegalStateException("Content transfer mismatch scope="+contentTransferScope+" step="+contentTransferStep
+                    +" stored="+actual+"/"+stored+" cursor="+cursor+"/"+carried+" inventory="+actualInventory+"/"+inventory);
+    }
+
+    private static boolean verifyContentServer(Minecraft mc,long iron,long firstDiamonds,long secondDiamonds,long playerDiamonds) {
+        if(!contentServerCheckRequested) {
+            contentServerCheckRequested=true;var id=mc.player.getUUID();
+            mc.getSingleplayerServer().execute(()->{
+                try {
+                    var player=mc.getSingleplayerServer().getPlayerList().getPlayer(id);
+                    var drive=(DriveBlockEntity)player.serverLevel().getBlockEntity(controllerPos.east());
+                    long actualIron=StorageScanner.contents(drive.getCellInventory(0)).get(AEItemKey.of(Items.IRON_INGOT));
+                    long first=StorageScanner.contents(drive.getCellInventory(0)).get(AEItemKey.of(Items.DIAMOND));
+                    long second=StorageScanner.contents(drive.getCellInventory(1)).get(AEItemKey.of(Items.DIAMOND));
+                    if(actualIron!=iron||first!=firstDiamonds||second!=secondDiamonds||playerAmount(player,Items.IRON_INGOT)!=0
+                            ||playerAmount(player,Items.DIAMOND)!=playerDiamonds||!player.containerMenu.getCarried().isEmpty()
+                            ||playerAmount(player,AEItems.ITEM_CELL_64K.asItem())!=0
+                            ||!drive.getInternalInventory().getStackInSlot(0).is(AEItems.ITEM_CELL_64K.asItem())
+                            ||!drive.getInternalInventory().getStackInSlot(1).is(AEItems.ITEM_CELL_16K.asItem()))
+                        throw new IllegalStateException("Server content conservation failed: iron="+actualIron+" diamonds="+first+"/"+second);
+                    var drops=player.serverLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,
+                            new net.minecraft.world.phys.AABB(controllerPos).inflate(8),e->e.getItem().is(Items.IRON_INGOT)||e.getItem().is(Items.DIAMOND));
+                    if(!drops.isEmpty())throw new IllegalStateException("Content interactions spawned dropped items");
+                    contentServerCheckDone=true;
+                } catch(Throwable problem){failure=problem.toString();}
+            });
+        }
+        return contentServerCheckDone;
     }
 
     /** Observe the exact custom-packet callback, before it can unlock client slots. */
@@ -627,7 +842,8 @@ public final class ClientSmokeTest {
         if (FMLEnvironment.production || !ENABLED || DEMO)
             throw new IllegalStateException("Capture cursor synchronization is restricted to development smoke tests");
         var window = mc.getWindow();
-        double safeX = 2.0, safeY = 2.0;
+        double safeX = hoverCaptureRect==null?2.0:hoverCaptureRect.centerX()*window.getScreenWidth()/window.getGuiScaledWidth();
+        double safeY = hoverCaptureRect==null?2.0:hoverCaptureRect.centerY()*window.getScreenHeight()/window.getGuiScaledHeight();
         org.lwjgl.glfw.GLFW.glfwSetCursorPos(window.getWindow(), safeX, safeY);
         // Background GLFW windows may not dispatch a cursor callback. Named fields are available in
         // the development runtime; bypassing onMove also avoids camera/drag side effects.
@@ -711,7 +927,7 @@ public final class ClientSmokeTest {
         }
         if (visibleSlots < 36) throw new IllegalStateException("Unified terminal hides the player inventory");
         for(int index=0;index<Snapshot.CONTENT_PAGE_SIZE;index++)
-            checkBounds("read-only content cell "+index,screen.smokeContentRect(index),width,height);
+            checkBounds("content tile "+index,screen.smokeContentRect(index),width,height);
         if(menu.getSnapshot().editableSlots()>0 && visibleSlots<36+menu.getSnapshot().editableSlots())
             throw new IllegalStateException("Unified terminal hides editable physical cells");
         System.out.println("ME_STORAGE_SMOKE_LAYOUT PASS " + NAMES[view] + " pixels=" + mc.getWindow().getWidth()
@@ -846,6 +1062,13 @@ public final class ClientSmokeTest {
         var pending = pendingExtraCapture;
         if (pending == null) return false;
         if (ticks < pending.readyTick()) return true;
+        if(hoverCaptureRect!=null) {
+            var screen=(ControllerScreen)mc.screen;
+            if(screen.smokeTooltipRenderCount()!=1 || !screen.smokeTooltipKind().equals("cell"))
+                throw new IllegalStateException("Cell hover must render one combined tooltip: count="
+                        +screen.smokeTooltipRenderCount()+" kind="+screen.smokeTooltipKind());
+            System.out.println("ME_STORAGE_SMOKE_CELL_TOOLTIP PASS one combined tooltip: "+screen.smokeTooltipText());
+        }
         File directory = output(mc);
         directory.mkdirs();
         Screenshot.grab(directory, pending.name(), mc.getMainRenderTarget(), result -> {
@@ -853,6 +1076,7 @@ public final class ClientSmokeTest {
             if (!new File(directory, "screenshots/" + pending.name()).isFile()) failure = "Tree screenshot failed: " + pending.name();
         });
         pendingExtraCapture = null;
+        hoverCaptureRect=null;
         pending.afterCapture().run();
         return true;
     }
@@ -1115,7 +1339,7 @@ public final class ClientSmokeTest {
                 return;
             }
             System.out.println("ME_STORAGE_SMOKE_BLOCK_STATUS PASS online/offline captures and restored online state");
-            finish(mc, "PASS: 45-slot read-only grid, real next/previous paging of 52+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; closing restores vanilla Auto and reopening reapplies the local limit without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+            finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 52+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; closing restores vanilla Auto and reopening reapplies the local limit without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
         }
     }
 
