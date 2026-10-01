@@ -30,6 +30,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private static ResourceLocation texture(String name){return new ResourceLocation("me_storage_controller","textures/ae2_1_21/guis/"+name+".png");}
     record UiRect(int x,int y,int width,int height){double centerX(){return x+width/2.0;}double centerY(){return y+height/2.0;}}
     private final StorageTree tree=new StorageTree(this::select);
+    private final FolderOverlay folderOverlay=new FolderOverlay(menu,tree);
+    private final TreeStateStore treeStateStore=new TreeStateStore(net.minecraftforge.fml.loading.FMLPaths.CONFIGDIR.get().resolve("me-storage-controller/tree-state"));
+    private String treeStateScope;
+    private boolean treeStateInitialized,suppressAutomaticTreeReveal;
     private EditBox contentSearch,treeSearch;
     private Button guide,theme,root,back,sort,collapse,locate,contentPrevious,contentNext,cellsPrevious,cellsNext;
     private boolean collapsed,treeOnly,narrow,treeVisible,mainVisible,sortByAmount=true,treeSearchOpen;
@@ -50,6 +54,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private String tooltipKind="none";
     private List<Component> tooltipLines=List.of();
     private Boolean smokeShiftOverride;
+    private Boolean smokeTreeControlOverride,smokeTreeShiftOverride;
     public ControllerScreen(ControllerMenu menu,Inventory inventory,Component title){super(menu,inventory,title);}
     static Component tr(String key,Object... args){return Component.translatable("gui.me_storage_controller."+key,args);}
     @Override protected void rebuildWidgets(){
@@ -61,6 +66,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     @Override protected void init(){
         // Screen dimensions already reflect the user's GUI scale. Never change Window or Options.
+        restoreTreeState();
         controlPressButton=-1;scrollbarDragging=false;scrollbarGrabOffset=0;setDragging(false);
         terminalTexture=packTexture("terminal");iconTexture=packTexture("states");fieldTexture=packTexture("text_field");panelTexture=packTexture("background");
         narrow=width<352;
@@ -69,11 +75,11 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         cellY=imageHeight-49;inventoryY=imageHeight-94;hotbarY=imageHeight-36;treeHeight=imageHeight-134;gridRowOffset=Math.min(gridRowOffset,5-visibleRows);
         boolean contentFocused=contentSearch!=null&&contentSearch.isFocused(),treeFocused=treeSearch!=null&&treeSearch.isFocused();
         int contentCursor=contentSearch==null?0:contentSearch.getCursorPosition(),treeCursor=treeSearch==null?0:treeSearch.getCursorPosition();
-        String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();
+        String cq=contentSearch==null?"":contentSearch.getValue(),tq=treeSearch==null?"":treeSearch.getValue();super.init();syncContentTarget();folderOverlay.resize(font,width,height);tree.setFolders(menu.getFolderView());
         guide=sidebar(9,176,0,tr("guide"),b->ControllerGuide.open());
         sort=sidebar(49,32,16,tr(sortByAmount?"sort_amount":"sort_name"),b->{sortByAmount=!sortByAmount;b.setMessage(tr(sortByAmount?"sort_amount":"sort_name"));request(0);});
         root=sidebar(69,160,16,tr("network_root"),b->select("",-1));
-        back=sidebar(89,0,48,tr("back"),b->{var s=menu.getSnapshot();select(s.selectedCell()>=0?s.selectedDevice():"",-1);});
+        back=sidebar(89,0,48,tr("back"),b->{var s=menu.getSnapshot();var id=tree.folderId(s.selectedDevice());var folder=id==null?null:tree.folder(id);select(folder!=null&&folder.parent()!=null?"folder:"+folder.parent():s.selectedCell()>=0?s.selectedDevice():"",-1);});
         collapse=sidebar(129,48,208,tr("toggle_tree"),b->{if(narrow)treeOnly=!treeOnly;else collapsed=!collapsed;rebuildWidgets();});
         theme=sidebar(109,32,64,tr("theme_toggle"),b->setDarkThemeForTest(!ClientAppearance.isDark()));
         sidebar(29,0,64,tr("tree_search"),b->{treeSearchOpen=!treeSearchOpen;if(!treeVisible){if(narrow)treeOnly=true;else collapsed=false;rebuildWidgets();}updateWidgets();if(treeSearchOpen){setFocused(treeSearch);treeSearch.setFocused(true);}});
@@ -101,7 +107,7 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     private EditBox search(int x,int y,int w,String value,String hint,java.util.function.Consumer<String> response){var b=new EditBox(font,leftPos+x,topPos+y,w,10,tr(hint));b.setBordered(false);b.setMaxLength(64);b.setValue(value);b.setResponder(response);return addRenderableWidget(b);}
     private static int offset(Snapshot s){return Math.max(0,s.selectedCell())/10*10;}
-    private void select(String device,int cell){searchDue=0;focusedKey=null;targetPage=0;gridRowOffset=0;contentWheelRemainder=0;requestedDevice=device;requestedCell=cell;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
+    private void select(String device,int cell){suppressAutomaticTreeReveal=false;searchDue=0;focusedKey=null;targetPage=0;gridRowOffset=0;contentWheelRemainder=0;requestedDevice=device;requestedCell=cell;if(device.isEmpty())tree.revealRoot();menu.request(device,cell,0,0,"",contentSearch.getValue(),sortByAmount);}
     private void request(int page){contentWheelRemainder=0;moveContent(Math.max(0,Math.min(page,maxPage())),0,true);}
     private int maxPage(){return Math.max(0,menu.getSnapshot().contentPages()-1);}
     private int rowPositions(){return 6-visibleRows;}
@@ -114,7 +120,25 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     private void moveContentPosition(int position){int clamped=Math.max(0,Math.min(position,maxScrollPosition()));moveContent(clamped/rowPositions(),clamped%rowPositions(),false);}
     private void syncContentTarget(){var s=menu.getSnapshot();if(s.revision()==menu.getRequestedRevision()){targetPage=s.contentPage();requestedDevice=s.selectedDevice();requestedCell=s.selectedCell();gridRowOffset=Math.max(0,Math.min(gridRowOffset,maxScrollPosition()-targetPage*rowPositions()));}}
-    @Override protected void containerTick(){super.containerTick();contentSearch.tick();treeSearch.tick();syncContentTarget();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}updateWidgets();}
+    @Override protected void containerTick(){super.containerTick();menu.flushFolderEdits();tree.setFolders(menu.getFolderView());folderOverlay.tick();contentSearch.tick();treeSearch.tick();syncContentTarget();if(searchDue!=0&&System.currentTimeMillis()>=searchDue)request(0);var s=menu.getSnapshot();String selection=s.selectedDevice()+"/"+s.selectedCell();if(!selection.equals(observedSelection)){observedSelection=selection;focusedKey=null;if(!suppressAutomaticTreeReveal){var folder=tree.folderId(s.selectedDevice());if(folder!=null)tree.revealFolder(folder);else if(s.selectedDevice().isEmpty())tree.revealRoot();else if(s.selectedCell()>=0)tree.revealCell(s.selectedDevice(),s.selectedCell());else tree.revealDevice(s.selectedDevice());}}updateWidgets();}
+    private void restoreTreeState(){
+        if(treeStateInitialized)return;
+        treeStateInitialized=true;treeStateScope=ClientTreeScope.resolve(minecraft,menu.getControllerPos());
+        if(treeStateScope==null)return;
+        try { treeStateStore.load(treeStateScope).ifPresent(state->{
+            tree.restoreExpansionState(state.branches());collapsed=state.panelCollapsed();suppressAutomaticTreeReveal=true;
+        }); } catch(java.io.IOException failure) {
+            org.slf4j.LoggerFactory.getLogger(ControllerScreen.class).warn("Could not restore controller tree state",failure);
+        }
+    }
+    @Override public void removed(){
+        if(treeStateInitialized&&treeStateScope!=null)try {
+            treeStateStore.save(treeStateScope,new TreeStateStore.State(tree.expansionState(),collapsed));
+        } catch(java.io.IOException failure) {
+            org.slf4j.LoggerFactory.getLogger(ControllerScreen.class).warn("Could not save controller tree state",failure);
+        }
+        super.removed();
+    }
     private void updateWidgets(){var s=menu.getSnapshot();contentSearch.visible=mainVisible;treeSearch.visible=treeVisible&&treeSearchOpen;back.active=!s.selectedDevice().isEmpty();locate.visible=treeVisible;locate.active=s.selectedInfo()!=null&&!s.selectedInfo().dimension().toString().equals("me_storage_controller:unknown");cellsPrevious.visible=cellsNext.visible=treeVisible&&s.cellSlots()>10;cellsPrevious.active=offset(s)>0;cellsNext.active=offset(s)+10<s.cellSlots();contentPrevious.visible=contentNext.visible=mainVisible;contentPrevious.active=targetPage>0;contentNext.active=targetPage<maxPage();}
     private void nativeTint(GuiGraphics g){nativeTint(g,1);}
     private void nativeTint(GuiGraphics g,float alpha){g.setColor(1-themeMix*.6256F,1-themeMix*.6127F,1-themeMix*.5613F,alpha);}
@@ -152,9 +176,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private static String abbreviate(long n){if(n<1000)return Long.toString(n);String[] units={"K","M","G","T","P","E"};double value=n;int i=-1;do{value/=1000;i++;}while(value>=1000&&i<units.length-1);return String.format(Locale.ROOT,value>=10?"%.0f%s":"%.1f%s",value,units[i]);}
     private Snapshot.Content focused(Snapshot s){if(focusedKey!=null)for(var c:s.contents())if(c.key().equals(focusedKey))return c;return s.contents().isEmpty()?null:s.contents().get(0);}
     private void renderAttachment(GuiGraphics g,Snapshot s){int x=leftPos+18,y=topPos;g.fill(x+6,y+imageHeight-107,x+118,y+imageHeight-106,p.border());var c=focused(s);clipped(g,c==null?s.title():displayName(c.key()),x+7,y+imageHeight-101,109,p.text());if(c!=null)fit(g,Component.literal(exactAmount(c)),x+7,y+imageHeight-90,110,p.muted());
-        var d=s.selectedInfo();clipped(g,d==null?tr("network_root"):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
-        clipped(g,tr(s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
-        if(s.cellSlots()==0){clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
+        boolean folder=tree.folderId(s.selectedDevice())!=null;
+        var d=s.selectedInfo();clipped(g,d==null?(folder?s.title():tr("network_root")):Component.literal(d.pos().getX()+", "+d.pos().getY()+", "+d.pos().getZ()),x+7,y+imageHeight-76,87,p.muted());
+        clipped(g,tr(folder?"folder_summary":s.cellSlots()>0?"cells_short":"external_short"),x+7,y+imageHeight-62,65,p.text());if(s.cellSlots()>10)clipped(g,Component.literal((offset(s)/10+1)+"/"+((s.cellSlots()+9)/10)),x+69,y+imageHeight-62,21,p.text());
+        if(s.cellSlots()==0){if(!folder)clipped(g,tr(s.selectedDevice().isEmpty()?"select_device":"external_capacity_short"),x+7,y+cellY+5,109,p.muted());return;}
         for(int i=0;i<10;i++){int absolute=offset(s)+i,sx=leftPos+26+(i%5)*18,sy=y+cellY+(i/5)*18;nativeTint(g);g.blit(iconTexture,sx-1,sy-1,192,192,18,18);g.setColor(1,1,1,1);var preview=s.cells().stream().filter(v->v.slot()==absolute).findFirst().orElse(null);if(i>=s.editableSlots()&&preview!=null&&!preview.icon().isEmpty())g.renderItem(preview.icon(),sx,sy);}
     }
     private void renderCapacity(GuiGraphics g,Snapshot s,int x,int y){var c=s.capacity();long used=c.usedBytes(),total=c.totalBytes();Component label;
@@ -172,10 +197,10 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
         var format=NumberFormat.getNumberInstance();format.setGroupingUsed(false);format.setMaximumFractionDigits(1);
         return format.format(amount)+" "+BYTE_UNITS[unit];
     }
-    private Component breadcrumb(Snapshot s){var path=tr("network_root").copy();if(s.selectedInfo()!=null)path.append(" / ").append(s.selectedInfo().dimension().toString()).append(" / ").append(s.selectedInfo().name());if(s.selectedCell()>=0)path.append(" / ").append(tr("cell",s.selectedCell()+1));return path;}
+    private Component breadcrumb(Snapshot s){var path=tr("network_root").copy();var folder=tree.folderId(s.selectedDevice());if(folder!=null)return path.append(" / ").append(tree.folderPath(folder));if(s.selectedInfo()!=null)path.append(" / ").append(s.selectedInfo().dimension().toString()).append(" / ").append(s.selectedInfo().name());if(s.selectedCell()>=0)path.append(" / ").append(tr("cell",s.selectedCell()+1));return path;}
     @Override protected void renderLabels(GuiGraphics g,int mx,int my){}
     @Override public void render(GuiGraphics g,int mx,int my,float partial){renderBackground(g);super.render(g,mx,my,partial);var s=menu.getSnapshot();if(treeVisible)for(int i=0;i<10;i++){int abs=offset(s)+i,x=leftPos+26+(i%5)*18,y=topPos+cellY+(i/5)*18;if(abs==s.selectedCell()){g.fill(x-1,y-1,x+17,y,p.selected());g.fill(x-1,y+16,x+17,y+17,p.selected());}s.cells().stream().filter(v->v.slot()==abs&&v.totalBytes()>0).findFirst().ifPresent(v->{g.fill(x,y+16,x+16,y+17,p.border());int used=(int)Math.min(16,Math.round(16.0*v.usedBytes()/v.totalBytes()));if(used>0)g.fill(x,y+16,x+used,y+17,p.accent());});}
-        renderControllerTooltip(g,mx,my);
+        if(folderOverlay.open()){tooltipRenderCount=0;tooltipKind="none";tooltipLines=List.of();folderOverlay.render(g,p,mx,my);}else renderControllerTooltip(g,mx,my);
     }
     /** A single tooltip decision per frame: controls, real slots, content tiles, then metadata. */
     private void renderControllerTooltip(GuiGraphics g,int mx,int my){
@@ -237,16 +262,17 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     private int scrollbarThumbY(UiRect track){return track.y()+(int)Math.round((track.height()-scrollbarThumbHeight(track))*Math.min(scrollPosition(),maxScrollPosition())/(double)Math.max(1,maxScrollPosition()));}
     private void dragScrollbar(double my){var track=scrollbarRect();if(track==null)return;double available=track.height()-scrollbarThumbHeight(track);if(available<=0)return;moveContentPosition((int)Math.round((my-track.y()-scrollbarGrabOffset)/available*maxScrollPosition()));}
     private int remoteIndex(double mx,double my){if(!treeVisible)return -1;double x=mx-leftPos-25,y=my-topPos-cellY+1;if(x<0||x>=90||y<0||y>=36)return -1;return (int)y/18*5+(int)x/18;}
-    @Override public boolean mouseClicked(double mx,double my,int button){syncContentTarget();var track=scrollbarRect();if(track!=null&&hit(mx,my,track.x(),track.y(),track.width(),track.height())){controlPressButton=button;if(button==0){scrollbarDragging=true;contentWheelRemainder=0;int thumbY=scrollbarThumbY(track),thumbHeight=scrollbarThumbHeight(track);scrollbarGrabOffset=my>=thumbY&&my<thumbY+thumbHeight?my-thumbY:thumbHeight/2.0;dragScrollbar(my);}return true;}if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my);controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
+    @Override public boolean mouseClicked(double mx,double my,int button){if(folderOverlay.open()){controlPressButton=button;return folderOverlay.click(mx,my,button);}syncContentTarget();var track=scrollbarRect();if(track!=null&&hit(mx,my,track.x(),track.y(),track.width(),track.height())){controlPressButton=button;if(button==0){scrollbarDragging=true;contentWheelRemainder=0;int thumbY=scrollbarThumbY(track),thumbHeight=scrollbarThumbHeight(track);scrollbarGrabOffset=my>=thumbY&&my<thumbY+thumbHeight?my-thumbY:thumbHeight/2.0;dragScrollbar(my);}return true;}if(treeVisible&&hit(mx,my,leftPos+22,topPos+26,116,treeHeight)){if(button==0)tree.click(mx,my,smokeTreeControlOverride!=null?smokeTreeControlOverride:hasControlDown(),smokeTreeShiftOverride!=null?smokeTreeShiftOverride:hasShiftDown());else if(button==1)folderOverlay.context((int)mx,(int)my,tree.contextAt(mx,my));controlPressButton=button;return true;}int i=contentIndex(mx,my);if(i>=0){
             var contents=menu.getSnapshot().contents();AEKey key=i<contents.size()?contents.get(i).key():null;if(key!=null)focusedKey=key;
             if((button==0||button==1)&&(!menu.getCarried().isEmpty()||key!=null))menu.requestContent(i,button,smokeShiftOverride!=null?smokeShiftOverride:hasShiftDown());
             controlPressButton=button;return true;}
         int remote=remoteIndex(mx,my);var snapshot=menu.getSnapshot();if(remote>=snapshot.editableSlots()&&remote>=0&&offset(snapshot)+remote<snapshot.cellSlots()){if(button==0)select(snapshot.selectedDevice(),offset(snapshot)+remote);controlPressButton=button;return true;}
         boolean widget=children().stream().anyMatch(c->c instanceof AbstractWidget w&&w.visible&&hit(mx,my,w.getX(),w.getY(),w.getWidth(),w.getHeight()));boolean handled=super.mouseClicked(mx,my,button);if(widget){controlPressButton=button;return true;}return handled;}
-    @Override public boolean mouseReleased(double mx,double my,int button){if(controlPressButton==button){controlPressButton=-1;scrollbarDragging=false;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
-    @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy){if(scrollbarDragging&&button==0){dragScrollbar(my);return true;}return super.mouseDragged(mx,my,button,dx,dy);}
-    @Override public boolean mouseScrolled(double mx,double my,double amount){if(treeVisible&&tree.wheel(mx,my,amount))return true;if(contentScrollArea(mx,my)){syncContentTarget();if(Double.isFinite(amount)){contentWheelRemainder-=amount;int steps=(int)contentWheelRemainder;if(steps!=0){contentWheelRemainder-=steps;moveContentPosition((int)Math.max(0,Math.min((long)maxScrollPosition(),(long)scrollPosition()+steps)));}if(scrollPosition()==0&&contentWheelRemainder<0||scrollPosition()==maxScrollPosition()&&contentWheelRemainder>0)contentWheelRemainder=0;}return true;}return super.mouseScrolled(mx,my,amount);}
-    @Override public boolean keyPressed(int key,int scan,int mods){if(key!=256&&(treeSearch.isFocused()&&treeSearch.visible||contentSearch.isFocused()&&contentSearch.visible)){(treeSearch.isFocused()&&treeSearch.visible?treeSearch:contentSearch).keyPressed(key,scan,mods);return true;}return super.keyPressed(key,scan,mods);}
+    @Override public boolean mouseReleased(double mx,double my,int button){if(folderOverlay.open()){controlPressButton=-1;scrollbarDragging=false;setDragging(false);return true;}if(controlPressButton==button){controlPressButton=-1;scrollbarDragging=false;setDragging(false);if(getFocused()!=null)getFocused().mouseReleased(mx,my,button);return true;}return super.mouseReleased(mx,my,button);}
+    @Override public boolean mouseDragged(double mx,double my,int button,double dx,double dy){if(folderOverlay.open())return true;if(scrollbarDragging&&button==0){dragScrollbar(my);return true;}return super.mouseDragged(mx,my,button,dx,dy);}
+    @Override public boolean mouseScrolled(double mx,double my,double amount){if(folderOverlay.open())return folderOverlay.wheel(amount);if(treeVisible&&tree.wheel(mx,my,amount))return true;if(contentScrollArea(mx,my)){syncContentTarget();if(Double.isFinite(amount)){contentWheelRemainder-=amount;int steps=(int)contentWheelRemainder;if(steps!=0){contentWheelRemainder-=steps;moveContentPosition((int)Math.max(0,Math.min((long)maxScrollPosition(),(long)scrollPosition()+steps)));}if(scrollPosition()==0&&contentWheelRemainder<0||scrollPosition()==maxScrollPosition()&&contentWheelRemainder>0)contentWheelRemainder=0;}return true;}return super.mouseScrolled(mx,my,amount);}
+    @Override public boolean keyPressed(int key,int scan,int mods){if(folderOverlay.open())return folderOverlay.key(key,scan,mods);if(key!=256&&(treeSearch.isFocused()&&treeSearch.visible||contentSearch.isFocused()&&contentSearch.visible)){(treeSearch.isFocused()&&treeSearch.visible?treeSearch:contentSearch).keyPressed(key,scan,mods);return true;}return super.keyPressed(key,scan,mods);}
+    @Override public boolean charTyped(char character,int modifiers){return folderOverlay.open()?folderOverlay.character(character,modifiers):super.charTyped(character,modifiers);}
     @Override protected void slotClicked(Slot slot,int id,int button,ClickType type){if(menu.canSendClick(id,type))super.slotClicked(slot,id,button,type);}
     private float animate(float value,float target,float speed){return value+(target-value)*(1-(float)Math.exp(-delta*speed));}
     static String number(long n){return n==Snapshot.Capacity.UNLIMITED?"∞":n<0?tr("unknown").getString():NumberFormat.getIntegerInstance().format(n);}
@@ -282,6 +308,27 @@ public final class ControllerScreen extends AbstractContainerScreen<ControllerMe
     }
     UiRect smokeTreeViewport(){return treeVisible?new UiRect(leftPos+22,topPos+26,116,treeHeight):null;}UiRect smokeDeviceRect(String id,boolean chevron){return treeVisible?tree.rect("dev:"+id,chevron):null;}UiRect smokeCellRect(String id,int cell){return treeVisible?tree.rect("cell:"+id+":"+cell,false):null;}
     void smokeExpandDevice(String id){tree.expandDevice(id);}void smokeRevealDevice(String id){tree.revealDevice(id);}void smokeRevealCell(String id,int cell){tree.revealCell(id,cell);}boolean smokeDeviceExpanded(String id){return tree.isOpen("dev:"+id);}double smokeTreeScrollOffset(){return tree.scrollOffset();}
+    Map<String,Boolean> smokeTreeExpansionState(){return tree.expansionState();}
+    boolean smokeTreeBranchOpen(String key){return tree.isOpen(key);}
+    UiRect smokeTreeBranchRect(String key){return treeVisible?tree.rect(key,true):null;}
+    String smokeTreeStateScope(){return treeStateScope;}
+    UiRect smokeFolderRect(UUID id,boolean chevron){return treeVisible?tree.rect("folder:"+id,chevron):null;}
+    void smokeRevealFolder(UUID id){tree.revealFolder(id);}
+    UiRect smokeFolderActionRect(String action){return folderOverlay.actionRect(action);}
+    UiRect smokeFolderNameRect(){return folderOverlay.nameRect();}
+    UiRect smokeFolderSubmitRect(){return folderOverlay.submitRect();}
+    UiRect smokeFolderCancelRect(){return folderOverlay.cancelRect();}
+    UiRect smokeFolderTargetRect(UUID id){return folderOverlay.targetRect(id);}
+    void smokeRevealFolderTarget(UUID id){folderOverlay.revealTarget(id);}
+    Set<String> smokeFolderSelectionKeys(){return tree.selectedKeys();}
+    boolean smokeFolderOverlayOpen(){return folderOverlay.open();}
+    void smokeTreeClick(String key,int button,boolean control,boolean shift){
+        if(net.minecraftforge.fml.loading.FMLEnvironment.production)throw new IllegalStateException("Development smoke helper is disabled in production");
+        var target=tree.rect(key,false);if(target==null)throw new IllegalArgumentException("Tree row is not visible: "+key);
+        smokeTreeControlOverride=control;smokeTreeShiftOverride=shift;
+        try{mouseClicked(target.centerX(),target.centerY(),button);mouseReleased(target.centerX(),target.centerY(),button);}
+        finally{smokeTreeControlOverride=null;smokeTreeShiftOverride=null;}
+    }
     UiRect smokeInventoryTabRect(){return null;}UiRect smokeContentsTabRect(){return null;}UiRect smokeContentSearchRect(){return rect(contentSearch);}
     private final class IconButton extends Button {int sx,sy;float over;boolean sidebar;IconButton(int x,int y,int w,int h,int sx,int sy,Component label,OnPress action){super(x,y,w,h,label,action,DEFAULT_NARRATION);this.sx=sx;this.sy=sy;}
         @Override protected void renderWidget(GuiGraphics g,int mx,int my,float partial){

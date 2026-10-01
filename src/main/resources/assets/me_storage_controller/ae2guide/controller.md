@@ -25,12 +25,25 @@ The controller shows its current ME network. It does not search every network in
 Expand the directory arrows to browse **ME Network → Dimension → Device → Cell**. Several devices can stay expanded.
 
 - Select **ME Network** to view and use the network's available storage.
+- Select a folder to aggregate and use its members and descendants.
 - Select a device to work with that device's storage.
 - Select a cell to work with that cell alone.
 
 Your selection controls both the displayed contents and where you insert or extract resources. A selected cell will not borrow space or resources from another cell. Back moves from cell to device, then to the network. Scrolling or folding the directory keeps the current selection.
 
 Storage-bus filters, access modes, sided-container rules and interaction permissions still apply. An unavailable or read-only source may show contents without allowing transfers.
+
+## Organize shared folders
+
+Folders are shared by all players and controllers on the same ME network and saved with the world. They can contain whole devices, individual cell slots and other folders.
+
+Use **Ctrl-left-click** to toggle selections and **Shift-left-click** to select a range, then right-click to group into a new folder, create a child folder, rename, move classifications or remove assignments. Opening the context menu does not change the transfer scope; left-click a folder to view and use its members.
+
+**Folder actions only change classification; they never move items or physical cells.** Deleting a folder promotes its direct members and children to its parent, or to the root. Individual cell membership follows the **device slot**: an empty slot stays assigned and a replacement cell joins automatically. A removed cell does not retain its classification elsewhere.
+
+Folder totals include all descendants without counting duplicate device/slot references twice. Explicit transfers, containers and Shift-inserting inventory items use only those members, retaining filters, energy costs and permissions. Any offline or disconnected member makes the whole folder temporarily unavailable for transfers while keeping its assignment. Transfers never fall back to the entire network. Potentially overlapping external inventories or ME-network ranges are rejected.
+
+Split networks retain classifications and merge changes when reconnected, without granting access to another grid. Other players' edits synchronize to your screen; wait for a refresh before retrying an outdated action.
 
 ## Read capacity and amounts
 
@@ -83,6 +96,8 @@ Use the wheel over the content grid, scrollbar or arrow buttons to browse conten
 The right search field filters contents by displayed name or identifier, such as `minecraft:iron_ingot`. The directory's search icon opens a separate device-and-cell search. Clear a query to remove its filter; hiding the directory search field keeps its query. The sort button switches between name and quantity.
 
 The theme button switches light and dark appearances and remembers your choice. The controller keeps Minecraft's GUI scale. In narrow windows, the directory button switches between the tree and contents; resizing keeps your search and selection.
+
+Tree expansion and panel collapse are saved on your **personal client** and restored when reopening the same controller. Preferences are separate for each world/server, player, dimension and controller location. Folder classifications are shared; folding preferences are not.
 
 ## Locate a device
 

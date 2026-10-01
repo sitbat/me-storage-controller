@@ -62,6 +62,14 @@ public final class ClientSetup {
                 if (player != null && player.containerMenu instanceof ControllerMenu menu
                         && menu.containerId == packet.containerId()) menu.acceptDirectoryFrame(packet.frame());
             };
+            Network.folderReceiver = packet -> {
+                var player=Minecraft.getInstance().player;
+                if(player!=null&&player.containerMenu instanceof ControllerMenu menu&&menu.containerId==packet.containerId())menu.acceptFolderFrame(packet);
+            };
+            Network.folderFeedbackReceiver = packet -> {
+                var player=Minecraft.getInstance().player;
+                if(player!=null&&player.containerMenu instanceof ControllerMenu menu&&menu.containerId==packet.containerId())menu.acceptFolderFeedback(packet);
+            };
         });
     }
 }

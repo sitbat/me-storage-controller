@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.4.13'
+version = '0.4.14'
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -13,6 +13,9 @@ minecraft {
         configureEach {
             workingDirectory project.file(project.findProperty('runDir') ?: 'run')
             property 'forge.logging.console.level', 'info'
+            if (project.hasProperty('folderRestart')) {
+                property 'mestorage.folderRestart', project.property('folderRestart')
+            }
             // Remap AE2/GuideME dependency mixins in the named development environment.
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
@@ -26,7 +29,7 @@ minecraft {
             }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v0413').absolutePath
+                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v0414').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }

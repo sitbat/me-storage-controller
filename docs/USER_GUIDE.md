@@ -1,4 +1,4 @@
-# 0.4.13 使用说明 / User guide
+# 0.4.14 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-0.4.13支持完整存储目录分批同步，新增默认关闭的“绕过AE能量转换限制”选项，保留既有界面、操作和OmniCells适配。已知无限上限显示 **∞**，未知数值仍显示未知。网络协议升级至 **8**，客户端和服务器必须同步更新，不能与0.4.12及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。
+0.4.14新增网络共享嵌套文件夹与个人本地折叠记忆，保留完整目录、默认关闭的能量旁路、OmniCells和既有存取功能。网络协议为 **9**，客户端与服务器须同步更新，不能与0.4.13及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。已通过49项服务端GameTest、13项JUnit及两个独立服务端进程的真实保存／重启恢复验证（修订4→8）；无可选附属环境也正常启动与关服。完整客户端操作验收及截图检查也已通过，详见 [0.4.14测试记录](RELEASE_0.4.14.md)。
 
-Version 0.4.13 streams complete storage directories and adds an optional energy bypass, disabled by default, retaining existing controls and OmniCells support. Known unlimited bounds display **∞**; unavailable values remain unknown. Protocol is now **8**: update client and server together; 0.4.12 and earlier versions cannot connect. The runtime remains **Minecraft 1.20.1 Forge**.
+Version 0.4.14 adds shared nested folders and personal local tree memory, preserving complete directories, the optional energy bypass, OmniCells and existing transfers. Protocol is **9**: update both sides together; 0.4.13 and earlier releases cannot connect. The runtime remains **Minecraft 1.20.1 Forge**. 49 server GameTests, 13 JUnit tests and persistence verification across two independent server processes passed (revision 4→8). Startup and shutdown also succeeded without optional addons. The complete client interaction test and screenshot review also passed; see the [0.4.14 report](RELEASE_0.4.14.md).
 
 ## 游戏内指南 / In-game guide
 
@@ -62,6 +62,32 @@ Wheel input works over the content grid, scrollbar and arrow buttons. Rapid inpu
 
 The main capacity bar and tree cell bars use the theme accent below 80%, amber from 80% to below 95%, and red from 95%. Thin bars beneath physical cell slots always use the theme accent. Unknown capacity does not receive an invented percentage. Read text and tooltips for exact values.
 
+## 共享文件夹 / Shared folders
+
+文件夹保存在存档中，由**同一ME网络的所有玩家与控制器共享**，支持多层嵌套。成员可以是整个设备，也可以是设备中的一个元件槽。点击文件夹会汇总它及子文件夹的成员，容量和内容不会重复计算同一设备／槽位。
+
+Folders persist in the world and are **shared by all players and controllers on the same ME network**. They can contain nested folders, whole devices or individual cell slots. Selecting a folder aggregates its descendants without double-counting the same device/slot.
+
+在目录中使用 **Ctrl左键**增减多选、**Shift左键**选择连续范围，再右键打开操作菜单。可将选中项归入新文件夹、创建子文件夹、重命名、移动到其他文件夹或移出分类。右键菜单本身不会切换当前内容操作范围；左键选择文件夹后才以该文件夹为存取范围。
+
+Use **Ctrl-left-click** to toggle multiple selections and **Shift-left-click** for a range, then right-click for actions. Group selections into a new folder, create a child folder, rename, move classifications or remove assignments. Opening a context menu does not switch the current content scope; left-click a folder to use it for transfers.
+
+**新建、归组、重命名、移动分类与删除只修改分类元数据，不搬动物品、流体或实际存储元件。**删除文件夹会将直接成员与子文件夹提升到其父级；删除顶层文件夹则回到根目录。单元件归属**跟随槽位**：取出元件后槽位归属仍在，换入新元件会自动加入该分类；旧元件移到其他槽后，不会凭原身份继续属于此分类。
+
+**Creating, grouping, renaming, reorganizing and deleting folders only changes classification metadata; it never moves items, fluids or physical cells.** Deleting a folder promotes its direct members and child folders to its parent, or to the root. Individual cell membership **follows the slot**: an empty slot stays assigned and a replacement cell joins automatically. A removed cell does not retain membership after moving elsewhere.
+
+只有主动在右侧内容区存取、使用容器或Shift存入背包物品时，才改变存储内容。文件夹操作只使用其成员，遵循原存储过滤、模式、供电和权限；不足时不会借用非成员空间或资源。任一成员离线、移除或离开当前网络时，该文件夹暂不可存取，归属记录仍保留。可能重叠的外部库存或ME网络范围会被拒绝，而不是冒险重复统计或跨范围存取。
+
+Storage contents change only when you explicitly transfer resources, use containers or Shift-insert inventory items. Folder transfers use only members and retain filtering, access, energy and permission rules, without borrowing from nonmembers. Any offline, removed or disconnected member temporarily makes that folder unavailable for transfers while retaining its assignment. Potentially overlapping external inventories or ME-network ranges are rejected instead of risking duplicate counts or transfers outside the scope.
+
+网络分裂后各分支保留分类；不可访问的成员不会被当作另一个网络的可用存储。重连时合并分类变更。其他玩家更新分类后，界面会同步；过期操作被拒绝时，请等待刷新再重试。
+
+Split networks retain their classifications without gaining access to members on another grid. Reconnection merges classification changes. Other players' edits synchronize to your screen; if an outdated action is rejected, wait for the refresh and try again.
+
+目录展开／折叠和面板收起状态属于**个人客户端偏好**，关闭再打开时恢复；按世界或服务器、玩家、维度及控制器位置分别记忆，不会改变其他玩家的目录。调整窗口和从指南返回也保留当前状态。
+
+Tree expansion and panel collapse are **personal client preferences**, restored when reopening and separated by world/server, player, dimension and controller location. They do not change another player's tree. Resizing or returning from the guide also preserves the current state.
+
 ## 逐级浏览 / Drill down
 
 打开后先查看全网概况。目录搜索支持维度、设备名称与元件名称；搜索时显示匹配的分支，清空后恢复原来的展开偏好。设备详情显示维度和坐标；驱动器与 ME 箱子可以进一步查看其元件。使用返回按钮逐级回到设备或全网概况。
@@ -90,9 +116,9 @@ Search, sort by name or quantity, and page through contents. Item entries show a
 
 ## 存取物品 / Item transfers
 
-右侧物品区按当前选择的范围操作：选择 **ME网络** 时使用网络的正常存储路由；选择设备或元件时只操作该设备或元件，失败时不会转存到其他设备。空白格同样可以接收鼠标上拿着的物品。
+右侧物品区按当前选择的范围操作：选择 **ME网络** 时使用网络的正常存储路由；选择文件夹时只使用其递归成员；选择设备或元件时只操作该设备或元件，失败时不会转存到其他设备。空白格同样可以接收鼠标上拿着的物品。
 
-The content grid operates on the selected scope. **ME Network** uses normal network routing; a device or cell selection only accesses that device or cell and never falls back to another destination. Empty tiles also accept the carried item.
+The content grid operates on the selected scope. **ME Network** uses normal network routing; a folder uses only its recursive members; a device or cell selection only accesses that device or cell and never falls back to another destination. Empty tiles also accept the carried item.
 
 以下表格描述普通物品取放；可填充或倒空的容器按下一节规则处理。
 
@@ -136,9 +162,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.13使用协议 **8**，必须同步更新客户端与服务器。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.14使用协议 **9**，必须同步更新客户端与服务器。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.13 uses protocol **8** and requires updating client and server together.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.14 uses protocol **9** and requires updating client and server together.
 
 ## 管理整个元件 / Move complete cells
 

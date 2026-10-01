@@ -14,6 +14,9 @@ import dev.mestorage.controller.block.ControllerBlockEntity;
 import dev.mestorage.controller.network.Network;
 import dev.mestorage.controller.network.Snapshot;
 import dev.mestorage.controller.network.DirectoryTransfer;
+import dev.mestorage.controller.network.FolderTransfer;
+import dev.mestorage.controller.folder.FolderBook;
+import dev.mestorage.controller.folder.FolderService;
 import dev.mestorage.controller.storage.StorageScanner;
 import dev.mestorage.controller.storage.ContentAccess;
 import dev.mestorage.controller.storage.ContainerTransfers;
@@ -77,6 +80,20 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private int contentActionsThisTick;
     private List<Snapshot.Content> scannedContents=List.of();
     private IGrid scannedGrid;
+    private FolderBook.View folderView=new FolderBook.View(-1,List.of()),queuedFolderView;
+    private FolderTransfer.Cursor folderCursor,outgoingFolderEdit;
+    private FolderTransfer.Assembler folderAssembler,incomingFolderEdit;
+    private long folderGeneration,receivedFolderGeneration,lastFolderSend=Long.MIN_VALUE,folderCursorRevision;
+    private long folderRequestId,folderEditBaseRevision,folderFeedbackRevision=-1;
+    private long incomingFolderRequest=-1,incomingFolderRevision,incomingFolderTick,lastCompletedFolderRequest=-1;
+    private long folderTrafficTick=Long.MIN_VALUE;
+    private int folderFramesThisTick,folderEditsThisTick;
+    private long clientFolderAcknowledgement=-1,lastSentFolderRevision=-1;
+    private boolean folderPending;
+    private String folderError="";
+    private ContentAccess.Resolved observedFolderStorage;
+    private long observedFolderRevision=-1;
+    private List<Device> folderKnownDevices=List.of();
 
     public ControllerMenu(int id,Inventory inventory,FriendlyByteBuf data) {
         this(id,inventory,inventory.player.level().getBlockEntity(data.readBlockPos()) instanceof ControllerBlockEntity be ? be : null);
@@ -120,6 +137,135 @@ public final class ControllerMenu extends AbstractContainerMenu {
     }
     private void replaceSlot(int index,Slot slot) { slot.index=index; slots.set(index,slot); }
     public Snapshot getSnapshot() { return snapshot; }
+    public FolderBook.View getFolderView() {
+        if(!player.level().isClientSide){var service=folderService();if(service!=null)return service.view();}
+        return folderView;
+    }
+    public String getFolderError(){return folderError;}
+    public boolean isFolderPending(){return folderPending;}
+    private FolderService folderService(){var grid=grid();return grid==null?null:grid.getService(FolderService.class);}
+    private static boolean isFolder(String id){return id.startsWith("folder:");}
+    private static UUID folderId(String id){
+        if(!isFolder(id))return null;
+        try{return UUID.fromString(id.substring(7));}catch(IllegalArgumentException invalid){return null;}
+    }
+    private static String folderError(String code){return code.isEmpty()?"":"gui.me_storage_controller.folder_error."+code;}
+    public void requestFolderEdit(FolderBook.Edit edit) {
+        if(!player.level().isClientSide||folderPending)return;
+        if(!snapshot.online()||folderView.revision()<0){folderError=folderError("unavailable");return;}
+        try{outgoingFolderEdit=new FolderTransfer.Cursor(FolderTransfer.encodeEdit(edit));}
+        catch(RuntimeException invalid){folderError=folderError("limit");return;}
+        folderRequestId++;folderEditBaseRevision=folderView.revision();folderFeedbackRevision=-1;folderPending=true;folderError="";
+    }
+    /** Large multi-selections cannot monopolize one network tick. */
+    public void flushFolderEdits() {
+        if(!player.level().isClientSide)return;
+        for(int sent=0;sent<2&&outgoingFolderEdit!=null;sent++) {
+            Network.sendFolderEditFrame(new Network.FolderEditFrameMessage(containerId,folderRequestId,folderEditBaseRevision,outgoingFolderEdit.next()));
+            if(outgoingFolderEdit.finished())outgoingFolderEdit=null;
+        }
+    }
+    public void acceptFolderFeedback(Network.FolderFeedbackMessage message) {
+        if(!player.level().isClientSide||message.requestId()!=folderRequestId)return;
+        folderError=folderError(message.error());folderFeedbackRevision=message.revision();
+        if(!message.error().isEmpty()||folderView.revision()>=folderFeedbackRevision){folderPending=false;outgoingFolderEdit=null;}
+    }
+    public void acceptFolderFrame(Network.FolderDocumentMessage message) {
+        if(!player.level().isClientSide||message.generation()<receivedFolderGeneration)return;
+        if(message.generation()>receivedFolderGeneration){
+            receivedFolderGeneration=message.generation();folderAssembler=new FolderTransfer.Assembler(FolderTransfer.MAX_VIEW_BYTES);
+        }
+        if(folderAssembler==null)return;
+        byte[] complete=folderAssembler.accept(message.frame());
+        if(complete!=null){
+            folderView=FolderTransfer.decodeView(complete);folderAssembler=null;
+            Network.acknowledgeFolders(containerId,folderView.revision());
+            if(folderPending&&folderFeedbackRevision>=0&&folderView.revision()>=folderFeedbackRevision)folderPending=false;
+        }
+    }
+    public void acknowledgeFolders(long revision) {
+        if(player.level().isClientSide)return;
+        var service=folderService();
+        if(service!=null&&service.view().revision()==revision&&lastSentFolderRevision==revision)clientFolderAcknowledgement=revision;
+    }
+    public void handleFolderEditFrame(Network.FolderEditFrameMessage message) {
+        if(player.level().isClientSide||!stillValid(player)||message.requestId()<=lastCompletedFolderRequest)return;
+        long now=player.level().getGameTime();
+        resetFolderTraffic(now);
+        if(++folderFramesThisTick>8){
+            incomingFolderEdit=null;
+            lastCompletedFolderRequest=message.requestId();
+            folderFeedback(message.requestId(),"limit");
+            return;
+        }
+        if(incomingFolderEdit!=null&&now-incomingFolderTick>200)incomingFolderEdit=null;
+        if(message.frame().index()==0){
+            incomingFolderEdit=new FolderTransfer.Assembler(FolderTransfer.MAX_EDIT_BYTES);
+            incomingFolderRequest=message.requestId();incomingFolderRevision=message.revision();
+        }
+        try{
+            if(incomingFolderEdit==null||incomingFolderRequest!=message.requestId()||incomingFolderRevision!=message.revision())
+                throw new IllegalArgumentException("Folder edit sequence");
+            incomingFolderTick=now;
+            byte[] complete=incomingFolderEdit.accept(message.frame());
+            if(complete!=null){
+                incomingFolderEdit=null;lastCompletedFolderRequest=message.requestId();
+                handleFolderEdit(new Network.FolderEditAction(containerId,message.requestId(),message.revision(),FolderTransfer.decodeEdit(complete)));
+            }
+        }catch(RuntimeException invalid){incomingFolderEdit=null;lastCompletedFolderRequest=message.requestId();folderFeedback(message.requestId(),"invalid");}
+    }
+    public void handleFolderEdit(Network.FolderEditAction action) {
+        if(player.level().isClientSide)return;
+        resetFolderTraffic(player.level().getGameTime());
+        if(++folderEditsThisTick>8){folderFeedback(action.requestId(),"limit");return;}
+        var service=folderService();
+        if(action.containerId()!=containerId||player.containerMenu!=this||!stillValid(player)||!player.mayBuild()
+                ||service==null||!allowsAt(controller.getBlockPos(),Direction.UP)){folderFeedback(action.requestId(),"denied");return;}
+        if(action.revision()!=service.view().revision()){folderFeedback(action.requestId(),"stale");return;}
+        // Existing offline references can be reorganized. Newly introduced references must
+        // identify storage actually exposed by this grid; a client cannot invent addresses.
+        Set<FolderBook.MemberRef> existing=new HashSet<>();
+        for(var folder:service.view().folders())existing.addAll(folder.members());
+        var available=new HashMap<String,Device>();for(var device:StorageScanner.discover(grid()))available.put(device.id(),device);
+        for(var member:action.edit().members()){
+            if(existing.contains(member))continue;
+            var device=available.get(member.deviceId());
+            if(!member.valid()||device==null||member.cell()>=0&&member.cell()>=StorageScanner.cellCount(device)){
+                folderFeedback(action.requestId(),"member");return;
+            }
+        }
+        var result=service.apply(action.revision(),action.edit());
+        nextRefresh=0;clearContentScan();syncFolderView();folderFeedback(action.requestId(),result.error());
+    }
+    private void resetFolderTraffic(long tick){if(folderTrafficTick!=tick){folderTrafficTick=tick;folderFramesThisTick=0;folderEditsThisTick=0;}}
+    private void folderFeedback(long requestId,String error) {
+        folderError=folderError(error);var service=folderService();
+        if(player instanceof ServerPlayer server)Network.sendFolderFeedback(server,containerId,requestId,service==null?-1:service.view().revision(),error);
+        syncFolderView();
+    }
+    private void syncFolderView() {
+        if(player.level().isClientSide)return;
+        var service=folderService();if(service==null)return;
+        var current=service.view();
+        if(current.revision()!=folderView.revision()){
+            folderView=current;queuedFolderView=current;clientFolderAcknowledgement=-1;
+            if(isFolder(selectedId)){nextRefresh=0;clearContentScan();}
+        }
+    }
+    private void flushFolderView() {
+        if(!(player instanceof ServerPlayer server)||!snapshot.online())return;
+        long now=player.level().getGameTime();if(now==lastFolderSend)return;lastFolderSend=now;
+        for(int sent=0;sent<2;sent++){
+            if(folderCursor==null){
+                if(queuedFolderView==null)return;
+                folderCursorRevision=queuedFolderView.revision();folderCursor=new FolderTransfer.Cursor(FolderTransfer.encodeView(queuedFolderView));
+                queuedFolderView=null;folderGeneration++;
+            }
+            Network.sendFolderDocument(server,containerId,folderGeneration,folderCursor.next());
+            if(folderCursor.finished()){lastSentFolderRevision=folderCursorRevision;folderCursor=null;}
+        }
+    }
+    public BlockPos getControllerPos() { return controller==null ? null : controller.getBlockPos(); }
     public long getRequestedRevision() { return requestedRevision; }
     public void setSnapshot(Snapshot value) {
         if(value.revision()<snapshot.revision()) return;
@@ -148,7 +294,8 @@ public final class ControllerMenu extends AbstractContainerMenu {
         if(!player.level().isClientSide || selectionPending || requestedRevision!=snapshot.revision()
                 || !snapshot.online() || contentIndex<0 || contentIndex>=Snapshot.CONTENT_PAGE_SIZE || button<0 || button>1) return;
         var key=contentIndex<snapshot.contents().size() ? snapshot.contents().get(contentIndex).key() : null;
-        Network.contentAction(new Network.ContentAction(containerId,snapshot.revision(),snapshot.selectedDevice(),snapshot.selectedCell(),key,button,shift));
+        Network.contentAction(new Network.ContentAction(containerId,snapshot.revision(),snapshot.selectedDevice(),snapshot.selectedCell(),key,button,shift,
+                isFolder(snapshot.selectedDevice())?folderView.revision():0));
     }
     public void handleContentAction(Network.ContentAction action) {
         if(player.level().isClientSide) return;
@@ -159,6 +306,8 @@ public final class ControllerMenu extends AbstractContainerMenu {
         if(action.containerId()!=containerId || action.button()<0 || action.button()>1 || pending!=null
                 || action.revision()!=acknowledgedRevision || !action.deviceId().equals(selectedId) || action.cell()!=selectedCell
                 || !snapshot.online() || !contentProtectionAllows()) { broadcastFullState(); return; }
+        if(isFolder(selectedId)&&(action.folderRevision()!=observedFolderRevision||folderService()==null
+                ||action.folderRevision()!=folderService().view().revision())){nextRefresh=0;broadcastFullState();return;}
         try {
             var grid=grid();
             var storage=contentStorage(grid);
@@ -204,6 +353,12 @@ public final class ControllerMenu extends AbstractContainerMenu {
     }
     private MEStorage contentStorage(IGrid grid) {
         if(grid==null || !stillValid(player)) return null;
+        if(isFolder(selectedId)){
+            var service=folderService();
+            if(service==null||service.view().revision()!=observedFolderRevision||observedFolderStorage==null)return null;
+            var current=ContentAccess.resolveMembers(grid,service.members(folderId(selectedId)),folderKnownDevices);
+            return current.error().isEmpty()&&observedFolderStorage.sameTargets(current)?current.storage():null;
+        }
         if(selectedId.isEmpty()) return selectedCell<0 ? grid.getStorageService().getInventory() : null;
         if(!current()) return null;
         try {
@@ -241,10 +396,20 @@ public final class ControllerMenu extends AbstractContainerMenu {
     }
     private boolean contentProtectionAllows() {
         if(!stillValid(player) || !player.mayBuild() || grid()==null || !allowsAt(controller.getBlockPos(),Direction.UP)) return false;
+        if(isFolder(selectedId)){
+            if(observedFolderStorage==null||!observedFolderStorage.error().isEmpty()||folderService()==null
+                    ||observedFolderRevision!=folderService().view().revision())return false;
+            for(var device:observedFolderStorage.devices())if(!deviceProtectionAllows(device))return false;
+            return true;
+        }
         if(selectedId.isEmpty()) return selectedCell<0;
-        if(!current() || selected.location()==null || !player.level().dimension().equals(selected.location().dimension())
-                || !allowsAt(selected.location().pos(),selected.side()==null ? Direction.UP : selected.side())) return false;
-        var target=StorageScanner.targetInfo(selected);
+        return current()&&deviceProtectionAllows(selected);
+    }
+    private boolean deviceProtectionAllows(Device device) {
+        if(!StorageScanner.isCurrent(device,grid())||!device.node().isActive()||device.location()==null
+                ||!player.level().dimension().equals(device.location().dimension())
+                ||!allowsAt(device.location().pos(),device.side()==null?Direction.UP:device.side()))return false;
+        var target=StorageScanner.targetInfo(device);
         return target==null || player.level().dimension().equals(target.location().dimension())
                 && player.level().hasChunkAt(target.location().pos()) && allowsAt(target.location().pos(),target.face());
     }
@@ -328,6 +493,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
                 && (p.level().isClientSide ? snapshot.editableSlots()>0 : selected!=null && selected.cells()!=null);
         if(!cellManagement) {
             if(p.level().isClientSide || pending!=null || !contentProtectionAllows()) return ItemStack.EMPTY;
+            if(isFolder(selectedId)&&clientFolderAcknowledgement!=observedFolderRevision)return ItemStack.EMPTY;
             var grid=grid(); var storage=contentStorage(grid);
             if(storage==null) return ItemStack.EMPTY;
             int inserted=(int)StorageHelper.poweredInsert(grid.getEnergyService(),storage,AEItemKey.of(source),source.getCount(),
@@ -347,6 +513,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
     @Override public void broadcastChanges() {
         boolean refreshed=false;
         if(!player.level().isClientSide) {
+            syncFolderView();
             long now=player.level().getGameTime();
             boolean navigating=pending!=null && (!pending.deviceId().equals(selectedId) || pending.cell()!=selectedCell);
             boolean paging=pending!=null && isContentPageRequest(pending);
@@ -373,6 +540,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         // client stays locked until both labels and their real cells are current.
         if(refreshed) send();
         flushDirectory();
+        flushFolderView();
     }
     private boolean isContentPageRequest(Network.Request request) {
         return request.deviceId().equals(selectedId) && request.cell()==selectedCell && request.devicePage()==devicePage
@@ -383,6 +551,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private boolean canReuseContentScan(long now) {
         // Pagination does not extend either the regular refresh deadline or a mutation's earlier deadline.
         if(now>=nextRefresh || scannedGrid==null || scannedGrid!=grid() || !snapshot.online() || !stillValid(player)) return false;
+        if(isFolder(selectedId))return contentStorage(scannedGrid)!=null;
         if(selectedId.isEmpty()) return selectedCell<0;
         if(!current()) return false;
         if(selectedCell<0) return true;
@@ -407,6 +576,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
     private void refresh() {
         clearContentScan();
         observedCellStorage=null;
+        observedFolderStorage=null;observedFolderRevision=-1;
         var grid=grid();
         if(grid==null || !stillValid(player)) {
             directory=List.of(); nextDirectoryRefresh=0;
@@ -416,7 +586,7 @@ public final class ControllerMenu extends AbstractContainerMenu {
         }
         List<Device> devices=StorageScanner.discover(grid);
         selected=devices.stream().filter(d->d.id().equals(selectedId)).findFirst().orElse(null);
-        if(selected==null) { selectedId=""; selectedCell=-1; }
+        if(selected==null&&!isFolder(selectedId)) { selectedId=""; selectedCell=-1; }
         Map<String,Snapshot.DeviceInfo> deviceInfos=new HashMap<>();
         for(var device:devices) deviceInfos.put(device.id(),deviceInfo(device));
         var filtered=devices.stream().filter(d -> {
@@ -435,7 +605,20 @@ public final class ControllerMenu extends AbstractContainerMenu {
         Snapshot.Capacity capacity;
         Component title;
         String error="";
-        if(selected==null) {
+        if(isFolder(selectedId)){
+            selectedCell=-1;folderKnownDevices=List.copyOf(devices);
+            var service=folderService();var id=folderId(selectedId);
+            var folder=service==null?null:service.view().folders().stream().filter(f->f.id().equals(id)).findFirst().orElse(null);
+            title=folder==null?Component.translatable("gui.me_storage_controller.folder_missing"):Component.literal(folder.name());
+            keys=new KeyCounter();capacity=new Snapshot.Capacity(-1,-1,-1,-1,0);
+            if(folder==null)error=folderError("missing");
+            else {
+                observedFolderRevision=service.view().revision();
+                observedFolderStorage=ContentAccess.resolveMembers(grid,service.members(id),devices);
+                if(!observedFolderStorage.error().isEmpty())error=folderError(observedFolderStorage.error());
+                else {keys=StorageScanner.contents(observedFolderStorage.storage());capacity=folderCapacity(observedFolderStorage,cellReads);}
+            }
+        } else if(selected==null) {
             try { keys=StorageScanner.gridContents(grid); }
             catch(RuntimeException failure) {
                 keys=new KeyCounter(); error="gui.me_storage_controller.unreadable";
@@ -504,6 +687,29 @@ public final class ControllerMenu extends AbstractContainerMenu {
             selected!=null ? Math.max(0,StorageScanner.cellCount(selected)) : 0,
             canEdit() ? Math.max(0,Math.min(10,selected.cells().getSlots()-cellOffset())) : 0,previews,selectedInfo,acknowledgedRevision,directory,devices.size());
         scannedContents=List.copyOf(contents); scannedGrid=grid;
+    }
+    private Snapshot.Capacity folderCapacity(ContentAccess.Resolved resolved,Map<String,List<StorageScanner.CellInfo>> reads) {
+        var devices=new HashMap<String,Device>();for(var device:resolved.devices())devices.put(device.id(),device);
+        var cells=new ArrayList<StorageScanner.CellInfo>();
+        Set<MEStorage> counted=Collections.newSetFromMap(new IdentityHashMap<>());
+        int unknown=0;
+        long occupied=0,slots=0,fluid=0,fluidCapacity=0;boolean hasSlots=false,hasFluid=false;
+        for(var member:resolved.members()){
+            var device=devices.get(member.deviceId());
+            if(device.owner() instanceof IChestOrDrive&&!StorageScanner.isDegraded(device)){
+                var all=reads.computeIfAbsent(device.id(),ignored->StorageScanner.readCells(device));
+                var selectedCells=member.cell()<0?all:all.stream().filter(cell->cell.slot()==member.cell()).toList();
+                for(var cell:selectedCells)if(cell.storage()==null||counted.add(cell.storage()))cells.add(cell);
+            }else{
+                unknown++;
+                var external=StorageScanner.externalCapacity(device);
+                if(external.totalSlots()>=0){hasSlots=true;occupied=StorageScanner.sumUsed(occupied,external.occupiedSlots());slots=StorageScanner.sumLimits(slots,external.totalSlots());}
+                if(external.fluidCapacity()>=0){hasFluid=true;fluid=StorageScanner.sumUsed(fluid,external.fluidAmount());fluidCapacity=StorageScanner.sumLimits(fluidCapacity,external.fluidCapacity());}
+            }
+        }
+        var capacity=StorageScanner.aggregateCapacity(cells);
+        return new Snapshot.Capacity(capacity.usedBytes(),capacity.totalBytes(),capacity.usedTypes(),capacity.totalTypes(),
+                capacity.unknownCells()+unknown,hasSlots?occupied:-1,hasSlots?slots:-1,hasFluid?fluid:-1,hasFluid?fluidCapacity:-1);
     }
     /** Reuse reads already needed for detail/capacity. Other branches scan at most once per second. */
     private void refreshDirectory(List<Device> devices,Map<String,Snapshot.DeviceInfo> infos,

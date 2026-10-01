@@ -3,6 +3,8 @@ package dev.mestorage.controller;
 import dev.mestorage.controller.block.ControllerBlock;
 import dev.mestorage.controller.block.ControllerBlockEntity;
 import dev.mestorage.controller.config.ControllerConfig;
+import dev.mestorage.controller.folder.FolderService;
+import appeng.api.networking.GridServices;
 import dev.mestorage.controller.menu.ControllerMenu;
 import dev.mestorage.controller.network.Network;
 import net.minecraft.world.inventory.MenuType;
@@ -36,6 +38,7 @@ public final class MEStorageController {
     public static final RegistryObject<MenuType<ControllerMenu>> MENU = MENUS.register("controller", () -> IForgeMenuType.create(ControllerMenu::new));
 
     public MEStorageController() {
+        GridServices.register(FolderService.class,FolderService.class);
         ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ControllerConfig.SPEC, ControllerConfig.FILE_NAME);
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         BLOCKS.register(bus);

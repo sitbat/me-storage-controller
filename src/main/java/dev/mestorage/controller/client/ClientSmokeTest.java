@@ -132,6 +132,17 @@ public final class ClientSmokeTest {
     private static boolean bucketServerRequested;
     private static volatile boolean bucketServerDone;
     private static boolean guideVerified;
+    private static boolean treeMemoryVerified;
+    private static int treeMemoryStep, treeMemoryWait;
+    private static String treeMemoryScope;
+    private static ControllerScreen treeMemoryOldScreen;
+    private static boolean foldersVerified;
+    private static int folderStep,folderWait,folderDiamondSlot;
+    private static int folderShiftStep,folderGroupingStep,folderSelectionStep;
+    private static java.util.UUID smokeGroupedFolder;
+    private static java.util.UUID smokeParentFolder,smokeChildFolder;
+    private static volatile boolean folderCheckDone;
+    private static java.util.Map<String,net.minecraft.nbt.CompoundTag> folderPhysicalBaseline;
     private static int guideStep,guideWait,guideTooltipTries,guideDiamondSlot;
     private static ControllerScreen guideReturnScreen;
     private static ControllerMenu guideReturnMenu;
@@ -167,6 +178,8 @@ public final class ClientSmokeTest {
                 return;
             }
             if(phase==5){verifyInGameGuide(mc);return;}
+            if(phase==6){verifyTreeMemory(mc);return;}
+            if(phase==7){verifyFolders(mc);return;}
             if (phase == 0) {
                 var worldFolder = mc.getSingleplayerServer().getWorldPath(LevelResource.ROOT)
                         .toAbsolutePath().normalize().getFileName().toString();
@@ -375,6 +388,8 @@ public final class ClientSmokeTest {
             guideScopeDevice=menu.getSnapshot().selectedDevice();guideScopeCell=menu.getSnapshot().selectedCell();
             phase=5;return;
         }
+        if(!treeMemoryVerified){phase=6;return;}
+        if(!foldersVerified){phase=7;return;}
         if(view==0 && !verifyNavigationSync(menu))return;
         if(view==0 && !verifyContentGrid(mc,menu)) return;
         if(view==0 && !verifyContentWheel(mc,menu)) return;
@@ -1140,6 +1155,284 @@ public final class ClientSmokeTest {
         return screen;
     }
 
+    private static void verifyTreeMemory(Minecraft mc) {
+        clearCaptureHover(mc);
+        if(drainExtraCapture(mc))return;
+        if(treeMemoryWait>0&&--treeMemoryWait>0)return;
+        ControllerScreen screen=mc.screen instanceof ControllerScreen value?value:null;
+        String dimension="dim:minecraft:overworld",device="dev:"+normalTreeId;
+        switch(treeMemoryStep) {
+            case 0 -> {if(screen==null)return;screen.smokeRevealDevice(normalTreeId);}
+            case 1 -> {
+                if(screen.smokeTreeBranchOpen(device))clickUi(screen,screen.smokeDeviceRect(normalTreeId,true));
+            }
+            case 2 -> {
+                var viewport=screen.smokeTreeViewport();screen.mouseScrolled(viewport.centerX(),viewport.centerY(),1000);
+            }
+            case 3 -> {if(screen.smokeTreeBranchOpen(dimension))clickUi(screen,screen.smokeTreeBranchRect(dimension));}
+            case 4 -> {if(screen.smokeTreeBranchOpen("root"))clickUi(screen,screen.smokeTreeBranchRect("root"));}
+            case 5 -> {
+                assertRememberedBranches(screen);
+                screen.resize(mc,mc.getWindow().getGuiScaledWidth(),mc.getWindow().getGuiScaledHeight());
+            }
+            case 6 -> {
+                assertRememberedBranches(screen);treeMemoryScope=screen.smokeTreeStateScope();treeMemoryOldScreen=screen;
+                if(treeMemoryScope==null||treeMemoryScope.isBlank())throw new IllegalStateException("Tree memory scope was empty");
+                captureExtra(mc,"smoke-tree-before-close.png");
+            }
+            case 7 -> {
+                if(!screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE,0,0))throw new IllegalStateException("Tree memory close did not handle Escape");
+            }
+            case 8 -> {
+                if(mc.screen instanceof ControllerScreen||mc.player.containerMenu instanceof ControllerMenu)return;
+                var uuid=mc.player.getUUID();
+                mc.getSingleplayerServer().execute(()->{
+                    try {
+                        var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);
+                        var block=(ControllerBlockEntity)player.serverLevel().getBlockEntity(controllerPos);
+                        NetworkHooks.openScreen(player,block,controllerPos);
+                    }catch(Throwable problem){failure=problem.toString();}
+                });
+            }
+            case 9 -> {
+                if(screen==null||!(mc.player.containerMenu instanceof ControllerMenu menu)||!menu.getSnapshot().online())return;
+                if(screen==treeMemoryOldScreen||!treeMemoryScope.equals(screen.smokeTreeStateScope()))throw new IllegalStateException("Tree reopen did not create a fresh screen in the same persistent scope");
+                assertRememberedBranches(screen);
+                captureExtra(mc,"smoke-tree-restored-collapse.png");
+            }
+            case 10 -> {assertRememberedBranches(screen);clickUi(screen,screen.smokeTreeBranchRect("root"));}
+            case 11 -> {
+                if(screen.smokeTreeBranchOpen(dimension)||screen.smokeTreeBranchOpen(device))throw new IllegalStateException("Opening root erased independently remembered child folds");
+                clickUi(screen,screen.smokeTreeBranchRect(dimension));screen.smokeRevealDevice(normalTreeId);
+            }
+            case 12 -> {
+                if(screen.smokeTreeBranchOpen(device))throw new IllegalStateException("Opening dimension erased remembered device fold");
+                clickUi(screen,screen.smokeDeviceRect(normalTreeId,true));
+            }
+            case 13 -> {
+                if(!screen.smokeTreeBranchOpen(device))throw new IllegalStateException("Remembered branch cannot be expanded by a new real click");
+                screen.smokeExpandDevice(secondTreeId);
+                System.out.println("ME_STORAGE_SMOKE_TREE_MEMORY PASS real root/dimension/device collapse survives resize and close/new-screen reopen; independent children remain folded until clicked");
+                treeMemoryVerified=true;phase=2;return;
+            }
+            default -> throw new IllegalStateException("Unknown tree memory stage "+treeMemoryStep);
+        }
+        treeMemoryStep++;treeMemoryWait=treeMemoryStep==9?30:10;
+    }
+    private static void assertRememberedBranches(ControllerScreen screen) {
+        for(String branch:new String[]{"root","dim:minecraft:overworld","dev:"+normalTreeId})
+            if(screen.smokeTreeBranchOpen(branch))throw new IllegalStateException("Tree memory lost collapsed branch "+branch+": "+screen.smokeTreeExpansionState());
+    }
+
+    private static void verifyFolders(Minecraft mc) {
+        clearCaptureHover(mc);if(drainExtraCapture(mc))return;
+        if(folderWait>0&&--folderWait>0)return;
+        if(!(mc.screen instanceof ControllerScreen screen)||!(mc.player.containerMenu instanceof ControllerMenu menu)||!menu.getSnapshot().online())return;
+        String cell="cell:"+normalTreeId+":0",next="cell:"+normalTreeId+":1";
+        switch(folderStep) {
+            case 0 -> {folderPhysicalCheck(mc,true);screen.smokeRevealCell(normalTreeId,0);}
+            case 1 -> {
+                if(!folderCheckDone||!verifyFolderTreeSelection(screen))return;
+            }
+            case 2 -> {
+                folderDiamondSlot=findPlayerItemSlot(menu,Items.DIAMOND);
+                if(menu.getSlot(folderDiamondSlot).getItem().getCount()!=32||!menu.getCarried().isEmpty())throw new IllegalStateException("Folder modal test requires original 32 diamonds");
+                clickUi(screen,screen.smokeSlotRect(folderDiamondSlot));
+            }
+            case 3 -> {
+                requireFolderDiamonds(menu);screen.smokeTreeClick(cell,1,false,false);
+                captureExtra(mc,"smoke-folder-context.png");
+            }
+            case 4 -> clickUi(screen,screen.smokeFolderActionRect("group_new"));
+            case 5 -> {typeFolderName(screen,"Smoke Main");captureExtra(mc,"smoke-folder-create.png",()->clickUi(screen,screen.smokeFolderSubmitRect()));}
+            case 6 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                smokeParentFolder=folderNamed(menu,"Smoke Main");requireFolderDiamonds(menu);
+                clickUi(screen,screen.smokeSlotRect(folderDiamondSlot));screen.smokeRevealFolder(smokeParentFolder);
+            }
+            case 7 -> {
+                if(!menu.getCarried().isEmpty()||menu.getSlot(folderDiamondSlot).getItem().getCount()!=32)throw new IllegalStateException("Folder creation changed carried/player diamonds");
+                screen.smokeTreeClick("folder:"+smokeParentFolder,1,false,false);
+            }
+            case 8 -> clickUi(screen,screen.smokeFolderActionRect("new_child"));
+            case 9 -> {typeFolderName(screen,"Smoke Child");clickUi(screen,screen.smokeFolderSubmitRect());}
+            case 10 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                smokeChildFolder=folderNamed(menu,"Smoke Child");screen.smokeRevealFolder(smokeChildFolder);
+            }
+            case 11 -> screen.smokeTreeClick("folder:"+smokeChildFolder,1,false,false);
+            case 12 -> clickUi(screen,screen.smokeFolderActionRect("rename"));
+            case 13 -> {typeFolderName(screen,"Smoke Renamed");clickUi(screen,screen.smokeFolderSubmitRect());}
+            case 14 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                if(!folderNamed(menu,"Smoke Renamed").equals(smokeChildFolder))throw new IllegalStateException("Rename replaced folder identity");
+                screen.smokeRevealCell(normalTreeId,0);
+            }
+            case 15 -> screen.smokeTreeClick(cell,1,false,false);
+            case 16 -> {clickUi(screen,screen.smokeFolderActionRect("move"));screen.smokeRevealFolderTarget(smokeChildFolder);}
+            case 17 -> {clickUi(screen,screen.smokeFolderTargetRect(smokeChildFolder));captureExtra(mc,"smoke-folder-move.png",()->clickUi(screen,screen.smokeFolderSubmitRect()));}
+            case 18 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                var child=menu.getFolderView().folders().stream().filter(f->f.id().equals(smokeChildFolder)).findFirst().orElseThrow();
+                if(!smokeParentFolder.equals(child.parent())||child.members().stream().noneMatch(m->m.deviceId().equals(normalTreeId)&&m.cell()==0))throw new IllegalStateException("Nested folder move did not persist actual slot membership");
+                folderPhysicalCheck(mc,false);screen.smokeRevealFolder(smokeParentFolder);
+            }
+            case 19 -> {if(!folderCheckDone)return;clickUi(screen,screen.smokeFolderRect(smokeParentFolder,false));}
+            case 20 -> {
+                if(!menu.getSnapshot().selectedDevice().equals("folder:"+smokeParentFolder))return;
+                long iron=menu.getSnapshot().contents().stream().filter(c->c.key().equals(AEItemKey.of(Items.IRON_INGOT))).mapToLong(Snapshot.Content::amount).sum();
+                var expected=java.util.Set.of(AEItemKey.of(Items.IRON_INGOT),AEItemKey.of(Items.GOLD_INGOT),AEItemKey.of(Items.DIAMOND),AEItemKey.of(Items.COBBLESTONE),AEItemKey.of(Items.OAK_LOG));
+                if(iron!=12345||menu.getSnapshot().contents().size()!=5||menu.getSnapshot().contents().stream().anyMatch(c->!expected.contains(c.key())))throw new IllegalStateException("Parent folder aggregation includes nonmember storage or lost nested cell contents");
+                captureExtra(mc,"smoke-folder-nested-aggregate.png",()->screen.smokeContentClick(folderIronIndex(menu),0,false));
+            }
+            case 21 -> {
+                if(!menu.getCarried().is(Items.IRON_INGOT)||menu.getCarried().getCount()!=64)throw new IllegalStateException("Actual folder content click did not extract exactly 64 iron");
+                screen.smokeContentClick(folderIronIndex(menu),0,false);
+            }
+            case 22 -> {
+                if(!menu.getCarried().isEmpty())throw new IllegalStateException("Folder insertion did not return held iron");
+                folderPhysicalCheck(mc,false);screen.smokeRevealFolder(smokeChildFolder);
+            }
+            case 23 -> {
+                if(!folderCheckDone||!verifyFolderBackpackShift(mc,screen,menu))return;
+                screen.smokeTreeClick("folder:"+smokeChildFolder,1,false,false);
+            }
+            case 24 -> {clickUi(screen,screen.smokeFolderActionRect("delete"));captureExtra(mc,"smoke-folder-delete-confirm.png");}
+            case 25 -> clickUi(screen,screen.smokeFolderSubmitRect());
+            case 26 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                if(menu.getFolderView().folders().stream().anyMatch(f->f.id().equals(smokeChildFolder)))throw new IllegalStateException("Deleted child remains in shared view");
+                var parent=menu.getFolderView().folders().stream().filter(f->f.id().equals(smokeParentFolder)).findFirst().orElseThrow();
+                if(parent.members().stream().noneMatch(m->m.deviceId().equals(normalTreeId)&&m.cell()==0))throw new IllegalStateException("Deleting child failed to promote members");
+                screen.smokeRevealFolder(smokeParentFolder);
+            }
+            case 27 -> {
+                if(!verifyFolderWholeAndSeparateSlot(mc,screen,menu))return;
+                screen.smokeTreeClick("folder:"+smokeParentFolder,1,false,false);
+            }
+            case 28 -> clickUi(screen,screen.smokeFolderActionRect("delete"));
+            case 29 -> clickUi(screen,screen.smokeFolderSubmitRect());
+            case 30 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return;
+                if(menu.getFolderView().folders().stream().anyMatch(f->f.id().equals(smokeParentFolder)||f.id().equals(smokeChildFolder)))throw new IllegalStateException("Folder cleanup did not remove both test folders");
+                folderPhysicalCheck(mc,false);clickUi(screen,screen.smokeRootRect());
+            }
+            case 31 -> {
+                if(!folderCheckDone||!menu.getSnapshot().selectedDevice().isEmpty())return;
+                System.out.println("ME_STORAGE_SMOKE_FOLDERS PASS real Ctrl/Shift selection, carried-diamond modal CRUD, nested move/rename/delete, whole-device plus separately grouped slot reassignment, parent scoped iron roundtrip and acknowledged backpack QUICK_MOVE; every physical cell NBT unchanged before transfers and after roundtrip/cleanup");
+                foldersVerified=true;phase=2;return;
+            }
+            default -> throw new IllegalStateException("Unknown folder UI stage "+folderStep);
+        }
+        folderStep++;folderWait=20;
+    }
+    private static boolean verifyFolderTreeSelection(ControllerScreen screen) {
+        String first="cell:"+normalTreeId+":0",second="cell:"+normalTreeId+":1";
+        switch(folderSelectionStep) {
+            case 0 -> screen.smokeTreeClick(first,0,false,false);
+            // Let the selection acknowledgement reveal its own row before scrolling to the next target.
+            case 1 -> screen.smokeRevealCell(normalTreeId,1);
+            case 2 -> {
+                screen.smokeTreeClick(second,0,true,false);
+                if(!screen.smokeFolderSelectionKeys().containsAll(java.util.Set.of(first,second)))throw new IllegalStateException("Real Ctrl-click did not multi-select tree slots");
+            }
+            case 3 -> screen.smokeRevealCell(normalTreeId,0);
+            case 4 -> screen.smokeTreeClick(first,0,false,false);
+            case 5 -> screen.smokeRevealCell(normalTreeId,1);
+            case 6 -> {
+                screen.smokeTreeClick(second,0,false,true);
+                if(!screen.smokeFolderSelectionKeys().containsAll(java.util.Set.of(first,second)))throw new IllegalStateException("Real Shift-click did not range-select tree slots");
+            }
+            case 7 -> screen.smokeRevealCell(normalTreeId,0);
+            case 8 -> screen.smokeTreeClick(first,0,false,false);
+            case 9 -> {return true;}
+        }
+        folderSelectionStep++;folderWait=20;return false;
+    }
+    private static boolean verifyFolderBackpackShift(Minecraft mc,ControllerScreen screen,ControllerMenu menu) {
+        switch(folderShiftStep) {
+            case 0 -> screen.smokeContentClick(folderIronIndex(menu),0,true);
+            case 1 -> {
+                int slot=findPlayerItemSlot(menu,Items.IRON_INGOT);
+                if(menu.getSlot(slot).getItem().getCount()!=64||!menu.getCarried().isEmpty())throw new IllegalStateException("Folder Shift extraction did not place exactly 64 iron in backpack");
+                mc.gameMode.handleInventoryMouseClick(menu.containerId,slot,0,ClickType.QUICK_MOVE,mc.player);
+            }
+            case 2 -> {
+                for(int slot=10;slot<menu.slots.size();slot++)if(menu.getSlot(slot).getItem().is(Items.IRON_INGOT))throw new IllegalStateException("Acknowledged folder rejected backpack QUICK_MOVE insertion");
+                if(!menu.getCarried().isEmpty())throw new IllegalStateException("Folder backpack insertion changed carried stack");
+                folderPhysicalCheck(mc,false);
+            }
+            case 3 -> {return folderCheckDone;}
+        }
+        folderShiftStep++;folderWait=20;return false;
+    }
+    private static boolean verifyFolderWholeAndSeparateSlot(Minecraft mc,ControllerScreen screen,ControllerMenu menu) {
+        String device="dev:"+normalTreeId,cell="cell:"+normalTreeId+":0";
+        switch(folderGroupingStep) {
+            case 0 -> screen.smokeRevealDevice(normalTreeId);
+            case 1 -> screen.smokeTreeClick(device,0,false,false);
+            case 2 -> screen.smokeRevealCell(normalTreeId,0);
+            case 3 -> {
+                screen.smokeTreeClick(cell,0,true,false);
+                if(!screen.smokeFolderSelectionKeys().containsAll(java.util.Set.of(device,cell)))throw new IllegalStateException("Whole drive and separately grouped slot were not both selected");
+                screen.smokeTreeClick(cell,1,false,false);
+            }
+            case 4 -> clickUi(screen,screen.smokeFolderActionRect("group_new"));
+            case 5 -> {typeFolderName(screen,"Smoke Whole And Slot");clickUi(screen,screen.smokeFolderSubmitRect());}
+            case 6 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return false;
+                smokeGroupedFolder=folderNamed(menu,"Smoke Whole And Slot");
+                var target=menu.getFolderView().folders().stream().filter(f->f.id().equals(smokeGroupedFolder)).findFirst().orElseThrow();
+                var origin=menu.getFolderView().folders().stream().filter(f->f.id().equals(smokeParentFolder)).findFirst().orElseThrow();
+                var whole=new dev.mestorage.controller.folder.FolderBook.MemberRef(normalTreeId,-1);
+                var single=new dev.mestorage.controller.folder.FolderBook.MemberRef(normalTreeId,0);
+                if(!target.members().containsAll(java.util.List.of(whole,single))||origin.members().contains(single))throw new IllegalStateException("Grouping whole drive discarded explicitly selected slot from a different folder");
+                folderPhysicalCheck(mc,false);screen.smokeRevealFolder(smokeGroupedFolder);
+            }
+            case 7 -> {if(!folderCheckDone)return false;screen.smokeTreeClick("folder:"+smokeGroupedFolder,1,false,false);}
+            case 8 -> clickUi(screen,screen.smokeFolderActionRect("delete"));
+            case 9 -> clickUi(screen,screen.smokeFolderSubmitRect());
+            case 10 -> {
+                if(menu.isFolderPending()||screen.smokeFolderOverlayOpen())return false;
+                if(menu.getFolderView().folders().stream().anyMatch(f->f.id().equals(smokeGroupedFolder)))throw new IllegalStateException("Whole-plus-slot test folder cleanup failed");
+                folderPhysicalCheck(mc,false);screen.smokeRevealFolder(smokeParentFolder);
+            }
+            case 11 -> {return folderCheckDone;}
+        }
+        folderGroupingStep++;folderWait=20;return false;
+    }
+    private static void requireFolderDiamonds(ControllerMenu menu) {
+        if(!menu.getCarried().is(Items.DIAMOND)||menu.getCarried().getCount()!=32)throw new IllegalStateException("Folder overlay lost or changed held 32 diamonds");
+    }
+    private static void typeFolderName(ControllerScreen screen,String name) {
+        if(screen.smokeFolderNameRect()==null)throw new IllegalStateException("Folder name dialog did not open");
+        for(char c:name.toCharArray())if(!screen.charTyped(c,0))throw new IllegalStateException("Folder name rejected actual character input");
+    }
+    private static java.util.UUID folderNamed(ControllerMenu menu,String name) {
+        var matches=menu.getFolderView().folders().stream().filter(f->f.name().equals(name)).toList();
+        if(matches.size()!=1)throw new IllegalStateException("Expected one shared folder named "+name+", got "+matches.size());
+        return matches.get(0).id();
+    }
+    private static int folderIronIndex(ControllerMenu menu) {
+        for(int i=0;i<menu.getSnapshot().contents().size();i++)if(menu.getSnapshot().contents().get(i).key().equals(AEItemKey.of(Items.IRON_INGOT)))return i;
+        throw new IllegalStateException("Folder has no visible iron item tile");
+    }
+    private static void folderPhysicalCheck(Minecraft mc,boolean baseline) {
+        folderCheckDone=false;var uuid=mc.player.getUUID();
+        mc.getSingleplayerServer().execute(()->{
+            try {
+                var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);
+                var controller=(ControllerBlockEntity)player.serverLevel().getBlockEntity(controllerPos);
+                var cells=new java.util.TreeMap<String,net.minecraft.nbt.CompoundTag>();
+                for(var device:StorageScanner.discover(controller.getMainNode().getGrid()))if(device.cells()!=null)
+                    for(int slot=0;slot<device.cells().getSlots();slot++)cells.put(device.id()+"/"+slot,device.cells().getStackInSlot(slot).save(new net.minecraft.nbt.CompoundTag()));
+                if(baseline)folderPhysicalBaseline=java.util.Map.copyOf(cells);
+                else if(!cells.equals(folderPhysicalBaseline))throw new IllegalStateException("Folder CRUD or roundtrip changed physical cell inventory/content NBT");
+                folderCheckDone=true;
+            }catch(Throwable problem){failure=problem.toString();}
+        });
+    }
+
     private static void verifySidebarBounds(ControllerScreen screen) {
         var controls=screen.smokeSidebarRects();var panel=screen.smokePanelRect();
         if(controls.size()!=7)throw new IllegalStateException("Controller sidebar must contain seven controls");
@@ -1761,7 +2054,8 @@ public final class ClientSmokeTest {
             }
             if(!verifyOmniClient(mc))return;
             System.out.println("ME_STORAGE_SMOKE_HIGHLIGHT_CAPTURED first-person front and moved oblique view of the same target; screenshots require alignment review");
-            finish(mc, "PASS: 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
+            if(!treeMemoryVerified||!foldersVerified)throw new IllegalStateException("Final acceptance requires completed tree-memory and shared-folder phases: memory="+treeMemoryVerified+", folders="+foldersVerified);
+            finish(mc, "PASS: personal tree collapse memory and shared-folder UI VERIFIED, including Ctrl/Shift selection, nested metadata-only CRUD, whole-device plus separately grouped slot reassignment, scoped content roundtrip and acknowledged backpack insertion; 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
         }
     }
 
