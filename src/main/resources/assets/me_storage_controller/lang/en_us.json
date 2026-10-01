@@ -104,7 +104,7 @@
   "gui.me_storage_controller.folder_new_child": "New subfolder",
   "gui.me_storage_controller.folder_rename": "Rename",
   "gui.me_storage_controller.folder_move": "Move into folder…",
-  "gui.me_storage_controller.folder_unassign": "Move to network root",
+  "gui.me_storage_controller.folder_unassign": "Move out of folder",
   "gui.me_storage_controller.folder_delete": "Dissolve folder",
   "gui.me_storage_controller.folder_delete_confirm": "Members and subfolders will move to the parent. Storage cells and their contents will not be deleted.",
   "gui.me_storage_controller.folder_name": "Folder name",

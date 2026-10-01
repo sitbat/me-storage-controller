@@ -1,5 +1,9 @@
 # ME Storage Controller / ME存储控制器
 
+**0.4.15**：文件夹菜单改为“移出文件夹”，新建／重命名输入框及文字取消阴影。详见 [更新说明](docs/RELEASE_0.4.15.md)。
+
+**0.4.15** removes the folder name field's border shading and text shadow, and renames the action to “Move out of folder”.
+
 **0.4.14 · 网络共享文件夹与个人折叠记忆 / Shared network folders and personal tree memory**
 
 新增全ME网络共享的嵌套文件夹：同一网络的玩家与控制器看到同一分类。Ctrl／Shift选择目录项后右键，可归组、重命名、移动分类或删除文件夹；这些操作**只改分类元数据，不搬动物品或元件**。单元件成员跟随设备槽位，新换入的元件自动归组。选择文件夹可汇总浏览并仅在成员范围内存取。目录折叠状态另存于个人客户端，不与其他玩家共享。

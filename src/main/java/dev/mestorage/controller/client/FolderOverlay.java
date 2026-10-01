@@ -3,10 +3,13 @@ package dev.mestorage.controller.client;
 import java.util.*;
 import dev.mestorage.controller.folder.FolderBook;
 import dev.mestorage.controller.menu.ControllerMenu;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 
 /** Small in-container dialogs. Every input remains modal so carried stacks cannot fall through. */
 final class FolderOverlay {
@@ -126,7 +129,7 @@ final class FolderOverlay {
         if(mode==Mode.CONTEXT){for(int i=0;i<actions.size();i++){var action=actions.get(i);button(g,actionRect(i),action.label,action.enabled,palette,mx,my);}g.pose().popPose();return;}
         Component title=tr(switch(mode){case NAME->rename?"rename":"new";case TARGET->"move";case DELETE->"delete";case WAIT->"waiting";case ERROR->"failed";default->"new";});
         g.drawString(font,title,x+10,y+10,palette.text(),false);
-        if(mode==Mode.NAME&&name!=null){g.fill(name.getX()-2,name.getY()-2,name.getX()+name.getWidth()+2,name.getY()+16,palette.border());g.fill(name.getX()-1,name.getY()-1,name.getX()+name.getWidth()+1,name.getY()+15,palette.inset());name.setTextColor(palette.text());name.render(g,mx,my,0);}
+        if(mode==Mode.NAME&&name!=null){g.fill(name.getX()-2,name.getY()-2,name.getX()+name.getWidth()+2,name.getY()+16,palette.inset());name.setTextColor(palette.text());name.render(new ShadowlessTextGraphics(g),mx,my,0);}
         if(mode==Mode.DELETE)g.drawWordWrap(font,tr("delete_confirm"),x+10,y+28,w-20,palette.text());
         if(mode==Mode.ERROR)g.drawWordWrap(font,Component.translatable(menu.getFolderError()),x+10,y+28,w-20,palette.danger());
         if(mode==Mode.TARGET){
@@ -148,4 +151,18 @@ final class FolderOverlay {
     ControllerScreen.UiRect actionRect(String id){if(mode!=Mode.CONTEXT)return null;for(int i=0;i<actions.size();i++)if(actions.get(i).id.equals(id))return actionRect(i);return null;}
     ControllerScreen.UiRect targetRect(UUID id){if(mode!=Mode.TARGET)return null;for(int i=0;i<targetRows()&&targetScroll+i<targets.size();i++)if(Objects.equals(id,targets.get(targetScroll+i).id()))return targetRect(i);return null;}
     void revealTarget(UUID id){if(mode!=Mode.TARGET)return;for(int i=0;i<targets.size();i++)if(Objects.equals(id,targets.get(i).id())){targetScroll=Math.max(0,Math.min(i,targets.size()-targetRows()));return;}}
+
+    /** Changes only rendering; EditBox keeps its own cursor, selection and horizontal scrolling. */
+    private static final class ShadowlessTextGraphics extends GuiGraphics {
+        private final GuiGraphics delegate;
+        ShadowlessTextGraphics(GuiGraphics delegate){super(Minecraft.getInstance(),delegate.bufferSource());this.delegate=delegate;}
+        // Vanilla's shadowed draw returns the final X plus one. Keep that advance
+        // because EditBox compensates for it when positioning its caret and suffix.
+        @Override public int drawString(Font font,FormattedCharSequence text,int x,int y,int color){return delegate.drawString(font,text,x,y,color,false)+1;}
+        @Override public int drawString(Font font,String text,int x,int y,int color){return delegate.drawString(font,text,x,y,color,false)+1;}
+        @Override public int drawString(Font font,Component text,int x,int y,int color){return delegate.drawString(font,text,x,y,color,false)+1;}
+        // Delegate rather than using this proxy's fresh pose: the modal is at Z=600.
+        @Override public void fill(int x1,int y1,int x2,int y2,int color){delegate.fill(x1,y1,x2,y2,color);}
+        @Override public void fill(RenderType type,int x1,int y1,int x2,int y2,int color){delegate.fill(type,x1,y1,x2,y2,color);}
+    }
 }

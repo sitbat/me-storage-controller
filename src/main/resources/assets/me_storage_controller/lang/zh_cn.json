@@ -104,7 +104,7 @@
   "gui.me_storage_controller.folder_new_child": "新建子文件夹",
   "gui.me_storage_controller.folder_rename": "重命名",
   "gui.me_storage_controller.folder_move": "移入文件夹…",
-  "gui.me_storage_controller.folder_unassign": "移出到网络根目录",
+  "gui.me_storage_controller.folder_unassign": "移出文件夹",
   "gui.me_storage_controller.folder_delete": "解散文件夹",
   "gui.me_storage_controller.folder_delete_confirm": "解散后，成员和子文件夹会移到上一级。存储元件和其中的物品不会被删除。",
   "gui.me_storage_controller.folder_name": "文件夹名称",
