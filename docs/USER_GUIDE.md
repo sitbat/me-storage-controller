@@ -24,7 +24,7 @@ The guide is available in Simplified Chinese and English, covering connections, 
 
 ## 本地演示启动 / Local demo
 
-使用 JDK 17，并确保已有演示存档 `run/saves/ME-Controller-Demo`。在项目根目录执行以下命令；ExtendedAE 与 Glodium 的测试依赖使用项目配置的默认目录，其他位置可追加 `'-PcompatModsDir=C:/path/to/compat-jars'`。
+使用 JDK 17，并确保已有演示存档 `run/saves/ME-Controller-Demo`。在项目根目录执行以下命令；ExtendedAE 与 Glodium 的测试依赖默认放在 `compat-mods/`，其他位置可追加 `'-PcompatModsDir=C:/path/to/compat-jars'`。原开发工作区可指定 `'-PcompatModsDir=../../work/vendor'`，或使用[开发说明](DEVELOPMENT.md)中的 `dev.ps1` 自动发现依赖。
 
 ```powershell
 .\gradlew.bat runClient -Pdemo -PeaeTest
@@ -34,7 +34,7 @@ The guide is available in Simplified Chinese and English, covering connections, 
 
 `demoWorld` 指定运行目录 `saves` 下的现成存档文件夹名，省略时默认为 `ME-Controller-Demo`。演示模式会进入该存档并尝试打开控制器界面，不执行自动测试或自动退出。如果控制器不存在或离线，会记录 `ME_STORAGE_DEMO_UNAVAILABLE` 并把操作权留给玩家。按 Esc 关闭界面后，可右键坐标 **8, 100, 8** 的控制器重新打开。此处说明启动方法，不代表当前实例已成功启动。
 
-Use JDK 17 and an existing world under the run directory's `saves` folder. `demoWorld` selects its folder name and defaults to `ME-Controller-Demo`. Run either command above from the project root; add `'-PcompatModsDir=C:/path/to/compat-jars'` if the addon JARs are outside the default directory. Demo mode attempts to open the controller without running automated tests or exiting automatically. A missing or offline controller logs `ME_STORAGE_DEMO_UNAVAILABLE` and leaves the game available for manual play. After pressing Esc, right-click the controller at **8, 100, 8** to reopen it. These are launch instructions, not confirmation that an instance has started.
+Use JDK 17 and an existing world under the run directory's `saves` folder. `demoWorld` selects its folder name and defaults to `ME-Controller-Demo`. Run either command above from the project root; add `'-PcompatModsDir=C:/path/to/compat-jars'` if the addon JARs are outside `compat-mods/`. The original workspace can use `../../work/vendor`; see [development instructions](DEVELOPMENT.md) for the helper script. Demo mode attempts to open the controller without running automated tests or exiting automatically. A missing or offline controller logs `ME_STORAGE_DEMO_UNAVAILABLE` and leaves the game available for manual play. After pressing Esc, right-click the controller at **8, 100, 8** to reopen it. These are launch instructions, not confirmation that an instance has started.
 
 ## 文件树与界面 / Storage tree and interface
 

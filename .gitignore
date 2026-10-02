@@ -8,3 +8,15 @@ run-data/
 .project
 .settings/
 logs/
+
+# Local release output, optional addon JARs and Python helpers.
+/dist/
+/compat-mods/
+__pycache__/
+*.pyc
+
+# Runtime directories created by local validation.
+/run-*/
+/crash-reports/
+.DS_Store
+Thumbs.db

@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'net.minecraftforge.gradle' version '6.0.54'
 }
-version = '0.4.15'
+version = providers.gradleProperty('mod_version').get()
 group = 'dev.mestorage'
 base { archivesName = 'me-storage-controller-forge-1.20.1' }
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -29,7 +29,7 @@ minecraft {
             }
             if (project.hasProperty('smokeTest')) {
                 property 'mestorage.clientSmokeTest', 'true'
-                property 'mestorage.smokeOutput', project.file('../../work/client-smoke-v0414').absolutePath
+                property 'mestorage.smokeOutput', project.file(project.findProperty('smokeOutput') ?: 'build/client-smoke').absolutePath
                 args '--quickPlaySingleplayer', 'SmokeTest', '--width', '1280', '--height', '720'
             }
         }
@@ -42,7 +42,7 @@ repositories {
     maven { url 'https://maven.guideme.appliedenergistics.org' }
     mavenCentral()
     if (project.hasProperty('eaeTest') || project.hasProperty('mekTest') || project.hasProperty('omniTest') || project.hasProperty('fluxTest')) {
-        flatDir { dirs project.findProperty('compatModsDir') ?: '../../work/vendor' }
+        flatDir { dirs project.findProperty('compatModsDir') ?: 'compat-mods' }
     }
 }
 dependencies {
@@ -68,10 +68,15 @@ dependencies {
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('test') { useJUnitPlatform() }
+tasks.named('processResources') {
+    inputs.property 'modVersion', project.version
+    filesMatching('META-INF/mods.toml') { expand(modVersion: project.version) }
+}
 tasks.named('jar') {
     exclude 'dev/mestorage/controller/test/**'
     exclude 'dev/mestorage/controller/client/ClientSmokeTest*'
     exclude 'data/me_storage_controller/structures/empty.nbt'
+    from('LICENSE') { into 'META-INF/licenses'; rename { 'MIT.txt' } }
     manifest { attributes 'Implementation-Version': project.version, 'MixinConfigs': 'me_storage_controller.mixins.json' }
     finalizedBy 'reobfJar'
 }

@@ -20,8 +20,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-This license covers the original mod source, JSON models, and documentation.
-Minecraft, Minecraft Forge, AE2 and GuideME are separate projects governed
-by their respective licenses. AE2 and Minecraft textures are referenced by
-resource location and are not redistributed in this project's resources.
-The bundled Gradle wrapper and Forge MDK notices retain their own terms.
+Scope of this project's MIT license:
+Original, independently implemented mod code, scripts and documentation.
+Bundled AE2 artwork, derived JSON models and visual adaptations are instead
+covered by CC BY-NC-SA 3.0. See src/main/resources/AE2-ASSET-NOTICE.txt and
+src/main/resources/licenses/CC-BY-NC-SA-3.0.txt (in the built JAR these are
+AE2-ASSET-NOTICE.txt and licenses/CC-BY-NC-SA-3.0.txt).
+Minecraft, Minecraft Forge, AE2 and GuideME remain separate projects governed
+by their respective licenses. The Gradle wrapper and retained Forge MDK
+notice also retain their own terms; see licenses/Forge-MDK-NOTICE.txt.
