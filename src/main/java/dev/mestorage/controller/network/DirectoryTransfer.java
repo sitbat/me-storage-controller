@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import dev.mestorage.controller.storage.compat.InfiniteCellSupport;
 
 /** Bounded wire frames; directory size and individual drive slot count have no display cap. */
 public final class DirectoryTransfer {
@@ -83,7 +84,7 @@ public final class DirectoryTransfer {
     }
     private static ItemStack display(ItemStack value) {
         if(value.isEmpty()) return ItemStack.EMPTY;
-        var result=new ItemStack(value.getItem());
+        var result=InfiniteCellSupport.displayStack(value);
         if(value.hasCustomHoverName()) result.setHoverName(display(value.getHoverName()));
         return result;
     }

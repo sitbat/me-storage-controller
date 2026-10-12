@@ -2052,7 +2052,11 @@ public final class ClientSmokeTest {
                 highlightFrameBaseline=highlightDrawCount();
                 moveHighlightCamera(mc,true);blockCaptureStage=4;blockCaptureTicks=0;capturing=false;captureDone=false;return;
             }
-            if(!verifyOmniClient(mc))return;
+            if(!omniClientVerified) {
+                if(!verifyOmniClient(mc))return;
+                omniClientVerified=true;
+            }
+            if(!verifyInfiniteClient(mc))return;
             System.out.println("ME_STORAGE_SMOKE_HIGHLIGHT_CAPTURED first-person front and moved oblique view of the same target; screenshots require alignment review");
             if(!treeMemoryVerified||!foldersVerified)throw new IllegalStateException("Final acceptance requires completed tree-memory and shared-folder phases: memory="+treeMemoryVerified+", folders="+foldersVerified);
             finish(mc, "PASS: personal tree collapse memory and shared-folder UI VERIFIED, including Ctrl/Shift selection, nested metadata-only CRUD, whole-device plus separately grouped slot reassignment, scoped content roundtrip and acknowledged backpack insertion; 45-slot item-transfer grid, network/device/cell left/right/Shift and empty-tile insertions, 24 rapid content clicks, selected-cell isolation, one combined cell tooltip and ME网络 root label; real next/previous paging of 260+ types, amount/name sorting; real storage-tree expansion/collapse, scrolling, cell selection and root/back navigation; real text search; unified grid/cells/player inventory and placed-block captures. Eight facing/lit block models and the item model have nonempty quads with no missing sprites. Fixed scale 2 plus 1280x720 and 1920x1080 Auto have bounded controls and slots; opening/closing/resizing retain native vanilla Auto scale without changing option 0. Normal/Shift transfers, " + (expanded ? 8*RAPID_PAIRS : 6*RAPID_PAIRS) + " rapid left clicks across fixed/Auto cases and held-control outside releases preserve unique cells and exact contents. ExtendedAE cell twenty: " + (expanded ? "PASS" : "SKIPPED (addon absent)"));
@@ -2061,7 +2065,7 @@ public final class ClientSmokeTest {
 
     private static int omniStage,omniWait;
     private static volatile boolean omniSetupDone;
-    private static boolean omniRequested;
+    private static boolean omniRequested,omniClientVerified;
 
     /** Final optional fixture checks the real packet, formatting and native Auto layout. */
     private static boolean verifyOmniClient(Minecraft mc) {
@@ -2135,6 +2139,120 @@ public final class ClientSmokeTest {
         String name=switch(cell){case 0->"complex256m";case 1->"quantum";case 2->"biginteger";default->"network";};
         captureExtra(mc,"smoke-omni-"+name+".png");omniStage++;omniRequested=false;omniWait=20;
         return false;
+    }
+
+    private static int infiniteStage,infiniteWait,infiniteTicks;
+    private static volatile boolean infiniteSetupDone;
+    private static boolean infiniteRequested;
+
+    /** Real packets and native text input for configured ExtendedAE infinity cells. */
+    private static boolean verifyInfiniteClient(Minecraft mc) {
+        if(!net.minecraftforge.fml.ModList.get().isLoaded("expatternprovider"))return true;
+        if(++infiniteTicks>500)throw new IllegalStateException("Infinity client stage timed out: "+infiniteStage);
+        if(drainExtraCapture(mc))return false;
+        if(infiniteWait>0){infiniteWait--;return false;}
+        var pos=controllerPos.west(12);
+        if(infiniteStage==0) {
+            infiniteStage=1;infiniteWait=60;var uuid=mc.player.getUUID();
+            mc.getSingleplayerServer().execute(()->{
+                try {
+                    var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);var level=player.serverLevel();
+                    player.closeContainer();player.teleportTo(pos.getX()+.5,pos.getY(),pos.getZ()+2.5);
+                    for(var p:java.util.List.of(pos,pos.east(),pos.below()))level.setBlockAndUpdate(p,Blocks.AIR.defaultBlockState());
+                    level.setBlockAndUpdate(pos.below(),AEBlocks.CREATIVE_ENERGY_CELL.block().defaultBlockState());
+                    level.setBlockAndUpdate(pos,MEStorageController.CONTROLLER.get().defaultBlockState());
+                    level.setBlockAndUpdate(pos.east(),AEBlocks.DRIVE.block().defaultBlockState());
+                    var drive=(DriveBlockEntity)level.getBlockEntity(pos.east());
+                    drive.getInternalInventory().setItemDirect(0,infiniteCell(AEFluidKey.of(Fluids.LAVA)));
+                    drive.getInternalInventory().setItemDirect(1,infiniteCell(AEItemKey.of(AEItems.MATTER_BALL.stack())));
+                    drive.getInternalInventory().setItemDirect(2,AEItems.ITEM_CELL_1K.stack());
+                    infiniteSetupDone=true;
+                }catch(Throwable error){failure=error.toString();}
+            });return false;
+        }
+        if(infiniteStage==1) {
+            if(!infiniteSetupDone)return false;
+            infiniteStage=2;infiniteWait=20;var uuid=mc.player.getUUID();
+            mc.getSingleplayerServer().execute(()->{
+                try {
+                    var player=mc.getSingleplayerServer().getPlayerList().getPlayer(uuid);var level=player.serverLevel();
+                    var drive=(DriveBlockEntity)level.getBlockEntity(pos.east());
+                    var storage=drive.getCellInventory(2);
+                    if(storage==null||storage.insert(AEItemKey.of(Items.IRON_INGOT),64,Actionable.MODULATE,IActionSource.empty())!=64)
+                        throw new IllegalStateException("Infinity fixture finite cell rejected 64 iron");
+                    NetworkHooks.openScreen(player,(ControllerBlockEntity)level.getBlockEntity(pos),pos);
+                }catch(Throwable error){failure=error.toString();}
+            });return false;
+        }
+        if(!(mc.player.containerMenu instanceof ControllerMenu menu)||!(mc.screen instanceof ControllerScreen screen)
+                ||!pos.equals(menu.getControllerPos()))return false;
+        var snapshot=menu.getSnapshot();if(!snapshot.online())return false;
+        if(mc.options.guiScale().get()!=0||mc.getWindow().getGuiScale()!=mc.getWindow().calculateScale(0,mc.isEnforceUnicode()))
+            throw new IllegalStateException("Infinity fixture changed native Auto scale");
+        var lava=AEFluidKey.of(Fluids.LAVA);var matter=AEItemKey.of(AEItems.MATTER_BALL.stack());
+        var entry=snapshot.directory().stream().filter(d->d.device().pos().equals(pos.east())).findFirst();
+        if(entry.isEmpty())return false;
+        var previews=entry.get().cells();
+        var lavaPreview=previews.stream().filter(c->c.slot()==0).findFirst().orElseThrow().icon();
+        var matterPreview=previews.stream().filter(c->c.slot()==1).findFirst().orElseThrow().icon();
+        if(lavaPreview.getTag()==null||!lava.toTagGeneric().equals(lavaPreview.getTag().getCompound("record"))
+                ||matterPreview.getTag()==null||!matter.toTagGeneric().equals(matterPreview.getTag().getCompound("record")))
+            throw new IllegalStateException("Actual client directory lost infinity-cell record NBT");
+        String lavaName=lavaPreview.getHoverName().getString(),matterName=matterPreview.getHoverName().getString();
+        if(lavaName.equals(matterName)||!lavaName.equals(infiniteCell(lava).getHoverName().getString())
+                ||!matterName.equals(infiniteCell(matter).getHoverName().getString()))
+            throw new IllegalStateException("Infinity cell preview names failed: "+lavaName+" / "+matterName);
+        if(infiniteStage>=7) {
+            System.out.println("ME_STORAGE_SMOKE_INFINITY PASS real network/cell packets, explicit infinity flags, finite 64 iron, retained record and distinct names: "
+                    +lavaName+" / "+matterName+"; real Chinese lava search in focused ShadowlessEditBox; native Auto scale retained");
+            return true;
+        }
+        if(infiniteStage<=4) {
+            String device=infiniteStage==3?entry.get().device().id():"";int cell=infiniteStage==3?0:-1;
+            if(!infiniteRequested) {
+                screen.setDarkThemeForTest(false);screen.smokeRevealCell(entry.get().device().id(),0);
+                menu.request(device,cell,0,0,"","",true);infiniteRequested=true;infiniteWait=15;return false;
+            }
+            if(snapshot.revision()!=menu.getRequestedRevision()||!snapshot.selectedDevice().equals(device)||snapshot.selectedCell()!=cell)return false;
+            var lavaContent=snapshot.contents().stream().filter(c->c.key().equals(lava)).findFirst().orElseThrow();
+            if(!lavaContent.infinite())throw new IllegalStateException("Lava did not arrive with explicit infinity flag");
+            if(infiniteStage==3) {
+                if(snapshot.contents().size()!=1||snapshot.contentCount()!=1)
+                    throw new IllegalStateException("Infinity cell scope leaked other cell contents");
+                var selectedPreview=snapshot.cells().stream().filter(c->c.slot()==0).findFirst().orElseThrow().icon();
+                if(selectedPreview.getTag()==null||!lava.toTagGeneric().equals(selectedPreview.getTag().getCompound("record")))
+                    throw new IllegalStateException("Selected infinity cell preview lost its record");
+                captureExtra(mc,"smoke-infinite-cell.png");
+            } else {
+                var matterContent=snapshot.contents().stream().filter(c->c.key().equals(matter)).findFirst().orElseThrow();
+                var iron=snapshot.contents().stream().filter(c->c.key().equals(AEItemKey.of(Items.IRON_INGOT))).findFirst().orElseThrow();
+                if(!matterContent.infinite()||iron.infinite()||iron.amount()!=64||snapshot.contentCount()!=3)
+                    throw new IllegalStateException("Network infinity/finite resource flags or amounts are wrong");
+                if(infiniteStage==2)captureExtra(mc,"smoke-infinite-network.png");
+            }
+            infiniteStage++;infiniteRequested=false;return false;
+        }
+        if(infiniteStage==5) {
+            clickUi(screen,screen.smokeContentSearchRect());
+            if(!(screen.getFocused() instanceof ShadowlessEditBox field)||!field.isFocused()||!field.getValue().isEmpty())
+                throw new IllegalStateException("Content search is not a focused empty ShadowlessEditBox");
+            for(char c:"熔岩".toCharArray())if(!screen.charTyped(c,0))
+                throw new IllegalStateException("Infinity search rejected real Chinese character input");
+            infiniteStage=6;infiniteWait=25;return false;
+        }
+        if(snapshot.revision()!=menu.getRequestedRevision())return false;
+        if(!(screen.getFocused() instanceof ShadowlessEditBox field)||!field.isFocused()||!field.getValue().equals("熔岩"))
+            throw new IllegalStateException("Infinity search lost its Chinese value or focus");
+        if(snapshot.contentCount()!=1||snapshot.contents().size()!=1||!snapshot.contents().get(0).key().equals(lava)
+                ||!snapshot.contents().get(0).infinite()||!snapshot.selectedDevice().isEmpty())
+            throw new IllegalStateException("Chinese lava search did not return the unique infinite network resource");
+        captureExtra(mc,"smoke-infinite-search.png");infiniteStage=7;return false;
+    }
+
+    private static ItemStack infiniteCell(appeng.api.stacks.AEKey key) {
+        var item=ForgeRegistries.ITEMS.getValue(new ResourceLocation("expatternprovider","infinity_cell"));
+        if(item==null||item==Items.AIR)throw new IllegalStateException("Missing ExtendedAE infinity cell");
+        var stack=new ItemStack(item);stack.getOrCreateTag().put("record",key.toTagGeneric());return stack;
     }
 
     private static void moveHighlightCamera(Minecraft mc,boolean oblique) {

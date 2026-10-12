@@ -58,6 +58,8 @@ GameTests 默认使用隔离目录 `run/gametest`，也可通过 `-RunDir` 指�
 
 这些包不纳入仓库，也不打进发布 JAR。未安装附属时相关 GameTest 会明确跳过，因此总测试数不能直接理解为所有可选兼容都已验证。
 
+验证其他ExtendedAE版本时可使用 `-EaeVersion 1.20-1.4.18-forge`（同时传 `-Eae` 或 `-AllCompat`），并将对应 `ExtendedAE-1.20-1.4.18-forge.jar` 放入依赖目录；直接Gradle入口使用 `-PeaeVersion=1.20-1.4.18-forge`。默认版本仍为1.4.21。
+
 ## 客户端自测与演示
 
 两种模式均需要现成存档。先用普通开发客户端创建对应名称的测试世界，退出后再运行脚本；或指定已有的独立测试实例。

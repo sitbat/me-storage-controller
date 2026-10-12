@@ -32,6 +32,7 @@ REQUIRED_CLASSES = (
     "config/ControllerConfig", "config/ServerConfigWatcher",
     "network/DirectoryTransfer", "folder/FolderService", "folder/FolderSavedData",
     "client/FolderOverlay", "client/TreeStateStore", "network/FolderTransfer",
+    "client/ShadowlessEditBox", "storage/compat/InfiniteCellSupport",
 )
 REQUIRED_SOURCE_FILES = (
     "build.gradle", "gradle.properties", "gradlew", "scripts/package-release.py",

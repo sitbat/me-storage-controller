@@ -38,7 +38,10 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
             this(usedBytes,totalBytes,usedTypes,totalTypes,unknownCells,-1,-1,-1,-1);
         }
     }
-    public record Content(AEKey key, long amount) {}
+    /** Infinite supply is explicit; finite storage at Long.MAX_VALUE remains finite. */
+    public record Content(AEKey key, long amount, boolean infinite) {
+        public Content(AEKey key,long amount) { this(key,amount,false); }
+    }
     public static Snapshot empty() {
         return new Snapshot(false,"", "",-1,List.of(),0,1,0,Component.translatable("gui.me_storage_controller.network"),
             new Capacity(-1,-1,-1,-1,0), List.of(),0,1,0,0,0,List.of(),null,0,List.of(),0);
@@ -51,7 +54,7 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         b.writeLong(capacity.usedBytes); b.writeLong(capacity.totalBytes); b.writeLong(capacity.usedTypes); b.writeLong(capacity.totalTypes); b.writeInt(capacity.unknownCells);
         b.writeLong(capacity.occupiedSlots); b.writeLong(capacity.totalSlots); b.writeLong(capacity.fluidAmount); b.writeLong(capacity.fluidCapacity);
         b.writeVarInt(contents.size());
-        for (Content c : contents) { AEKey.writeKey(b,c.key); b.writeLong(c.amount); }
+        for (Content c : contents) { AEKey.writeKey(b,c.key); b.writeLong(c.amount); b.writeBoolean(c.infinite); }
         b.writeInt(contentPage); b.writeInt(contentPages); b.writeInt(contentCount); b.writeInt(cellSlots); b.writeInt(editableSlots);
         b.writeVarInt(cells.size());
         for(var cell:cells) { b.writeInt(cell.slot); b.writeItem(cell.icon); b.writeLong(cell.usedBytes); b.writeLong(cell.totalBytes); b.writeBoolean(cell.readable); }
@@ -86,7 +89,7 @@ public record Snapshot(boolean online, String error, String selectedDevice, int 
         var capacity=new Capacity(b.readLong(),b.readLong(),b.readLong(),b.readLong(),b.readInt(),b.readLong(),b.readLong(),b.readLong(),b.readLong());
         n=b.readVarInt(); if(n<0 || n>CONTENT_PAGE_SIZE) throw new IllegalArgumentException("content page");
         var contents=new ArrayList<Content>();
-        for(int i=0;i<n;i++) { AEKey key=AEKey.readKey(b); long amount=b.readLong(); if(key!=null) contents.add(new Content(key,amount)); }
+        for(int i=0;i<n;i++) { AEKey key=AEKey.readKey(b); long amount=b.readLong(); boolean infinite=b.readBoolean(); if(key!=null) contents.add(new Content(key,amount,infinite)); }
         int cp=b.readInt(),cps=b.readInt(),cc=b.readInt(),slots=b.readInt(),editable=b.readInt();
         n=b.readVarInt(); if(n<0 || n>10) throw new IllegalArgumentException("cell page");
         var previews=new ArrayList<CellPreview>();

@@ -1,12 +1,12 @@
 # ME Storage Controller / ME存储控制器
 
-**0.4.15 · Minecraft 1.20.1 Forge · AE2 addon**
+**0.4.16 · Minecraft 1.20.1 Forge · AE2 addon**
 
 通过一个联网控制器，逐级查看ME网络、文件夹、设备和元件的容量及内容，存取资源并管理整个存储元件。
 
 Browse storage capacity and contents by network, folder, device or cell; transfer resources and manage complete cells through one connected controller.
 
-[使用说明 / User guide](docs/USER_GUIDE.md) · [文档索引 / Documentation](docs/README.md) · [最新更新 / Release notes](docs/RELEASE_0.4.15.md)
+[使用说明 / User guide](docs/USER_GUIDE.md) · [文档索引 / Documentation](docs/README.md) · [最新更新 / Release notes](docs/RELEASE_0.4.16.md)
 
 ## 安装 / Installation
 
@@ -20,9 +20,9 @@ Development and validation baseline: **Java 17, Forge 47.4.0, AE2 15.4.10 and Gu
 
 Install matching addon/dependency versions on both sides. Connect the block to a powered network with **one free channel**, then right-click. Hold **G** over its item or use the Guide button for the bilingual in-game guide. This block does not supply channels or replace AE2's ME Controller.
 
-当前协议为 **9**，与0.4.14相同；不能连接使用协议8或更早协议的版本。客户端与服务器建议安装相同版本。
+当前协议为 **10**，新增资源无限供应标记；客户端与服务器均须更新至0.4.16，不能与0.4.15及更早版本连接。
 
-The current protocol is **9**, unchanged from 0.4.14. Protocol 8 and earlier are incompatible; use matching client/server versions.
+Protocol **10** adds explicit infinite-supply flags. Update both client and server to 0.4.16; 0.4.15 and earlier are incompatible.
 
 合成配方 / Crafting: `QEQ / TCT / PEP`，Q=石英玻璃 / Quartz Glass，E=工程处理器 / Engineering Processor，T=ME终端 / ME Terminal，C=ME控制器 / ME Controller，P=福鲁伊克斯珍珠 / Fluix Pearl。产出1个控制器；[配方文件](src/main/resources/data/me_storage_controller/recipes/controller.json)可由数据包覆盖。Produces one controller; datapacks can override the recipe.
 
@@ -33,6 +33,7 @@ The current protocol is **9**, unchanged from 0.4.14. Protocol 8 and earlier are
 - **范围存取**：按网络、文件夹、设备或元件范围取放物品；使用AE2注册策略填充／倒空流体和化学品容器。实际元件槽用于移动整个元件。 / Scoped item and registered fluid/chemical container transfers, with separate controls for moving complete cells.
 - **界面与定位**：深浅主题、个人本地折叠记忆，保持Minecraft原生GUI比例；同维度已加载目标可在256格内高亮15秒。 / Themes, personal tree memory and native GUI scale; highlight loaded targets within 256 blocks in the same dimension for 15 seconds.
 - **附属适配**：ExtendedAE扩展驱动器、AE2 Omni Cells容量、Applied Mekanistics化学品；可选模组并非必装依赖。 / Support for ExtendedAE drives, OmniCells capacities and Applied Mekanistics chemicals; these addons are optional.
+- **无限供应元件**：保留ExtendedAE自定义无限元件的资源信息与名称，网络、文件夹及单元件按范围显示∞；支持AE2创造元件。 / Correct ExtendedAE custom infinity-cell previews and scoped infinite-supply display, including AE2 creative cells.
 - **可选供电设置**：服务端能量旁路默认关闭，保留AE缓存；支持可提取Forge Energy来源及Flux Networks真实供电调度。 / Optional server energy bypass, off by default, retaining AE caches and real source/Flux supply limits.
 
 具体按键与兼容边界请查阅[使用说明](docs/USER_GUIDE.md)。当前范围只包含控制器所在网络的可见存储，不递归扫描独立子网络或强制加载区块。文件夹成员离线时暂不可存取，可能重叠的库存范围会被拒绝，不会回退为全网操作。远程元件移动仅限同维度且可识别的物理槽位。
@@ -41,9 +42,9 @@ See the [user guide](docs/USER_GUIDE.md) for controls and compatibility details.
 
 ## 验证范围 / Validation scope
 
-**0.4.15**构建及13项单元测试通过；本次仅调整文件夹菜单文字与输入框绘制，未重跑整套游戏内验收。**0.4.14**已通过49项服务端GameTests、13项JUnit、完整客户端操作与截图检查，以及两个独立服务端进程的保存／重启恢复验证。详见[当前更新](docs/RELEASE_0.4.15.md)与[完整验收记录](docs/RELEASE_0.4.14.md)。
+**0.4.16**构建及13项单元测试通过；ExtendedAE 1.4.18与1.4.21分别通过53项服务端GameTests，含无限元件名称、目录传输、范围隔离及重复物品／容器存取。客户端验收范围详见[当前更新](docs/RELEASE_0.4.16.md)。文件夹跨进程保存／重启恢复的完整记录见[0.4.14](docs/RELEASE_0.4.14.md)。
 
-**0.4.15** passed its build and 13 unit tests; the full in-game suite was not rerun for this local text/rendering change. **0.4.14** passed 49 server GameTests, 13 JUnit tests, client interaction/screenshot validation and persistence checks across two server processes. See the linked release records for exact coverage.
+**0.4.16** passed its build and 13 unit tests, plus 53 server GameTests with each of ExtendedAE 1.4.18 and 1.4.21, including infinity-cell previews, directory packets, scope isolation and repeated item/container transfers. See the current release record for client checks and 0.4.14 for the earlier cross-process folder persistence verification.
 
 不保证所有AE2附属、整合包、真实双客户端并发或领地保护系统均兼容。容量读取依赖来源公开的接口；OmniCells BigInteger内容可能超过AE公开计数范围，不能承诺超64位数量精确。
 

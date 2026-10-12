@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +17,7 @@ import appeng.api.implementations.blockentities.IChestOrDrive;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.stacks.KeyCounter;
+import appeng.api.stacks.AEKey;
 import appeng.api.storage.IStorageProvider;
 import appeng.api.storage.MEStorage;
 import appeng.api.storage.cells.CellState;
@@ -24,6 +26,7 @@ import appeng.blockentity.storage.DriveBlockEntity;
 import appeng.capabilities.Capabilities;
 import appeng.me.cells.BasicCellInventory;
 import dev.mestorage.controller.storage.compat.OmniCellCapacity;
+import dev.mestorage.controller.storage.compat.InfiniteCellSupport;
 import appeng.parts.AEBasePart;
 import dev.mestorage.controller.storage.compat.StorageCompatibility;
 import net.minecraft.core.Direction;
@@ -189,12 +192,9 @@ public final class StorageScanner {
             try {
                 if (device.cells() != null && slot < device.cells().getSlots()) {
                     var real = device.cells().getStackInSlot(slot);
-                    // Storage-cell NBT may contain thousands of keys. Only carry its
-                    // display item and optional custom name in a scanner snapshot.
-                    if (!real.isEmpty()) {
-                        stack = new ItemStack(real.getItem());
-                        if (real.hasCustomHoverName()) stack.setHoverName(real.getHoverName().copy());
-                    }
+                    // Storage-cell NBT may contain thousands of keys. Carry the
+                    // icon/name plus only explicitly supported bounded display tags.
+                    stack = InfiniteCellSupport.displayStack(real);
                 }
                 if (stack.isEmpty() && device.cells() == null && host.getCellItem(slot) != null) {
                     // Third-party IChestOrDrive hosts can still expose read-only cell
@@ -206,7 +206,9 @@ public final class StorageScanner {
                 Capacity capacity = stack.isEmpty() ? new Capacity(0, 0, 0, 0, false, 0)
                         : original instanceof BasicCellInventory basic
                         ? new Capacity(basic.getUsedBytes(), basic.getTotalBytes(), basic.getStoredItemTypes(),
-                        basic.getTotalItemTypes(), false, 0) : OmniCellCapacity.read(original, stack.getItem());
+                        basic.getTotalItemTypes(), false, 0)
+                        : InfiniteCellSupport.isInfinite(original) ? InfiniteCellSupport.capacity(original)
+                        : OmniCellCapacity.read(original, stack.getItem());
                 cells.add(new CellInfo(slot, stack,
                         inventory == null ? null : readOnly(stack.getHoverName(), List.of(inventory)),
                         capacity, host.getCellStatus(slot), inventory != null));
@@ -217,6 +219,39 @@ public final class StorageScanner {
             }
         }
         return List.copyOf(cells);
+    }
+
+    /**
+     * Known unbounded keys visible through this device's current mounted wrappers.
+     * A negative cell selects the whole device. Never infer infinity from a large
+     * quantity, the item name, or a stale discovery snapshot.
+     */
+    public static Set<AEKey> infiniteKeys(Device device, int cell) {
+        if (!(device.owner() instanceof IChestOrDrive host) || cell < -1) return Set.of();
+        try {
+            var grid = device.node().getGrid();
+            if (grid == null || !device.node().isActive() || !isCurrent(device, grid)) return Set.of();
+            var provider = device.node().getService(IStorageProvider.class);
+            if (provider == null) return Set.of();
+            Set<MEStorage> mounted = Collections.newSetFromMap(new IdentityHashMap<>());
+            provider.mountInventories((storage, priority) -> { if (storage != null) mounted.add(storage); });
+            int count = host.getCellCount();
+            if (cell >= count) return Set.of();
+            var result = new HashSet<AEKey>();
+            for (int slot = cell < 0 ? 0 : cell; slot < (cell < 0 ? count : cell + 1); slot++) {
+                var inventory = host.getCellInventory(slot);
+                if (inventory == null || !mounted.contains(inventory)
+                        || !InfiniteCellSupport.isInfinite(host.getOriginalCellInventory(slot))) continue;
+                // Read through the actual wrapper, retaining any visibility filtering.
+                for (var entry : contents(inventory)) {
+                    if (entry.getLongValue() > 0) result.add(entry.getKey());
+                }
+            }
+            return Set.copyOf(result);
+        } catch (RuntimeException exception) {
+            reportFailure(device.owner(), exception);
+            return Set.of();
+        }
     }
 
     /** Full count, independent of the number of remote slots shown by a menu. */

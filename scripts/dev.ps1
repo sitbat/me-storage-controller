@@ -7,6 +7,7 @@ param(
     [string]$RunDir,
     [string]$DemoWorld = 'ME-Controller-Demo',
     [string]$CompatModsDir,
+    [string]$EaeVersion,
     [string]$SmokeOutput,
     [switch]$Eae,
     [switch]$Mek,
@@ -76,6 +77,10 @@ if ($AllCompat -or $Eae) { $compatFlags += '-PeaeTest' }
 if ($AllCompat -or $Mek) { $compatFlags += '-PmekTest' }
 if ($AllCompat -or $Omni) { $compatFlags += '-PomniTest' }
 if ($AllCompat -or $Flux) { $compatFlags += '-PfluxTest' }
+if ($EaeVersion) {
+    if (-not ($AllCompat -or $Eae)) { throw '-EaeVersion requires -Eae or -AllCompat.' }
+    $gradleArgs += "-PeaeVersion=$EaeVersion"
+}
 if ($compatFlags.Count -gt 0) {
     if (-not $CompatModsDir) {
         $CompatModsDir = if (Test-Path -LiteralPath (Join-Path $localWork 'vendor')) {

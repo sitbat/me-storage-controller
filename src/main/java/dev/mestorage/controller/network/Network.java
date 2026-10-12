@@ -16,8 +16,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 public final class Network {
-    // Version 9 adds shared folder documents and revision-bound folder actions.
-    private static final String VERSION="9";
+    // Version 10 adds explicit infinite-supply flags to scoped content rows.
+    private static final String VERSION="10";
     private static final SimpleChannel CHANNEL=NetworkRegistry.newSimpleChannel(new ResourceLocation(MEStorageController.ID,"main"),()->VERSION,VERSION::equals,VERSION::equals);
     public static Consumer<SnapshotMessage> clientReceiver = message -> {};
     public static Consumer<DirectoryMessage> directoryReceiver = message -> {};

@@ -673,11 +673,25 @@ public final class ControllerMenu extends AbstractContainerMenu {
             if(StorageScanner.isDegraded(selected)) error="gui.me_storage_controller.unreadable";
             else if(!selected.active()) error="gui.me_storage_controller.offline";
         }
+        var infiniteKeys=new HashSet<appeng.api.stacks.AEKey>();
+        if(isFolder(selectedId)) {
+            if(observedFolderStorage!=null && observedFolderStorage.success()) {
+                var membersByDevice=new HashMap<String,Device>();
+                for(var device:observedFolderStorage.devices()) membersByDevice.put(device.id(),device);
+                for(var member:observedFolderStorage.members()) {
+                    var device=membersByDevice.get(member.deviceId());
+                    if(device!=null) infiniteKeys.addAll(StorageScanner.infiniteKeys(device,member.cell()));
+                }
+            }
+        } else if(selected!=null) infiniteKeys.addAll(StorageScanner.infiniteKeys(selected,selectedCell));
+        else for(var device:devices) infiniteKeys.addAll(StorageScanner.infiniteKeys(device,-1));
         var contents=new ArrayList<Snapshot.Content>();
         for(var entry:keys) if(entry.getLongValue()>0 && (matches(entry.getKey().getDisplayName().getString()+" "+entry.getKey().getId(),contentQuery)
-            || contentMatches.contains(entry.getKey().getId()))) contents.add(new Snapshot.Content(entry.getKey(),entry.getLongValue()));
+            || contentMatches.contains(entry.getKey().getId()))) contents.add(new Snapshot.Content(entry.getKey(),entry.getLongValue(),infiniteKeys.contains(entry.getKey())));
         Comparator<Snapshot.Content> byName=Comparator.comparing(c->c.key().getDisplayName().getString(),String.CASE_INSENSITIVE_ORDER);
-        contents.sort(sortByAmount ? Comparator.comparingLong(Snapshot.Content::amount).reversed().thenComparing(byName) : byName.thenComparing(c->c.key().getId().toString()));
+        contents.sort(sortByAmount ? Comparator.comparing(Snapshot.Content::infinite).reversed()
+                .thenComparing(Comparator.comparingLong(Snapshot.Content::amount).reversed()).thenComparing(byName)
+                : byName.thenComparing(c->c.key().getId().toString()));
         int contentPages=pages(contents.size(),Snapshot.CONTENT_PAGE_SIZE); contentPage=Math.min(contentPage,contentPages-1);
         int from=contentPage*Snapshot.CONTENT_PAGE_SIZE,to=Math.min(from+Snapshot.CONTENT_PAGE_SIZE,contents.size());
         var previews=selectedCells.stream().skip(cellOffset()).limit(10).map(cell -> new Snapshot.CellPreview(cell.slot(),cell.stack(),cell.capacity().usedBytes(),cell.capacity().totalBytes(),cell.readable())).toList();

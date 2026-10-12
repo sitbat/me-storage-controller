@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-0.4.14新增网络共享嵌套文件夹与个人本地折叠记忆，保留完整目录、默认关闭的能量旁路、OmniCells和既有存取功能。网络协议为 **9**，客户端与服务器须同步更新，不能与0.4.13及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。已通过49项服务端GameTest、13项JUnit及两个独立服务端进程的真实保存／重启恢复验证（修订4→8）；无可选附属环境也正常启动与关服。完整客户端操作验收及截图检查也已通过，详见 [0.4.14测试记录](RELEASE_0.4.14.md)。
+当前0.4.16支持ExtendedAE自定义无限元件并去除搜索文字阴影，保留网络共享嵌套文件夹、个人折叠记忆、完整目录、默认关闭的能量旁路及既有存取功能。网络协议为 **10**，客户端与服务器须同步更新，不能与0.4.15及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。各版本验证范围见[文档索引](README.md)。
 
-Version 0.4.14 adds shared nested folders and personal local tree memory, preserving complete directories, the optional energy bypass, OmniCells and existing transfers. Protocol is **9**: update both sides together; 0.4.13 and earlier releases cannot connect. The runtime remains **Minecraft 1.20.1 Forge**. 49 server GameTests, 13 JUnit tests and persistence verification across two independent server processes passed (revision 4→8). Startup and shutdown also succeeded without optional addons. The complete client interaction test and screenshot review also passed; see the [0.4.14 report](RELEASE_0.4.14.md).
+Version 0.4.16 supports ExtendedAE custom infinity cells and removes search-text shadows, preserving shared nested folders, personal tree memory, complete directories, the optional energy bypass and existing transfers. Protocol **10** requires both sides to update; 0.4.15 and earlier cannot connect. The runtime remains **Minecraft 1.20.1 Forge**. See the [documentation index](README.md) for each release's actual validation scope.
 
 ## 游戏内指南 / In-game guide
 
@@ -218,6 +218,16 @@ When enabled, real sources attached to an AE energy acceptor can meet demand bey
 控制器方块使用官方 AE2 1.21.1 机器表面、显示器面板及终端遮罩，组合为适配 Forge 1.20.1 的自定义模型。福鲁伊克斯色显示层反映真实联网状态：在线时全亮并缓慢脉动，离线时降低亮度。实时容量仍需在界面中查看。美术来源、改编方式及 CC BY-NC-SA 3.0 许可见 [视觉资源说明](ASSETS.md)。
 
 The block combines official AE2 1.21.1 machine surfaces, monitor artwork and terminal masks in a custom model adapted for Forge 1.20.1. Fluix-colored display layers follow the actual node state: full-bright with a slow pulse online, dimmed offline. Read live capacity in the GUI. See [asset provenance](ASSETS.md) for sources, adaptations and CC BY-NC-SA 3.0 licensing.
+
+## 自定义无限元件 / Custom infinity cells
+
+ExtendedAE的 `expatternprovider:infinity_cell` 可通过 `record` 指定资源，包括整合包中的“无限熔岩元件”“无限物质球元件”等。存储树保留这项资源信息及自定义名称。已识别的无限供应在右侧数量及提示中显示 **∞**，不会把该元件向AE报告的占位数量当成实际库存。
+
+无限标记仅属于当前网络、设备、元件或文件夹内的来源。只选中同种资源的普通有限元件时仍显示其真实数量。AE2创造元件也按实际已配置资源识别；OmniCells无限容量与无限供应是不同概念，不会因数量很大而被误标。外部未知实现不凭名称猜测无限。
+
+无限元件不实际占用存储字节，因此容量显示为 `0 / ∞`；ExtendedAE单资源元件的类型显示 `1 / 1`。物品存取、熔岩桶及其他已注册容器均继续遵循元件本身与AE2的操作和用电规则。显示适配不会移动、重写或重新创建实际库存。
+
+ExtendedAE infinity cells retain their bounded `record` resource and custom name in previews. Known endless suppliers show **∞** only within the selected scope; an ordinary finite cell containing the same resource keeps its real count. AE2 creative cells are recognized too. Unlimited capacity (such as OmniCells) does not by itself mean unlimited supply. Infinite suppliers retain no physical bytes (`0 / ∞`); an ExtendedAE single-resource cell has `1 / 1` types. All item and container operations still use the original mounted storage and AE2 power rules.
 
 ## AE2 Omni Cells
 

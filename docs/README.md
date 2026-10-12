@@ -1,8 +1,8 @@
 # 文档索引 / Documentation
 
-当前版本：**0.4.15**，Minecraft 1.20.1 Forge，协议9。返回[项目首页](../README.md)。
+当前版本：**0.4.16**，Minecraft 1.20.1 Forge，协议10。返回[项目首页](../README.md)。
 
-Current release: **0.4.15**, Minecraft 1.20.1 Forge, protocol 9. Back to the [project overview](../README.md).
+Current release: **0.4.16**, Minecraft 1.20.1 Forge, protocol 10. Back to the [project overview](../README.md).
 
 ## 使用与维护 / Use and maintenance
 
@@ -17,6 +17,7 @@ Current release: **0.4.15**, Minecraft 1.20.1 Forge, protocol 9. Back to the [pr
 
 ## 当前版本 / Current release
 
+- [0.4.16：自定义无限元件与无阴影搜索 / Custom infinity cells and shadowless search](RELEASE_0.4.16.md) — 13项JUnit、两个ExtendedAE版本各53项GameTests及客户端实测通过；运行环境与复测说明见记录。 / Unit tests, both addon-version server suites and client checks passed; see the record for runtime details.
 - [0.4.15：文件夹输入框与菜单文字 / Folder field and menu text](RELEASE_0.4.15.md) — 构建及13项单元测试通过；未重跑完整游戏内验收。 / Build and 13 unit tests passed; the full in-game suite was not rerun.
 - [0.4.14：共享文件夹与折叠记忆 / Shared folders and tree memory](RELEASE_0.4.14.md) — 最近一次完整功能验收：49项GameTests、13项JUnit、实机界面及独立进程重启验证。 / Latest full functional validation: 49 GameTests, 13 JUnit tests, client checks and cross-process persistence.
 

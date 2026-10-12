@@ -52,7 +52,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     if (project.hasProperty('eaeTest')) {
-        runtimeOnly fg.deobf('local:ExtendedAE:1.20-1.4.21-forge')
+        runtimeOnly fg.deobf("local:ExtendedAE:${project.findProperty('eaeVersion') ?: '1.20-1.4.21-forge'}")
         runtimeOnly fg.deobf('local:Glodium:1.20-1.5-forge')
     }
     if (project.hasProperty('mekTest')) {

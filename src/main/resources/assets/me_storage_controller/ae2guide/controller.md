@@ -61,6 +61,8 @@ OmniCells has no extra per-type byte overhead. Quantum cells have unlimited type
 
 Extremely large BigInteger amounts can exceed what the ME network reports. If a resource reaches that reporting limit, its displayed amount may be capped and used bytes remain unknown; the known unlimited bound still shows ∞. Do not treat those capped amounts as exact totals.
 
+ExtendedAE custom infinity cells, such as lava or matter-ball cells, retain their resource names and show **∞** for endless supply. They retain no physical bytes (**0 / ∞**) and support one resource type (**1 / 1**). AE2 creative cells are also recognized. A finite cell or a folder containing only finite cells still shows its actual amount; unlimited capacity alone does not mean infinite supply. Item and container transfers continue to follow the original cell and AE2 rules.
+
 ## Move ordinary items
 
 These actions use the right-hand content grid, within your selected scope.
