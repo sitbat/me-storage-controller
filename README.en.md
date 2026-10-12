@@ -1,8 +1,4 @@
-<div align="center">
-
 # ME Storage Controller
-
-**Explore your ME storage, one branch at a time.**
 
 [![Version 0.4.17](https://img.shields.io/badge/version-0.4.17-8b6caf?style=flat-square)](CHANGELOG.md)
 ![Minecraft 1.20.1](https://img.shields.io/badge/Minecraft-1.20.1-5c9b45?style=flat-square)
@@ -13,22 +9,17 @@
 
 [简体中文](README.md) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md)
 
-</div>
-
-An **Applied Energistics 2 addon for Minecraft 1.20.1 Forge**. Browse your network as a tree, inspect folders, devices and individual cells, and transfer resources within the selected scope.
-
-![Storage tree and custom infinity cells](docs/images/overview.png)
-
-*Captured in 0.4.16. Version 0.4.17 retains this interface.*
+An **Applied Energistics 2 addon for Minecraft 1.20.1 Forge** for inspecting storage capacity, contents and resource counts by network, folder, device or individual cell. Resources can be inserted or extracted within the selected scope.
 
 ## Features
 
-- **Inspect capacity and contents.** See actual resource counts and automatically scaled capacity units, from KB through TB and beyond.
-- **Organize shared folders.** Group devices and cell slots into named, nested folders. Grouping changes metadata only; it never moves blocks, items or cells.
-- **Transfer in place.** Move items, fill or empty supported fluid and chemical containers, and manage complete cells through dedicated cell slots.
-- **Keep the familiar AE feel.** Light and dark themes, search, sorting, personal tree-state memory and device highlighting, using Minecraft's existing GUI scale.
+- **Storage browsing:** a hierarchical tree of devices and cells, with search and sorting.
+- **Capacity and counts:** capacity units scale in powers of 1024; unknown capacity, unlimited capacity and infinite supply are displayed separately.
+- **Shared folders:** select and group devices or cell slots into named, nested folders shared across the ME network. Grouping only changes metadata; cell membership follows its slot.
+- **Resource transfers:** move items, fill or empty compatible fluid and chemical containers, and manage complete cells through dedicated cell slots.
+- **Interface and location:** light and dark themes, personal tree-state memory and device highlighting, using Minecraft's current GUI scale.
 
-## Getting started
+## Installation and use
 
 The development and validation baseline is **Java 17, Minecraft 1.20.1, Forge 47.4.0, AE2 15.4.10 and GuideME 20.1.7**. Use Forge builds of the dependencies.
 
@@ -53,14 +44,13 @@ On Linux/macOS, use `./gradlew build`. Install the JAR without `-sources` from `
 | ExtendedAE | Extended drives and custom infinity cells, including lava and matter balls |
 | AE2 Omni Cells | Omni, Complex Omni and Quantum capacities, type limits and known unlimited bounds |
 | Applied Mekanistics + Mekanism | Chemical contents and containers supported by registered AE2 strategies |
-| AE2 storage buses | Connected containers, exposed capacity, filtering and access modes |
 
-Only storage visible to the current network is included. Folder transfers stay within their members; unavailable or ambiguous overlapping storage may prevent an aggregate transfer. OmniCells quantities beyond AE2's public 64-bit counters cannot be represented exactly. See the [user guide](docs/USER_GUIDE.md) for details.
+Storage buses expose connected contents and any capacity available through the container interface, while retaining their filters and access modes. Only storage visible to the current network is included. Folder transfers stay within their members; unavailable or ambiguous overlapping storage may prevent an aggregate transfer. OmniCells quantities beyond AE2's public 64-bit counters cannot be represented exactly. See the [user guide](docs/USER_GUIDE.md) for details.
 
 The [documentation](docs/README.md) is primarily in Chinese. It includes [development instructions](docs/DEVELOPMENT.md), [validation records](docs/VALIDATION.md) and the [changelog](CHANGELOG.md).
 
-## License and credits
+## License
 
 Original code, scripts and documentation use [MIT](LICENSE). Included AE2 artwork, derived models and visual adaptations use **CC BY-NC-SA 3.0**; see [asset provenance and attribution](docs/ASSETS.md) and the [bundled notice](src/main/resources/AE2-ASSET-NOTICE.txt).
 
-Thanks to Applied Energistics 2 and its artists. This is an independent addon.
+This is an independent addon, not an official AE2 project.

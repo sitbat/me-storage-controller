@@ -99,7 +99,7 @@ Demo 会将玩家切换为创造模式、开启飞行并传送到控制器附近
 
 ## 本地打包
 
-仓库目前没有 GitHub Release。以下脚本只生成本地分发文件，不创建 Release，也不上传任何文件：
+以下脚本只生成本地分发文件，不创建 Release，也不上传任何文件：
 
 ```powershell
 .\scripts\dev.ps1 -Task Build
