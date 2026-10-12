@@ -113,7 +113,9 @@ python scripts/package-release.py
 
 ## 发布
 
-已发布的安装包、源码包和校验文件见[GitHub Releases](https://github.com/sitbat/me-storage-controller/releases)。正式发布前应将文档与版本修改提交，确认工作区干净，再从该提交构建和打包；发布标签须指向同一提交。
+安装包见 [GitHub Releases](https://github.com/sitbat/me-storage-controller/releases)。正式发布只上传安装 JAR：源码使用 GitHub 自动提供的 **Source code (zip / tar.gz)**，SHA-256 使用附件内置校验值，不重复上传本地源码 ZIP 和 `SHA256SUMS.txt`。本地打包生成的三份文件可保留用于归档。
+
+正式发布前应将文档与版本修改提交，确认工作区干净，再从该提交构建和打包；发布标签须指向同一提交。发布后的文档修订不移动已有标签。
 
 ## 源码导航
 

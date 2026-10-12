@@ -29,7 +29,7 @@ The development and validation baseline is **Java 17, Minecraft 1.20.1, Forge 47
 
 The block does not supply channels or replace AE2's ME Controller. Transfers follow native AE2 power, filtering and permission rules. Protocol 10 is incompatible with 0.4.15 and earlier.
 
-The [Release page](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) also provides a source ZIP and `SHA256SUMS.txt`. The ZIP contains source code; the checksum file verifies downloads. Neither belongs in `mods`.
+GitHub automatically provides **Source code (zip / tar.gz)** on the [Release page](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17); these archives do not belong in `mods`. The JAR's SHA-256 is available in the asset's built-in digest.
 
 ## Build from source
 

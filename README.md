@@ -37,7 +37,7 @@ ME存储控制器是适用于 **Minecraft 1.20.1 Forge** 的 Applied Energistics
 
 控制器不提供频道，也不替代AE2的ME控制器。存取遵循AE2原有的供电、过滤与权限规则。
 
-[Release 页面](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17)同时提供源码 ZIP 和 `SHA256SUMS.txt`。源码 ZIP 用于查看或构建源码，校验文件用于核对下载文件；两者都不要放入 `mods`。当前协议为10，与0.4.15及更早版本不兼容。
+[Release 页面](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17)中的 **Source code (zip / tar.gz)** 由 GitHub 自动提供，不要放入 `mods`。JAR 的 SHA-256 可查看附件内置校验值。当前协议为10，与0.4.15及更早版本不兼容。
 
 ## 兼容性
 
