@@ -4,6 +4,8 @@
 
 ## 使用
 
+下载 [0.4.17 Release](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) 中的[安装 JAR](https://github.com/sitbat/me-storage-controller/releases/download/v0.4.17/me-storage-controller-forge-1.20.1-0.4.17.jar)，放入游戏实例的 `mods` 文件夹，并安装所需依赖。客户端与服务器使用相同版本。源码 ZIP 和 `SHA256SUMS.txt` 分别用于源码与校验，不作为模组安装。
+
 | 文档 | 适合什么时候看 |
 | --- | --- |
 | [使用指南](USER_GUIDE.md) | 连接控制器、浏览存储、整理文件夹与存取资源 |

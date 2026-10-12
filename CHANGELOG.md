@@ -2,7 +2,11 @@
 
 当前版本 **0.4.17**，运行于 **Minecraft 1.20.1 Forge**。本页保留重要功能演变；实测范围见 [验证记录](docs/VALIDATION.md)，使用方法见 [使用说明](docs/USER_GUIDE.md)。更早的逐版记录可通过Git历史查阅。
 
-## 0.4.17 — 恢复AE2原有供电逻辑
+## 0.4.17 — 首个GitHub Release
+
+发布日期：**2026-10-12**。下载：[v0.4.17](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17)。此前版本为开发记录。
+
+本次首次发布可安装JAR、对应源码包及SHA-256校验文件。功能包括存储树、范围存取、共享嵌套文件夹、容量统计，以及ExtendedAE、OmniCells和Applied Mekanistics兼容。相对于上一开发版本的改动如下：
 
 - 彻底移除“绕过AE能量转换限制”、相关配置与命令，以及专用能源兼容处理。能源接收、缓存、转换和调度恢复使用AE2及供电模组原有逻辑。
 - 旧存档的 `serverconfig/me-storage-controller-server.toml` 不再注册或读取；保留旧开启值也不会重新启用该功能，无需手动删除文件。AE能源元件继续按原规则缓存能量。

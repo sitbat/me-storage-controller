@@ -7,7 +7,7 @@
 [![Code license MIT](https://img.shields.io/badge/code-MIT-3b8c78?style=flat-square)](LICENSE)
 [![Asset license CC BY-NC-SA 3.0](https://img.shields.io/badge/assets-CC_BY--NC--SA_3.0-b88444?style=flat-square)](docs/ASSETS.md)
 
-[简体中文](README.md) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md)
+[Download 0.4.17](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) · [简体中文](README.md) · [Documentation](docs/README.md) · [Changelog](CHANGELOG.md)
 
 An **Applied Energistics 2 addon for Minecraft 1.20.1 Forge** for inspecting storage capacity, contents and resource counts by network, folder, device or individual cell. Resources can be inserted or extracted within the selected scope.
 
@@ -23,13 +23,17 @@ An **Applied Energistics 2 addon for Minecraft 1.20.1 Forge** for inspecting sto
 
 The development and validation baseline is **Java 17, Minecraft 1.20.1, Forge 47.4.0, AE2 15.4.10 and GuideME 20.1.7**. Use Forge builds of the dependencies.
 
-1. Install the mod and its dependencies in `mods` on both client and server.
+1. Download the [0.4.17 installation JAR](https://github.com/sitbat/me-storage-controller/releases/download/v0.4.17/me-storage-controller-forge-1.20.1-0.4.17.jar) and place it in `mods` alongside its Forge dependencies. Install the same mod version on both client and server.
 2. Connect an **ME Storage Controller** to a powered ME network with **one free channel**.
 3. Right-click to open it. Hold **G** over the item or use the sidebar Guide button for the in-game guide, available in English and Simplified Chinese.
 
-The block does not supply channels or replace AE2's ME Controller. Transfers follow native AE2 power, filtering and permission rules. Protocol 10 is incompatible with 0.4.15 and earlier; matching client/server versions are recommended.
+The block does not supply channels or replace AE2's ME Controller. Transfers follow native AE2 power, filtering and permission rules. Protocol 10 is incompatible with 0.4.15 and earlier.
 
-No GitHub Release has been published yet. Build an installation JAR from source with **JDK 17**:
+The [Release page](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) also provides a source ZIP and `SHA256SUMS.txt`. The ZIP contains source code; the checksum file verifies downloads. Neither belongs in `mods`.
+
+## Build from source
+
+To build the mod yourself, use **JDK 17**:
 
 ```powershell
 .\gradlew.bat build

@@ -6,9 +6,11 @@
 
 ## 连接与打开
 
-1. 在客户端和服务器安装相同版本的本模组及所需依赖，安装要求见[项目首页](../README.md)。
+1. 从 [0.4.17 Release](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) 下载[安装 JAR](https://github.com/sitbat/me-storage-controller/releases/download/v0.4.17/me-storage-controller-forge-1.20.1-0.4.17.jar)，放入实例的 `mods` 文件夹。客户端和服务器安装相同版本及所需依赖，依赖要求见[项目首页](../README.md)。
 2. 放置 ME存储控制器，接入已供电的 AE2 网络，并留出一个频道。
 3. 右键打开。若显示离线，检查能源、线缆和频道；控制器遵循 AE2 原有供电规则。
+
+Release 中的源码 ZIP 用于查看或构建源码，`SHA256SUMS.txt` 用于校验下载文件；不要将它们放入 `mods`。
 
 侧栏顶部的 **?** 打开游戏内指南，关闭后返回原界面。也可以悬停控制器物品并长按指南键，默认 **G**；改过按键时使用当前绑定。游戏内指南提供简体中文和英文。
 

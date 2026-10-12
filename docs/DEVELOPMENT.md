@@ -111,6 +111,10 @@ python scripts/package-release.py
 
 源码包默认收录 Git 已跟踪文件的当前工作区内容，包括尚未提交的修改。新增文件需先 `git add`；开发快照可使用 `--include-untracked` 收录未被忽略的新文件。打包前应确认源码与刚构建的 JAR 对应。分发时保留 JAR 内的许可与署名，详见[资源来源](ASSETS.md)和[许可索引](../licenses/README.md)。
 
+## 发布
+
+已发布的安装包、源码包和校验文件见[GitHub Releases](https://github.com/sitbat/me-storage-controller/releases)。正式发布前应将文档与版本修改提交，确认工作区干净，再从该提交构建和打包；发布标签须指向同一提交。
+
 ## 源码导航
 
 | 目录 | 内容 |

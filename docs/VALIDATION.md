@@ -6,6 +6,8 @@
 
 ## 当前版本：0.4.17
 
+2026-10-12首次发布前重新构建并通过13项JUnit及分发包检查。服务端结果来自此前对同一版本代码的42项GameTests；发布准备仅更新仓库文档，未改动模组代码。下载见[v0.4.17](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17)。
+
 环境：**Java 17 · Minecraft 1.20.1 · Forge 47.4.0 · AE2 15.4.10 · GuideME 20.1.7**。
 
 | 检查 | 结果 |

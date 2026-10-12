@@ -7,7 +7,7 @@
 [![代码许可 MIT](https://img.shields.io/badge/code-MIT-3b8c78?style=flat-square)](LICENSE)
 [![美术许可 CC BY-NC-SA 3.0](https://img.shields.io/badge/assets-CC_BY--NC--SA_3.0-b88444?style=flat-square)](docs/ASSETS.md)
 
-[使用指南](docs/USER_GUIDE.md) · [更新记录](CHANGELOG.md) · [开发指南](docs/DEVELOPMENT.md) · [English](README.en.md)
+[下载 0.4.17](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17) · [使用指南](docs/USER_GUIDE.md) · [更新记录](CHANGELOG.md) · [开发指南](docs/DEVELOPMENT.md) · [English](README.en.md)
 
 ME存储控制器是适用于 **Minecraft 1.20.1 Forge** 的 Applied Energistics 2 附属模组，用于查看ME网络中各设备和存储元件的容量、内容及资源数量，并在选定范围内存取资源。
 
@@ -31,13 +31,13 @@ ME存储控制器是适用于 **Minecraft 1.20.1 Forge** 的 Applied Energistics
 | Applied Energistics 2 | 15.4.10 |
 | GuideME（该AE2版本的依赖） | 20.1.7 |
 
-1. 将本模组和依赖的Forge版本装入实例的 `mods` 文件夹。多人游戏中，客户端和服务器都需要安装。
+1. 下载 [0.4.17 安装 JAR](https://github.com/sitbat/me-storage-controller/releases/download/v0.4.17/me-storage-controller-forge-1.20.1-0.4.17.jar)，与依赖的Forge版本一起放入实例的 `mods` 文件夹。多人游戏中，客户端和服务器安装相同版本的本模组。
 2. 放置**ME存储控制器**，通过ME线缆连接已供电的网络，并留出**1个频道**。
 3. 右键打开。物品上长按 **G**，或点击侧栏指南按钮，即可查看游戏内说明。
 
 控制器不提供频道，也不替代AE2的ME控制器。存取遵循AE2原有的供电、过滤与权限规则。
 
-目前尚未发布GitHub Release，安装包可从源码[构建](docs/DEVELOPMENT.md)。客户端与服务器建议使用同一版本；当前协议为10，与0.4.15及更早版本不兼容。
+[Release 页面](https://github.com/sitbat/me-storage-controller/releases/tag/v0.4.17)同时提供源码 ZIP 和 `SHA256SUMS.txt`。源码 ZIP 用于查看或构建源码，校验文件用于核对下载文件；两者都不要放入 `mods`。当前协议为10，与0.4.15及更早版本不兼容。
 
 ## 兼容性
 
