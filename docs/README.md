@@ -1,8 +1,8 @@
 # 文档索引 / Documentation
 
-当前版本：**0.4.16**，Minecraft 1.20.1 Forge，协议10。返回[项目首页](../README.md)。
+当前版本：**0.4.17**，Minecraft 1.20.1 Forge，协议10。返回[项目首页](../README.md)。
 
-Current release: **0.4.16**, Minecraft 1.20.1 Forge, protocol 10. Back to the [project overview](../README.md).
+Current release: **0.4.17**, Minecraft 1.20.1 Forge, protocol 10. Back to the [project overview](../README.md).
 
 ## 使用与维护 / Use and maintenance
 
@@ -16,6 +16,10 @@ Current release: **0.4.16**, Minecraft 1.20.1 Forge, protocol 10. Back to the [p
 | [简中游戏内指南](../src/main/resources/assets/me_storage_controller/ae2guide/_zh_cn/controller.md) / [English in-game guide](../src/main/resources/assets/me_storage_controller/ae2guide/controller.md) | GuideME页面源文件；游戏内长按G或点击指南按钮 / GuideME page sources; hold G or use the Guide button |
 
 ## 当前版本 / Current release
+
+- [0.4.17：恢复AE2原有供电逻辑 / Restore native AE2 energy behavior](RELEASE_0.4.17.md) — 干净构建、13项JUnit与42项服务端GameTests通过。 / Clean build, 13 unit tests and 42 server GameTests passed.
+
+### 最近历史验证 / Recent validation history
 
 - [0.4.16：自定义无限元件与无阴影搜索 / Custom infinity cells and shadowless search](RELEASE_0.4.16.md) — 13项JUnit、两个ExtendedAE版本各53项GameTests及客户端实测通过；运行环境与复测说明见记录。 / Unit tests, both addon-version server suites and client checks passed; see the record for runtime details.
 - [0.4.15：文件夹输入框与菜单文字 / Folder field and menu text](RELEASE_0.4.15.md) — 构建及13项单元测试通过；未重跑完整游戏内验收。 / Build and 13 unit tests passed; the full in-game suite was not rerun.

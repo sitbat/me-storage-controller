@@ -19,7 +19,6 @@ minecraft {
             // Remap AE2/GuideME dependency mixins in the named development environment.
             property 'mixin.env.remapRefMap', 'true'
             property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
-            args '--mixin.config', 'me_storage_controller.mixins.json'
             mods { me_storage_controller { source sourceSets.main } }
         }
         client {
@@ -41,7 +40,7 @@ repositories {
     maven { url 'https://modmaven.dev' }
     maven { url 'https://maven.guideme.appliedenergistics.org' }
     mavenCentral()
-    if (project.hasProperty('eaeTest') || project.hasProperty('mekTest') || project.hasProperty('omniTest') || project.hasProperty('fluxTest')) {
+    if (project.hasProperty('eaeTest') || project.hasProperty('mekTest') || project.hasProperty('omniTest')) {
         flatDir { dirs project.findProperty('compatModsDir') ?: 'compat-mods' }
     }
 }
@@ -62,9 +61,6 @@ dependencies {
     if (project.hasProperty('omniTest')) {
         runtimeOnly fg.deobf('local:ae2omnicells:1.20.1-forge-1.1.6')
     }
-    if (project.hasProperty('fluxTest')) {
-        runtimeOnly fg.deobf('local:FluxNetworks:1.20.1-7.2.1.15')
-    }
 }
 tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
 tasks.named('test') { useJUnitPlatform() }
@@ -77,6 +73,6 @@ tasks.named('jar') {
     exclude 'dev/mestorage/controller/client/ClientSmokeTest*'
     exclude 'data/me_storage_controller/structures/empty.nbt'
     from('LICENSE') { into 'META-INF/licenses'; rename { 'MIT.txt' } }
-    manifest { attributes 'Implementation-Version': project.version, 'MixinConfigs': 'me_storage_controller.mixins.json' }
+    manifest { attributes 'Implementation-Version': project.version }
     finalizedBy 'reobfJar'
 }

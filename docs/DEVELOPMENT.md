@@ -47,14 +47,13 @@
 
 GameTests 默认使用隔离目录 `run/gametest`，也可通过 `-RunDir` 指定。必须核对日志中的 `All ... required tests passed`，不能只看 Gradle 退出码。部分启动失败或客户端自测失败可能仍返回 Gradle 成功。
 
-可选依赖通过 `-Eae`、`-Mek`、`-Omni`、`-Flux` 或 `-AllCompat` 启用。`-CompatModsDir` 指定发行 JAR 所在目录；不指定时脚本先检查原工作区的 `../../work/vendor`，否则使用仓库的 `compat-mods/`。直接调用 Gradle 时使用 `-PeaeTest` 等开关，并通过 `-PcompatModsDir=...` 指定路径（默认 `compat-mods/`）。
+可选依赖通过 `-Eae`、`-Mek`、`-Omni` 或 `-AllCompat`（同时启用前三项） 启用。`-CompatModsDir` 指定发行 JAR 所在目录；不指定时脚本先检查原工作区的 `../../work/vendor`，否则使用仓库的 `compat-mods/`。直接调用 Gradle 时使用 `-PeaeTest` 等开关，并通过 `-PcompatModsDir=...` 指定路径（默认 `compat-mods/`）。
 
 | 开关 | 验证过的发行包文件名 |
 |---|---|
 | Eae | `ExtendedAE-1.20-1.4.21-forge.jar`、`Glodium-1.20-1.5-forge.jar` |
 | Mek | `Mekanism-1.20.1-10.4.16.80.jar`、`Applied-Mekanistics-1.4.3.jar` |
 | Omni | `ae2omnicells-1.20.1-forge-1.1.6.jar` |
-| Flux | `FluxNetworks-1.20.1-7.2.1.15.jar` |
 
 这些包不纳入仓库，也不打进发布 JAR。未安装附属时相关 GameTest 会明确跳过，因此总测试数不能直接理解为所有可选兼容都已验证。
 

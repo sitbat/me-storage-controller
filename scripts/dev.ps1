@@ -12,7 +12,6 @@ param(
     [switch]$Eae,
     [switch]$Mek,
     [switch]$Omni,
-    [switch]$Flux,
     [switch]$AllCompat,
     [switch]$Offline,
     [switch]$DryRun
@@ -76,7 +75,6 @@ $compatFlags = @()
 if ($AllCompat -or $Eae) { $compatFlags += '-PeaeTest' }
 if ($AllCompat -or $Mek) { $compatFlags += '-PmekTest' }
 if ($AllCompat -or $Omni) { $compatFlags += '-PomniTest' }
-if ($AllCompat -or $Flux) { $compatFlags += '-PfluxTest' }
 if ($EaeVersion) {
     if (-not ($AllCompat -or $Eae)) { throw '-EaeVersion requires -Eae or -AllCompat.' }
     $gradleArgs += "-PeaeVersion=$EaeVersion"

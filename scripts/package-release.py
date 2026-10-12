@@ -29,7 +29,6 @@ EXCLUDED_DIRECTORIES = {".git", ".gradle", "build", "run", "runs", "dist",
                         "cache", "caches", ".cache", "__pycache__"}
 REQUIRED_CLASSES = (
     "client/ControllerGuide", "storage/compat/OmniCellCapacity",
-    "config/ControllerConfig", "config/ServerConfigWatcher",
     "network/DirectoryTransfer", "folder/FolderService", "folder/FolderSavedData",
     "client/FolderOverlay", "client/TreeStateStore", "network/FolderTransfer",
     "client/ShadowlessEditBox", "storage/compat/InfiniteCellSupport",
@@ -80,7 +79,7 @@ def validate_jar(jar: Path, version: str) -> None:
         require(not any("controller_atlas.png" in n for n in names), "Obsolete generated texture remains")
         for name in ("assets/minecraft/atlases/blocks.json", "AE2-ASSET-NOTICE.txt",
                      "licenses/CC-BY-NC-SA-3.0.txt", "META-INF/licenses/MIT.txt", "META-INF/mods.toml",
-                     "META-INF/MANIFEST.MF", "me_storage_controller.mixins.json"):
+                     "META-INF/MANIFEST.MF"):
             require(name in names, f"Required release resource missing: {name}")
         atlas = json.loads(archive.read("assets/minecraft/atlases/blocks.json"))
         require(len(atlas.get("sources", [])) == 9, "Expected 9 block-atlas sources")
@@ -94,11 +93,11 @@ def validate_jar(jar: Path, version: str) -> None:
             name = f"dev/mestorage/controller/{relative}.class"
             require(name in names, f"Required release class missing: {name}")
         manifest = archive.read("META-INF/MANIFEST.MF").decode("utf-8").replace("\r\n", "\n").replace("\n ", "")
-        require("MixinConfigs: me_storage_controller.mixins.json" in manifest, "Missing release mixin manifest entry")
-        mixins = json.loads(archive.read("me_storage_controller.mixins.json"))
-        require("EnergyServiceMixin" in mixins.get("mixins", []), "EnergyServiceMixin is not registered")
-        require(not any("FluxSourceAccess" in n or "MEFluxDiagnostic" in n for n in names),
-                "Obsolete energy helper remains")
+        require("MixinConfigs:" not in manifest, "Removed energy mixins are still registered")
+        require("me_storage_controller.mixins.json" not in names, "Removed energy mixin config remains")
+        removed_packages = ("energy/", "config/", "command/", "mixin/")
+        require(not any(n.startswith(tuple("dev/mestorage/controller/" + p for p in removed_packages))
+                        for n in names), "Removed energy bypass implementation remains")
         require(not any(n.startswith("sonar/fluxnetworks/") for n in names), "Optional Flux dependency was bundled")
         require(not any(n.startswith("com/wintercogs/") for n in names), "Optional OmniCells addon was bundled")
         for language in ("", "_zh_cn/"):

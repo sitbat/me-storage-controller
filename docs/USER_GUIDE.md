@@ -1,4 +1,4 @@
-# 0.4.14 使用说明 / User guide
+# 0.4.17 使用说明 / User guide
 
 ## 连接与打开 / Connect and open
 
@@ -8,9 +8,9 @@
 
 Install this addon and its Forge 1.20.1 dependencies on both sides. Connect the block to a powered AE2 grid with one free channel, then right-click. An offline message means power, channel availability or connectivity needs checking.
 
-当前0.4.16支持ExtendedAE自定义无限元件并去除搜索文字阴影，保留网络共享嵌套文件夹、个人折叠记忆、完整目录、默认关闭的能量旁路及既有存取功能。网络协议为 **10**，客户端与服务器须同步更新，不能与0.4.15及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。各版本验证范围见[文档索引](README.md)。
+当前0.4.17沿用AE2原有供电逻辑，保留ExtendedAE自定义无限元件、网络共享嵌套文件夹、个人折叠记忆、完整目录及既有存取功能。网络协议为 **10**，客户端与服务器须同步更新，不能与0.4.15及更早版本混用。游戏版本仍为 **Minecraft 1.20.1 Forge**。各版本验证范围见[文档索引](README.md)。
 
-Version 0.4.16 supports ExtendedAE custom infinity cells and removes search-text shadows, preserving shared nested folders, personal tree memory, complete directories, the optional energy bypass and existing transfers. Protocol **10** requires both sides to update; 0.4.15 and earlier cannot connect. The runtime remains **Minecraft 1.20.1 Forge**. See the [documentation index](README.md) for each release's actual validation scope.
+Version 0.4.17 uses AE2's original energy behavior, retaining ExtendedAE custom infinity cells, shared nested folders, personal tree memory, complete directories and existing transfers. Protocol **10** requires both sides to update; 0.4.15 and earlier cannot connect. The runtime remains **Minecraft 1.20.1 Forge**. See the [documentation index](README.md) for each release's actual validation scope.
 
 ## 游戏内指南 / In-game guide
 
@@ -162,9 +162,9 @@ If moving a filled single container into the backpack fails, it remains on the c
 
 An empty-cursor click on a bucketable vanilla fluid tries to borrow one empty bucket from the **selected scope** and fill it; Shift-left can move the result into the backpack. No bucket is borrowed from another device or the full network when absent from that scope. Failed filling attempts return the borrowed bucket to its original scope, retaining it on the cursor if it cannot be returned. Other resources have no generic automatic-container lookup guarantee; normally hold the appropriate container yourself.
 
-容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.14使用协议 **9**，必须同步更新客户端与服务器。
+容器操作继续遵循供电、容量、存取模式、过滤、玩家操作来源与范围权限。拒绝填充或倒空不会自动改为存入整个容器，也不会回退到其他存储范围。可选化学品验收环境为 **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**，使用 `-PmekTest` 加载；这不代表所有化学品附属均已兼容。0.4.17使用协议 **10**，必须同步更新客户端与服务器。
 
-Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.14 uses protocol **9** and requires updating client and server together.
+Container actions retain power, capacity, access-mode, filtering, player-source and scope checks. A rejected fill or empty action does not instead store the whole container or fall back to a different scope. Optional chemical testing uses **Mekanism 10.4.16.80 + Applied Mekanistics 1.4.3**, enabled with `-PmekTest`; this does not imply compatibility with every chemical addon. Version 0.4.17 uses protocol **10** and requires updating client and server together.
 
 ## 管理整个元件 / Move complete cells
 
@@ -187,32 +187,6 @@ Search accepts client-localized item/fluid registry names, custom names and regi
 元件移动直接作用于对应设备。取出元件后，其中内容通常会从该网络的可用库存消失，直到重新插入。存储总线连接的普通箱子、储罐不提供元件槽位。
 
 Cell moves affect the actual device. Removing a cell normally removes its contents from the grid's available storage until it is reinserted. Ordinary chests and tanks connected by storage buses do not offer cell slots.
-
-## 绕过AE能量转换限制 / AE energy conversion bypass
-
-默认关闭，配置作用于整个服务端存档。拥有2级权限的管理员使用以下命令查询或修改；修改立即生效并保存到当前存档。
-
-Off by default and scoped to the server world. Administrators with permission level 2 can query or change it. Changes apply immediately and persist in the active world.
-
-```text
-/mestorage energyBypass
-/mestorage energyBypass true
-/mestorage energyBypass false
-```
-
-配置文件位于 `<存档>/serverconfig/me-storage-controller-server.toml`。客户端单独修改文件不能覆盖专用服务器的设置。
-
-The configuration is `<world>/serverconfig/me-storage-controller-server.toml`. A client's local setting does not override a dedicated server.
-
-```toml
-[energy]
-    bypassAeEnergyLimit = false
-```
-
-开启后，AE的用电需求可由贴着能源接收器的真实外部电源补足，不再仅受ME网络中AE缓存容量限制。能源元件保持原有充放电和储能容量；已有缓存先参与供电。支持可主动提取的Forge Energy电源，以及 **Flux Networks 1.20.1-7.2.1.15** 无线点。Flux无线点按真实请求向其原网络申请供电，首次突发需求可能要等待数个原生供电周期。Flux优先级、传输限额、上游供能和剩余电量继续有效；其他仅主动推送、无法提取的供电接口尚未做专门适配。
-
-When enabled, real sources attached to an AE energy acceptor can meet demand beyond the grid's AE buffer capacity. Existing caches supply energy first, and cells retain normal capacity and charging. Supports extractable Forge Energy sources and **Flux Networks 1.20.1-7.2.1.15** points. Flux receives real demand through its normal network scheduling; a new burst can require several supply cycles. Flux priorities, limits and available upstream energy remain effective. Other push-only interfaces have no dedicated adapter yet.
-
 ## 方块外观 / Block appearance
 
 控制器方块使用官方 AE2 1.21.1 机器表面、显示器面板及终端遮罩，组合为适配 Forge 1.20.1 的自定义模型。福鲁伊克斯色显示层反映真实联网状态：在线时全亮并缓慢脉动，离线时降低亮度。实时容量仍需在界面中查看。美术来源、改编方式及 CC BY-NC-SA 3.0 许可见 [视觉资源说明](ASSETS.md)。

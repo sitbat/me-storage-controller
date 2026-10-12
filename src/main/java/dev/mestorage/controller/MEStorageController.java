@@ -2,7 +2,6 @@ package dev.mestorage.controller;
 
 import dev.mestorage.controller.block.ControllerBlock;
 import dev.mestorage.controller.block.ControllerBlockEntity;
-import dev.mestorage.controller.config.ControllerConfig;
 import dev.mestorage.controller.folder.FolderService;
 import appeng.api.networking.GridServices;
 import dev.mestorage.controller.menu.ControllerMenu;
@@ -17,9 +16,6 @@ import net.minecraftforge.common.extensions.IForgeMenuType;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -39,24 +35,13 @@ public final class MEStorageController {
 
     public MEStorageController() {
         GridServices.register(FolderService.class,FolderService.class);
-        ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, ControllerConfig.SPEC, ControllerConfig.FILE_NAME);
         IEventBus bus = FMLJavaModLoadingContext.get().getModEventBus();
         BLOCKS.register(bus);
         ITEMS.register(bus);
         ENTITIES.register(bus);
         MENUS.register(bus);
-        if (!FMLEnvironment.production) registerTestFixtures(bus);
         bus.addListener(this::creativeTab);
         Network.register();
-    }
-
-    private static void registerTestFixtures(IEventBus bus) {
-        try {
-            Class.forName("dev.mestorage.controller.test.EnergyBypassGameTests")
-                    .getMethod("registerFixtures", IEventBus.class).invoke(null, bus);
-        } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("Could not register development energy fixtures", failure);
-        }
     }
 
     private void creativeTab(BuildCreativeModeTabContentsEvent event) {

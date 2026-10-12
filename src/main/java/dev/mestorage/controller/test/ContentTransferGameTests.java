@@ -159,6 +159,19 @@ public final class ContentTransferGameTests {
             energy.extractAEPower(1000000,Actionable.MODULATE,PowerMultiplier.ONE);
             action(f,IRON,0,false);
             check(helper,f.menu().getCarried().isEmpty()&&count(f.drive(),0)==1000,"Exhausted power must prevent free extraction even before node state catches up");
+            f.menu().setCarried(new ItemStack(Items.IRON_INGOT,64));
+            action(f,null,0,false);
+            check(helper,f.menu().getCarried().getCount()==64&&count(f.drive(),0)==1000,
+                    "Exhausted power must preserve the carried stack and reject free insertion");
+            check(helper,energy.injectPower(1000,Actionable.MODULATE)==0,"Native AE energy cache must accept recharging");
+            action(f,null,0,false);
+            check(helper,f.menu().getCarried().isEmpty()&&count(f.drive(),0)==1064,
+                    "Recharged native power must restore insertion without losing the carried stack");
+            action(f,IRON,0,false);
+            check(helper,f.menu().getCarried().getCount()==64&&count(f.drive(),0)==1000,
+                    "Recharged native power must restore extraction and conserve every item");
+            check(helper,count(f.drive(),1)==200&&count(f.other(),0)==2000,
+                    "Power exhaustion and recovery must retain selected-cell isolation");
         }).thenSucceed();
     }
 
