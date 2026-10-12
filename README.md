@@ -1,72 +1,95 @@
-# ME Storage Controller / ME存储控制器
+<div align="center">
 
-**0.4.17 · Minecraft 1.20.1 Forge · AE2 addon**
+# ME存储控制器
 
-通过一个联网控制器，逐级查看ME网络、文件夹、设备和元件的容量及内容，存取资源并管理整个存储元件。
+**把ME网络里的存储，整理成一棵看得清的树。**
 
-Browse storage capacity and contents by network, folder, device or cell; transfer resources and manage complete cells through one connected controller.
+[![版本 0.4.17](https://img.shields.io/badge/version-0.4.17-8b6caf?style=flat-square)](CHANGELOG.md)
+![Minecraft 1.20.1](https://img.shields.io/badge/Minecraft-1.20.1-5c9b45?style=flat-square)
+![Forge](https://img.shields.io/badge/loader-Forge-476f95?style=flat-square)
+![AE2 15.4.10](https://img.shields.io/badge/AE2-15.4.10-8b6caf?style=flat-square)
+[![代码许可 MIT](https://img.shields.io/badge/code-MIT-3b8c78?style=flat-square)](LICENSE)
+[![美术许可 CC BY-NC-SA 3.0](https://img.shields.io/badge/assets-CC_BY--NC--SA_3.0-b88444?style=flat-square)](docs/ASSETS.md)
 
-[使用说明 / User guide](docs/USER_GUIDE.md) · [文档索引 / Documentation](docs/README.md) · [最新更新 / Release notes](docs/RELEASE_0.4.17.md)
+[使用指南](docs/USER_GUIDE.md) · [更新记录](CHANGELOG.md) · [开发指南](docs/DEVELOPMENT.md) · [English](README.en.md)
 
-## 安装 / Installation
+</div>
 
-开发与验收基线：**Java 17、Forge 47.4.0、AE2 15.4.10、GuideME 20.1.7**。GuideME是此AE2版本的依赖；使用Forge发行包。
+ME存储控制器是适用于 **Minecraft 1.20.1 Forge** 的 Applied Energistics 2 附属模组。连接ME网络后，就能按网络、文件夹、设备和存储元件逐级查看容量与内容，并在选定范围内存入、取出资源。
 
-Development and validation baseline: **Java 17, Forge 47.4.0, AE2 15.4.10 and GuideME 20.1.7**. GuideME is required by this AE2 version. Use Forge releases.
+![存储树与无限元件的实机界面](docs/images/overview.png)
 
-1. 在客户端与服务器的 `mods` 中安装本模组及依赖；单人游戏只需安装到游戏实例。
-2. 放置**ME存储控制器**，用ME线缆接入已供电网络，为它留出**1个频道**。
-3. 右键打开。物品悬停后长按 **G**，或点击侧栏指南按钮，查看中英文游戏内说明。
+*0.4.16实机截图；0.4.17沿用该界面。*
 
-Install matching addon/dependency versions on both sides. Connect the block to a powered network with **one free channel**, then right-click. Hold **G** over its item or use the Guide button for the bilingual in-game guide. This block does not supply channels or replace AE2's ME Controller.
+## 从总览到每一片元件
 
-当前协议为 **10**，与0.4.16相同；客户端与服务器建议使用相同版本，不能与0.4.15及更早版本连接。
+- **看清存储。** 文件树展示驱动器、外部容器和元件，容量自动换算为KB、MB、GB、TB，内容显示实际数量。
+- **按自己的方式整理。** 多选后建立共享文件夹，支持嵌套、重命名和范围汇总。归组只改变分类，物品、方块和元件仍在原处。
+- **直接存取。** 操作物品，或使用对应容器取放流体与化学品；也能在实际元件槽里管理整片存储元件。
+- **保持熟悉的AE风格。** 深浅主题、搜索排序、折叠记忆与设备定位；沿用Minecraft的界面比例。
 
-Protocol **10** is unchanged from 0.4.16. Use matching client/server versions; 0.4.15 and earlier are incompatible.
+<details>
+<summary>查看文件夹与元件操作</summary>
 
-合成配方 / Crafting: `QEQ / TCT / PEP`，Q=石英玻璃 / Quartz Glass，E=工程处理器 / Engineering Processor，T=ME终端 / ME Terminal，C=ME控制器 / ME Controller，P=福鲁伊克斯珍珠 / Fluix Pearl。产出1个控制器；[配方文件](src/main/resources/data/me_storage_controller/recipes/controller.json)可由数据包覆盖。Produces one controller; datapacks can override the recipe.
+**文件夹汇总** · 选择文件夹后，只查看和操作其中的存储。
 
-## 主要功能 / Features
+![嵌套文件夹汇总，摄于0.4.14](docs/images/folders.png)
 
-- **存储树与容量**：逐级浏览，搜索、排序、精确数量、1024进位容量及未知／无限值区分。 / Hierarchical browsing, search, sorting, exact quantities and capacity units, distinguishing unknown from unlimited.
-- **共享嵌套文件夹**：同一网络共用分类，Ctrl／Shift多选后右键整理。文件夹操作只改元数据，不搬物品或元件；单元件归属跟随槽位。 / Shared nested folders with Ctrl/Shift selection and context actions. Organization only changes metadata; cell membership follows its slot.
-- **范围存取**：按网络、文件夹、设备或元件范围取放物品；使用AE2注册策略填充／倒空流体和化学品容器。实际元件槽用于移动整个元件。 / Scoped item and registered fluid/chemical container transfers, with separate controls for moving complete cells.
-- **界面与定位**：深浅主题、个人本地折叠记忆，保持Minecraft原生GUI比例；同维度已加载目标可在256格内高亮15秒。 / Themes, personal tree memory and native GUI scale; highlight loaded targets within 256 blocks in the same dimension for 15 seconds.
-- **附属适配**：ExtendedAE扩展驱动器、AE2 Omni Cells容量、Applied Mekanistics化学品；可选模组并非必装依赖。 / Support for ExtendedAE drives, OmniCells capacities and Applied Mekanistics chemicals; these addons are optional.
-- **无限供应元件**：保留ExtendedAE自定义无限元件的资源信息与名称，网络、文件夹及单元件按范围显示∞；支持AE2创造元件。 / Correct ExtendedAE custom infinity-cell previews and scoped infinite-supply display, including AE2 creative cells.
+**元件详情** · 查看单个槽位，使用下方元件槽取放完整元件。
 
-具体按键与兼容边界请查阅[使用说明](docs/USER_GUIDE.md)。当前范围只包含控制器所在网络的可见存储，不递归扫描独立子网络或强制加载区块。文件夹成员离线时暂不可存取，可能重叠的库存范围会被拒绝，不会回退为全网操作。远程元件移动仅限同维度且可识别的物理槽位。
+![元件槽与容量详情，摄于0.4.14](docs/images/cell-slots.png)
 
-See the [user guide](docs/USER_GUIDE.md) for controls and compatibility details. Only the current grid's visible storage is included; no recursive subnet scan or forced chunk loading. Offline folder members and potentially overlapping inventories block scoped transfers instead of falling back to the entire network. Remote cell movement requires identifiable physical slots in the same dimension.
+**自定义无限元件** · 正确显示无限熔岩、无限物质球等已识别元件的资源和∞标记。
 
-## 验证范围 / Validation scope
+![无限熔岩元件详情，摄于0.4.16](docs/images/infinity-cell.png)
 
-**0.4.17**恢复AE2原有供电逻辑；干净构建、13项JUnit和42项服务端GameTests通过，包括耗尽能源后拒绝存取、重新充能后恢复及库存守恒。详见[更新记录](docs/RELEASE_0.4.17.md)。
+</details>
 
-**0.4.17** restores AE2's original energy behavior. A clean build, 13 unit tests and 42 server GameTests passed, including exhausted-power rejection, recharge recovery and item conservation. See the [release record](docs/RELEASE_0.4.17.md).
+## 开始使用
 
-**0.4.16**构建及13项单元测试通过；ExtendedAE 1.4.18与1.4.21分别通过53项服务端GameTests，含无限元件名称、目录传输、范围隔离及重复物品／容器存取。客户端历史验收范围详见[0.4.16记录](docs/RELEASE_0.4.16.md)。文件夹跨进程保存／重启恢复的完整记录见[0.4.14](docs/RELEASE_0.4.14.md)。
+开发与验证使用以下环境：
 
-**0.4.16** passed its build and 13 unit tests, plus 53 server GameTests with each of ExtendedAE 1.4.18 and 1.4.21, including infinity-cell previews, directory packets, scope isolation and repeated item/container transfers. See the historical 0.4.16 release record for client checks and 0.4.14 for the earlier cross-process folder persistence verification.
+| 依赖 | 版本 |
+| --- | --- |
+| Minecraft | 1.20.1 |
+| Forge | 47.4.0 |
+| Java | 17 |
+| Applied Energistics 2 | 15.4.10 |
+| GuideME（该AE2版本的依赖） | 20.1.7 |
 
-不保证所有AE2附属、整合包、真实双客户端并发或领地保护系统均兼容。容量读取依赖来源公开的接口；OmniCells BigInteger内容可能超过AE公开计数范围，不能承诺超64位数量精确。
+1. 将本模组和依赖的Forge版本装入实例的 `mods` 文件夹。多人游戏中，客户端和服务器都需要安装。
+2. 放置**ME存储控制器**，通过ME线缆连接已供电的网络，并留出**1个频道**。
+3. 右键打开。物品上长按 **G**，或点击侧栏指南按钮，即可查看游戏内说明。
 
-Compatibility with every addon, modpack, simultaneous real clients or claim-protection system is not established. Capacity depends on exposed interfaces; OmniCells BigInteger quantities beyond AE's public 64-bit counters are not guaranteed exact.
+控制器不提供频道，也不替代AE2的ME控制器。存取遵循AE2原有的供电、过滤与权限规则。
 
-## 构建 / Build
+目前尚未发布GitHub Release，安装包可从源码[构建](docs/DEVELOPMENT.md)。客户端与服务器建议使用同一版本；当前协议为10，与0.4.15及更早版本不兼容。
 
-使用 **JDK 17**，在仓库根目录运行： / With **JDK 17**, run from the repository root:
+## 附属支持
+
+| 附属 | 支持内容 |
+| --- | --- |
+| ExtendedAE | 扩展驱动器，以及无限熔岩、无限物质球等自定义无限元件 |
+| AE2 Omni Cells | Omni、Complex Omni与Quantum元件的容量、类型和已知无限上限 |
+| Applied Mekanistics + Mekanism | 化学品内容，以及AE2已注册策略支持的容器操作 |
+| 存储总线 | 连接普通容器的内容与可读取容量，保留总线过滤及存取设置 |
+
+这些附属均为可选。具体版本与边界见[使用指南](docs/USER_GUIDE.md)，已完成的检查见[验证记录](docs/VALIDATION.md)。
+
+## 开发与文档
+
+使用 **JDK 17**，在仓库根目录运行：
 
 ```powershell
 .\gradlew.bat build
 ```
 
-Linux／macOS使用 `./gradlew build`。产物位于 `build/libs/`，游戏安装使用不带 `-sources` 的JAR。测试、隔离运行目录与可选附属环境见[开发与维护说明](docs/DEVELOPMENT.md)。
+Linux或macOS使用 `./gradlew build`。安装包位于 `build/libs/`，选择不带 `-sources` 的JAR。
 
-On Linux/macOS use `./gradlew build`. Install the JAR without `-sources` from `build/libs/`. See [development and maintenance](docs/DEVELOPMENT.md) for tests, isolated runs and optional addon environments.
+[文档目录](docs/README.md) · [开发与测试](docs/DEVELOPMENT.md) · [手动验收清单](docs/MANUAL_TEST_PLAN.md)
 
-## 许可证 / License
+## 许可与致谢
 
-原创Java代码采用 [MIT](LICENSE)。收录的AE2美术及衍生视觉资源采用 **CC BY-NC-SA 3.0**，须遵守署名、非商业使用与相同方式共享要求；详见[资源来源与许可](docs/ASSETS.md)及[随包署名](src/main/resources/AE2-ASSET-NOTICE.txt)。本项目为独立附属，不是AE2官方项目。
+原创代码、脚本和文档采用 [MIT](LICENSE)。收录的AE2美术、衍生模型及视觉改编采用 **CC BY-NC-SA 3.0**，详见[资源来源与署名](docs/ASSETS.md)。两者分开授权。
 
-Original Java code uses [MIT](LICENSE). Included AE2 artwork and derived visuals use **CC BY-NC-SA 3.0**, including attribution, noncommercial and share-alike requirements. See [asset provenance](docs/ASSETS.md) and the [bundled notice](src/main/resources/AE2-ASSET-NOTICE.txt). This is an independent addon, not an official AE2 project.
+感谢Applied Energistics 2及其资源作者。本项目为独立附属模组。
